@@ -1,5 +1,0 @@
-<Solution>
-  <Project Path="SwimAnalytics.Client/SwimAnalytics.Client.csproj" />
-  <Project Path="SwimAnalytics.Server/SwimAnalytics.Server.csproj" />
-  <Project Path="SwimAnalytics.Shared/SwimAnalytics.Shared.csproj" />
-</Solution>
