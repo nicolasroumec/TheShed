@@ -13,30 +13,14 @@ namespace TheShed.Server.Data
         }
 
         public DbSet<User> Users => Set<User>();
-        public DbSet<Country> Countries => Set<Country>();
-        public DbSet<Club> Clubs => Set<Club>();
-        public DbSet<Pool> Pools => Set<Pool>();
-        public DbSet<Competition> Competitions => Set<Competition>();
-        public DbSet<Event> Events => Set<Event>();
-        public DbSet<SwimPerformance> SwimPerformances => Set<SwimPerformance>();
-        public DbSet<StartAnalysis> StartAnalyses => Set<StartAnalysis>();
-        public DbSet<TurnAnalysis> TurnAnalyses => Set<TurnAnalysis>();
-        public DbSet<Split> Splits => Set<Split>();
-        public DbSet<FinishAnalysis> FinishAnalyses => Set<FinishAnalysis>();
-        public DbSet<AnalystComment> AnalystComments => Set<AnalystComment>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Aplica todas las clases *Configuration del assembly automáticamente
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
-            // Country: índice único en IsoCode (entidad simple, no necesita archivo propio)
-            modelBuilder.Entity<Country>().HasIndex(c => c.IsoCode).IsUnique();
-
             // Soft delete global: filtra IsDeleted = false en todas las queries
-            // Solo aplica a entidades que heredan de AuditableEntity
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
                 if (typeof(AuditableEntity).IsAssignableFrom(entityType.ClrType))
@@ -65,7 +49,6 @@ namespace TheShed.Server.Data
                         entry.Entity.UpdatedAt = now;
                         break;
                     case EntityState.Deleted:
-                        // Convierte borrado físico en soft delete
                         entry.Entity.IsDeleted = true;
                         entry.Entity.UpdatedAt = now;
                         entry.State = EntityState.Modified;
