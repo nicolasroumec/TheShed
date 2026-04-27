@@ -19,8 +19,9 @@ User
 │   │   ├── Tags (M:N)
 │   │   ├── EntryHistory (1:N)   ← versiones anteriores
 │   │   └── Attachments (1:N)
+│   ├── SecureNotes (1:N)        ← notas de solo texto
 │   └── VaultMembers (1:N)       ← usuarios con acceso compartido
-└── SecureNotes (1:N)
+└── Tags (1:N)                   ← etiquetas propias del usuario
 ```
 
 ## Decisiones técnicas
