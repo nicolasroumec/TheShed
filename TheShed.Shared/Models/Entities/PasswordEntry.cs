@@ -9,8 +9,13 @@ namespace TheShed.Shared.Models.Entities
         public string Name { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public string PasswordEncrypted { get; set; } = string.Empty;
-        public string Url { get; set; } = string.Empty;
-        public string Notes { get; set; } = string.Empty;  
+        public string? Url { get; set; }
+        public string? Notes { get; set; }
         public bool IsFavorite { get; set; } = false;
+
+        public Vault Vault { get; set; } = null!;
+        public ICollection<PasswordEntryTag> Tags { get; set; } = [];
+        public ICollection<EntryHistory> History { get; set; } = [];
+        public ICollection<Attachment> Attachments { get; set; } = [];
     }
 }

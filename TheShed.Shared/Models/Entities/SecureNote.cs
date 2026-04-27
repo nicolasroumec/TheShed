@@ -9,5 +9,7 @@ namespace TheShed.Shared.Models.Entities
         public string Title { get; set; } = string.Empty;
         public string ContentEncrypted { get; set; } = string.Empty;
         public bool IsFavorite { get; set; } = false;
+
+        public Vault Vault { get; set; } = null!;
     }
 }

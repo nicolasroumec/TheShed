@@ -9,5 +9,8 @@ namespace TheShed.Shared.Models.Entities
         public int VaultId { get; set; }
         public int UserId { get; set; }
         public VaultRole Role { get; set; }
+
+        public Vault Vault { get; set; } = null!;
+        public User User { get; set; } = null!;
     }
 }

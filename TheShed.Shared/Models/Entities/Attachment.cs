@@ -8,6 +8,8 @@ namespace TheShed.Shared.Models.Entities
         public int PasswordEntryId { get; set; }
         public string FileName { get; set; } = string.Empty;
         public string StoragePath { get; set; } = string.Empty;
-        public int FileSizeBytes { get; set; }
+        public long FileSizeBytes { get; set; }
+
+        public PasswordEntry PasswordEntry { get; set; } = null!;
     }
 }

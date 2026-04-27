@@ -12,5 +12,9 @@ namespace TheShed.Shared.Models.Entities
         public DateTime? LastLoginAt { get; set; }
         public bool TwoFactorEnabled { get; set; } = false;
         public string? TwoFactorSecret { get; set; }
+
+        public ICollection<Vault> Vaults { get; set; } = [];
+        public ICollection<VaultMember> VaultMemberships { get; set; } = [];
+        public ICollection<Tag> Tags { get; set; } = [];
     }
 }
