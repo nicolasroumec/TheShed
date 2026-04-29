@@ -7,8 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Models\NewFolder\**" />
     <Compile Remove="Mo\**" />
+    <EmbeddedResource Remove="Models\NewFolder\**" />
     <EmbeddedResource Remove="Mo\**" />
+    <None Remove="Models\NewFolder\**" />
     <None Remove="Mo\**" />
   </ItemGroup>
 

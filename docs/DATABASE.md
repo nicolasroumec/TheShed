@@ -9,6 +9,9 @@ erDiagram
         string Email
         string PasswordHash
         bool IsActive
+        bool TwoFactorEnabled
+        string TwoFactorSecret "nullable"
+        bool IsDeleted
         datetime CreatedAt
         datetime UpdatedAt
         datetime LastLoginAt
@@ -28,8 +31,10 @@ erDiagram
         int Id PK
         int VaultId FK
         int UserId FK
-        string Role
+        VaultRole Role
+        bool IsDeleted
         datetime CreatedAt
+        datetime UpdatedAt
     }
 
     PasswordEntry {
@@ -61,9 +66,13 @@ erDiagram
         int Id PK
         int UserId FK
         string Name
+        bool IsDeleted
+        datetime CreatedAt
+        datetime UpdatedAt
     }
 
     PasswordEntryTag {
+        int Id PK
         int PasswordEntryId FK
         int TagId FK
     }
@@ -72,7 +81,9 @@ erDiagram
         int Id PK
         int PasswordEntryId FK
         string PasswordEncrypted
-        datetime ChangedAt
+        bool IsDeleted
+        datetime CreatedAt
+        datetime UpdatedAt
     }
 
     Attachment {
@@ -81,7 +92,9 @@ erDiagram
         string FileName
         string StoragePath
         int FileSizeBytes
+        bool IsDeleted
         datetime CreatedAt
+        datetime UpdatedAt
     }
 
     User ||--o{ Vault : "owns"
@@ -98,8 +111,9 @@ erDiagram
 
 ## Notas
 
-- `VaultMember.Role` → `ReadOnly` | `ReadWrite`
+- `VaultRole` → `Viewer` (solo lectura) | `Editor` (lectura+escritura)
 - `PasswordEncrypted` y `ContentEncrypted` → cifrado AES-256, nunca en texto plano
-- Todas las entidades principales heredan `AuditableEntity` (soft delete + timestamps)
+- `TwoFactorSecret` → secret TOTP, nullable (null = 2FA desactivado)
+- Todas las entidades heredan `AuditableEntity` (soft delete + timestamps)
 - `Tag` es por usuario, no global — cada uno tiene sus propias etiquetas
 - `Attachment.StoragePath` → ruta al archivo en disco/blob storage (no se guarda el binario en la DB)

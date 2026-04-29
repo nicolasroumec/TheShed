@@ -70,7 +70,6 @@ local.settings.json
 # User secrets and environment files
 **/appsettings.*.json
 !**/appsettings.json
-!**/appsettings.Development.json
 !**/appsettings.Example.json
 appsettings.Production.json
 appsettings.Staging.json

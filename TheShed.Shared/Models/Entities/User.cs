@@ -1,14 +1,20 @@
+using TheShed.Shared.Models.Base;
+
 namespace TheShed.Shared.Models.Entities
 {
-    public class User
+    public class User : AuditableEntity
     {
         public int Id { get; set; }
         public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? UpdatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
+        public bool TwoFactorEnabled { get; set; } = false;
+        public string? TwoFactorSecret { get; set; }
+
+        public ICollection<Vault> Vaults { get; set; } = [];
+        public ICollection<VaultMember> VaultMemberships { get; set; } = [];
+        public ICollection<Tag> Tags { get; set; } = [];
     }
 }

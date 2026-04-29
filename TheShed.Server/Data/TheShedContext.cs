@@ -11,8 +11,15 @@ namespace TheShed.Server.Data
         public TheShedContext(DbContextOptions<TheShedContext> options) : base(options)
         {
         }
-
+        public DbSet<Attachment> Attachments => Set<Attachment>();
+        public DbSet<EntryHistory> EntryHistory => Set<EntryHistory>();
+        public DbSet<PasswordEntry> PasswordEntries => Set<PasswordEntry>();
+        public DbSet<PasswordEntryTag> PasswordEntryTags => Set<PasswordEntryTag>();
+        public DbSet<SecureNote> SecureNotes => Set<SecureNote>();
+        public DbSet<Tag> Tags => Set<Tag>();
         public DbSet<User> Users => Set<User>();
+        public DbSet<Vault> Vaults => Set<Vault>();
+        public DbSet<VaultMember> VaultMembers => Set<VaultMember>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
