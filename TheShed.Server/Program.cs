@@ -1,11 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using TheShed.Server.Data;
+using TheShed.Server.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // EF Core + SQL Server
 builder.Services.AddDbContext<TheShedContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Seguridad — hashing de la contraseña maestra (Argon2)
+builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
 
 // Add services to the container.
 builder.Services.AddControllers();
