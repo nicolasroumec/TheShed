@@ -7,8 +7,10 @@
 
 ## Seguridad
 - Contraseñas de usuario: **Argon2** (hash de la contraseña maestra)
-- Entradas del vault: **AES-256** (cifrado simétrico)
+- Entradas del vault: **AES-256-GCM** (cifrado autenticado; clave de servidor en User Secrets)
 - Sesiones: **JWT**
+
+Detalle y contexto de cada decisión en `DECISIONS.md`.
 
 ## Modelo de datos (borrador)
 
