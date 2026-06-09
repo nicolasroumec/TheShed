@@ -11,6 +11,10 @@ builder.Services.AddDbContext<TheShedContext>(options =>
 // Seguridad — hashing de la contraseña maestra (Argon2)
 builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
 
+// Seguridad — cifrado de entradas (AES-256-GCM)
+builder.Services.Configure<EncryptionSettings>(builder.Configuration.GetSection("Encryption"));
+builder.Services.AddSingleton<IEncryptionService, AesEncryptionService>();
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
