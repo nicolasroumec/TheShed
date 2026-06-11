@@ -43,6 +43,9 @@ builder.Services.AddAuthorization();
 // Servicios de aplicación — autenticación (Scoped: depende de TheShedContext)
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// Servicios de aplicación — acceso a vaults (Scoped: depende de TheShedContext)
+builder.Services.AddScoped<IVaultAccessService, VaultAccessService>();
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
