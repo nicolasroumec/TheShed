@@ -27,6 +27,27 @@ namespace TheShed.Server.Data
 
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
+            // SQL Server rechaza múltiples caminos de cascada hacia una misma tabla.
+            // En cada caso se conserva la cascada por el "dueño" (Vault / PasswordEntry)
+            // y se restringe la segunda ruta (vía User) a NO ACTION.
+            modelBuilder.Entity<VaultMember>()
+                .HasOne(vm => vm.User)
+                .WithMany(u => u.VaultMemberships)
+                .HasForeignKey(vm => vm.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<EntryHistory>()
+                .HasOne(eh => eh.ChangedBy)
+                .WithMany()
+                .HasForeignKey(eh => eh.ChangedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<PasswordEntryTag>()
+                .HasOne(pet => pet.Tag)
+                .WithMany(t => t.PasswordEntries)
+                .HasForeignKey(pet => pet.TagId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Soft delete global: filtra IsDeleted = false en todas las queries
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
