@@ -1,55 +1,55 @@
-# The Shed — Contexto para Claude
+# The Shed — Context for Claude
 
-## Qué es
-Gestor de contraseñas multi-usuario. Los usuarios guardan sus credenciales cifradas
-en vaults organizables, con soporte para vaults compartidos, notas seguras, adjuntos
-y generador de contraseñas. Ver `docs/PRODUCT.md` para el detalle completo.
+## What it is
+Multi-user password manager. Users store their encrypted credentials in organizable
+vaults, with support for shared vaults, secure notes, attachments and a password
+generator. See `docs/PRODUCT.md` for the full detail.
 
 ## Stack
 - **.NET 10** Blazor WebAssembly (hosted)
 - **EF Core 10** + **SQL Server**
-- **3 proyectos:**
-  - `TheShed.Server` — API Web + host Blazor WASM
+- **3 projects:**
+  - `TheShed.Server` — Web API + Blazor WASM host
   - `TheShed.Client` — Blazor WASM frontend
-  - `TheShed.Shared` — Modelos, DTOs, helpers (compartido)
+  - `TheShed.Shared` — Models, DTOs, helpers (shared)
 
-## Comandos frecuentes
+## Frequent commands
 ```bash
-dotnet build                                                   # build todo
-dotnet build TheShed.Shared/TheShed.Shared.csproj             # solo shared
-dotnet ef migrations add <Nombre> --project TheShed.Server    # nueva migración
-dotnet ef database update --project TheShed.Server            # aplicar migraciones
+dotnet build                                                   # build everything
+dotnet build TheShed.Shared/TheShed.Shared.csproj             # shared only
+dotnet ef migrations add <Name> --project TheShed.Server      # new migration
+dotnet ef database update --project TheShed.Server            # apply migrations
 ```
 
-## Estructura de namespaces (Shared)
-| Carpeta | Namespace |
+## Namespace structure (Shared)
+| Folder | Namespace |
 |---------|-----------|
 | `Models/Entities/` | `TheShed.Shared.Models.Entities` |
 | `Models/Enums/` | `TheShed.Shared.Models.Enums` |
 | `Models/Base/` | `TheShed.Shared.Models.Base` |
 | `Models/DTOs/` | `TheShed.Shared.Models.DTOs` |
 
-## Entidades principales
+## Main entities
 `User` · `Vault` · `VaultMember` · `PasswordEntry` · `Tag` · `EntryHistory`
 `Attachment` · `SecureNote`
 
-## Convenciones de código
-- Idioma del código: **inglés**
-- Idioma de docs y comentarios: **español**
-- Todas las entidades heredan `AuditableEntity` (soft delete + timestamps)
+## Code conventions
+- Language for the **whole project: English** — code, comments (including `<summary>` XML)
+  and documentation (`docs/`, `CLAUDE.md`)
+- All entities inherit `AuditableEntity` (soft delete + timestamps)
 
-## Seguridad — reglas críticas
-- Hash de contraseña maestra: **Argon2** (nunca bcrypt, nunca MD5/SHA)
-- Cifrado de entradas: **AES-256**
-- Sesiones: **JWT**
-- Nunca guardar contraseñas en texto plano, nunca loggear contraseñas
+## Security — critical rules
+- Master password hash: **Argon2** (never bcrypt, never MD5/SHA)
+- Entry encryption: **AES-256**
+- Sessions: **JWT**
+- Never store passwords in plaintext, never log passwords
 
-## Lo que NO hacer
-- No commitear sin confirmación explícita del usuario
-- No guardar contraseñas en texto plano
-- No usar MD5 o SHA-1 para hashing de contraseñas
+## What NOT to do
+- Do not commit without explicit confirmation from the user
+- Do not store passwords in plaintext
+- Do not use MD5 or SHA-1 for password hashing
 
-## Documentación
-- `docs/PRODUCT.md` — funcionalidades de la app
-- `docs/ARCHITECTURE.md` — stack, modelo de datos, decisiones técnicas
-- `docs/TODO.md` — estado actual y próximos pasos
+## Documentation
+- `docs/PRODUCT.md` — app features
+- `docs/ARCHITECTURE.md` — stack, data model, technical decisions
+- `docs/TODO.md` — current status and next steps
