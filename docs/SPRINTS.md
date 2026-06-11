@@ -15,17 +15,31 @@
 > Nota: el cifrado queda **listo pero sin consumir** hasta el Sprint 4 (aún no existe
 > la API de entradas). Por eso el sprint cierra con tests + docs, lo verificable ahora.
 
-## 🔵 Sprint 2 — Auth: DTOs + infraestructura JWT · `feature/jwt-auth`
-*(Incrementos 2-3 de `AUTH_FLOW.md`, ya especificados)*
-- [ ] DTOs `Register/Login/AuthResponse` → commit `feat: add authentication DTOs`
-- [ ] `JwtSettings` + `JwtTokenService` + wiring en `Program.cs`
+## ✅ Sprint 2 — Auth: DTOs + infraestructura JWT · `feature/jwt-auth`
+*(Incrementos 2-3 de `AUTH_FLOW.md`)*
+- [x] DTOs `Register/Login/AuthResponse` → commit `feat: add authentication DTOs`
+- [x] `JwtSettings` + `JwtTokenService` + wiring en `Program.cs`
       → commit `feat: configure JWT authentication`
 
-## 🔵 Sprint 3 — Auth: endpoints register/login
+> Nota: se unificaron los nombres de config a `Jwt:Key` / `ExpiryMinutes` (antes el
+> `appsettings.Example` usaba `SecretKey` / `ExpirationMinutes`). La clave va por User
+> Secrets; Issuer/Audience/ExpiryMinutes en `appsettings.json`.
+
+## ✅ Sprint 3 — Auth: endpoints register/login · `feature/jwt-auth`
 *(Incremento 4 de `AUTH_FLOW.md`)*
-- [ ] `AuthService` + `AuthController` + DI → commit `feat: add register and login endpoints`
-- [ ] Verificación e2e (register 201/409, login 200/401, token válido en jwt.io)
-- [ ] Docs de avance → commit `docs: document auth flow progress` · PR a `main`
+- [x] `AuthService` + `AuthController` + DI → commit `feat: add register and login endpoints`
+- [x] Fix de esquema: caminos de cascada múltiples en SQL Server (VaultMember,
+      EntryHistory, PasswordEntryTag → `Restrict`), migración `InitialCreate` regenerada
+      → commit `fix: avoid multiple cascade paths in SQL Server schema`
+- [x] Verificación e2e ✅ (register 201/409, login 200/401, claims `sub/email/username/exp` OK)
+- [ ] PR a `main`
+
+## ✅ Sprint 3.5 — Tests de auth · `feature/jwt-auth`
+- [x] Tests de `AuthService` (register: alta + email duplicado; login: ok, password mala,
+      email inexistente, usuario inactivo) — InMemory DB + fakes de hasher/JWT
+- [x] Tests de `AuthController` (register 201/409, login 200/401) — fake de `IAuthService`
+      → commit `test: add auth service and controller tests`
+- [x] Suite completa en verde (19/19)
 
 ## 🟣 Sprint 4 — API de entradas (CRUD `PasswordEntry`)
 - [ ] `PasswordEntryService` + controller `[Authorize]` que **consume `IEncryptionService`**

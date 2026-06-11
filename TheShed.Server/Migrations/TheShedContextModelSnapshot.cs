@@ -68,9 +68,6 @@ namespace TheShed.Server.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ChangedById")
-                        .HasColumnType("int");
-
                     b.Property<int>("ChangedByUserId")
                         .HasColumnType("int");
 
@@ -92,7 +89,7 @@ namespace TheShed.Server.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ChangedById");
+                    b.HasIndex("ChangedByUserId");
 
                     b.HasIndex("PasswordEntryId");
 
@@ -369,8 +366,8 @@ namespace TheShed.Server.Migrations
                 {
                     b.HasOne("TheShed.Shared.Models.Entities.User", "ChangedBy")
                         .WithMany()
-                        .HasForeignKey("ChangedById")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("TheShed.Shared.Models.Entities.PasswordEntry", "PasswordEntry")
@@ -406,7 +403,7 @@ namespace TheShed.Server.Migrations
                     b.HasOne("TheShed.Shared.Models.Entities.Tag", "Tag")
                         .WithMany("PasswordEntries")
                         .HasForeignKey("TagId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("PasswordEntry");
@@ -452,7 +449,7 @@ namespace TheShed.Server.Migrations
                     b.HasOne("TheShed.Shared.Models.Entities.User", "User")
                         .WithMany("VaultMemberships")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("TheShed.Shared.Models.Entities.Vault", "Vault")

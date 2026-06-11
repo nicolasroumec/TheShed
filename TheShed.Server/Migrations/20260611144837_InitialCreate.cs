@@ -154,7 +154,7 @@ namespace TheShed.Server.Migrations
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_VaultMembers_Vaults_VaultId",
                         column: x => x.VaultId,
@@ -197,7 +197,6 @@ namespace TheShed.Server.Migrations
                     PasswordEntryId = table.Column<int>(type: "int", nullable: false),
                     PasswordEncrypted = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ChangedByUserId = table.Column<int>(type: "int", nullable: false),
-                    ChangedById = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     IsDeleted = table.Column<bool>(type: "bit", nullable: false)
@@ -212,11 +211,11 @@ namespace TheShed.Server.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_EntryHistory_Users_ChangedById",
-                        column: x => x.ChangedById,
+                        name: "FK_EntryHistory_Users_ChangedByUserId",
+                        column: x => x.ChangedByUserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -242,7 +241,7 @@ namespace TheShed.Server.Migrations
                         column: x => x.TagId,
                         principalTable: "Tags",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(
@@ -251,9 +250,9 @@ namespace TheShed.Server.Migrations
                 column: "PasswordEntryId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_EntryHistory_ChangedById",
+                name: "IX_EntryHistory_ChangedByUserId",
                 table: "EntryHistory",
-                column: "ChangedById");
+                column: "ChangedByUserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_EntryHistory_PasswordEntryId",
