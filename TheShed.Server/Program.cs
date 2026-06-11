@@ -1,4 +1,7 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using TheShed.Server.Data;
 using TheShed.Server.Security;
 
@@ -14,6 +17,27 @@ builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
 // Seguridad — cifrado de entradas (AES-256-GCM)
 builder.Services.Configure<EncryptionSettings>(builder.Configuration.GetSection("Encryption"));
 builder.Services.AddSingleton<IEncryptionService, AesEncryptionService>();
+
+// Seguridad — autenticación JWT (access token, HMAC-SHA256)
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+
+var jwt = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()!;
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key))
+        };
+    });
+builder.Services.AddAuthorization();
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -45,6 +69,9 @@ app.UseStaticFiles();
 
 app.UseCors("AllowAll");
 app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 app.MapFallbackToFile("index.html");
