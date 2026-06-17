@@ -41,10 +41,21 @@
       → commit `test: add auth service and controller tests`
 - [x] Suite completa en verde (19/19)
 
-## 🟣 Sprint 4 — API de entradas (CRUD `PasswordEntry`)
-- [ ] `PasswordEntryService` + controller `[Authorize]` que **consume `IEncryptionService`**
-      (cifra al crear/editar, descifra al leer) — acá se cierra el loop del cifrado
-- [ ] Filtrado por vault + membresía
+## ✅ Sprint 4 — API de entradas (CRUD `PasswordEntry`) · `feature/entries-api`
+- [x] DTOs `EntryCreateRequest/EntryUpdateRequest/EntryResponse/EntryListItem`
+      → commit `feat: add password entry DTOs`
+- [x] `IVaultAccessService` (Owner/Editor → Write, Viewer → Read, resto → None)
+      → commit `feat: add vault access service`
+- [x] `PasswordEntryService` + `EntriesController` `[Authorize]` que **consume `IEncryptionService`**
+      (cifra al crear/editar, descifra al leer) — cierra el loop del cifrado
+      → commit `feat: add password entries CRUD API`
+- [x] Autorización por vault/membresía; listado sin contraseñas, reveal una a una en `GET /{id}`;
+      sin acceso → 404 (no revela existencia)
+- [x] Tests de `PasswordEntryService` + `EntriesController` (suite completa 36/36)
+- [ ] PR a `main`
+
+> Decisión de diseño: el listado devuelve solo metadata; la contraseña descifrada se entrega
+> únicamente en `GET /api/entries/{id}` (estilo Bitwarden/1Password).
 
 ## 🟣 Sprint 5 — UI Blazor (Fase 5)
 - [ ] Login/registro, listado de vaults, CRUD de entradas en el cliente WASM
