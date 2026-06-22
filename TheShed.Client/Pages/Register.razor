@@ -1,0 +1,70 @@
+@page "/register"
+@using TheShed.Client.Services
+@using TheShed.Shared.Models.DTOs.Auth
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Create account — The Shed</PageTitle>
+
+<div class="auth-card">
+    <h1>Create account</h1>
+
+    <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger" role="alert">@_error</div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label" for="username">Username</label>
+            <InputText id="username" class="form-control" @bind-Value="_model.Username" autocomplete="username" />
+            <ValidationMessage For="@(() => _model.Username)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="email">Email</label>
+            <InputText id="email" class="form-control" @bind-Value="_model.Email" autocomplete="email" />
+            <ValidationMessage For="@(() => _model.Email)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="password">Password</label>
+            <InputText id="password" type="password" class="form-control" @bind-Value="_model.Password" autocomplete="new-password" />
+            <ValidationMessage For="@(() => _model.Password)" />
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100" disabled="@_busy">
+            @(_busy ? "Creating…" : "Create account")
+        </button>
+    </EditForm>
+
+    <p class="mt-3 text-center">
+        Already have an account? <a href="login">Sign in</a>
+    </p>
+</div>
+
+@code {
+    private readonly RegisterRequest _model = new();
+    private string? _error;
+    private bool _busy;
+
+    private async Task HandleSubmit()
+    {
+        _busy = true;
+        _error = null;
+
+        var result = await AuthService.RegisterAsync(_model);
+        _busy = false;
+
+        if (result.Success)
+        {
+            Navigation.NavigateTo("");
+        }
+        else
+        {
+            _error = result.Error;
+        }
+    }
+}

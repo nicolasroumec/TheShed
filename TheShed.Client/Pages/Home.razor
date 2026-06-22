@@ -1,5 +1,9 @@
 @page "/"
+@attribute [Authorize]
 
 <PageTitle>The Shed</PageTitle>
 
-<h1>The Shed</h1>
+<AuthorizeView>
+    <h1>The Shed</h1>
+    <p>Welcome back, @context.User.FindFirst("username")?.Value.</p>
+</AuthorizeView>
