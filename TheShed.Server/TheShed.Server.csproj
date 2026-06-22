@@ -26,6 +26,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TheShed.Shared\TheShed.Shared.csproj" />
+    <!-- Hosted Blazor WASM: the server serves the client and its static assets. -->
+    <ProjectReference Include="..\TheShed.Client\TheShed.Client.csproj" />
   </ItemGroup>
 
 </Project>
