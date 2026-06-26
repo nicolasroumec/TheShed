@@ -89,7 +89,8 @@
 - [x] Increment 2 — `EntryClient` + `VaultClient.GetAsync` + página `/vaults/{id}`:
       listar entradas, revelar contraseña una a una (GET `/{id}`)
       → commit `feat: add vault detail with entries list`
-- [ ] Increment 3 — alta/edición/borrado de entradas
+- [x] Increment 3 — alta/edición/borrado de entradas (acciones gated por `CanWrite`,
+      confirmación al borrar) + `EntryClient` Create/Update/Delete
       → commit `feat: add entry create/edit/delete UI`
 - [ ] Increment 4 — generador de contraseñas
       → commit `feat: add password generator`

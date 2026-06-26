@@ -16,5 +16,22 @@ namespace TheShed.Client.Services
 
         public Task<EntryResponse?> GetAsync(int entryId) =>
             _http.GetFromJsonAsync<EntryResponse>($"api/entries/{entryId}");
+
+        public async Task<EntryResponse?> CreateAsync(EntryCreateRequest request)
+        {
+            var response = await _http.PostAsJsonAsync("api/entries", request);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<EntryResponse>();
+        }
+
+        public async Task<EntryResponse?> UpdateAsync(int entryId, EntryUpdateRequest request)
+        {
+            var response = await _http.PutAsJsonAsync($"api/entries/{entryId}", request);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<EntryResponse>();
+        }
+
+        public async Task DeleteAsync(int entryId) =>
+            (await _http.DeleteAsync($"api/entries/{entryId}")).EnsureSuccessStatusCode();
     }
 }
