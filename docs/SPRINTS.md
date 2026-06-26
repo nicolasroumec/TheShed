@@ -79,7 +79,20 @@
       rename/delete **owner-only** (no-dueño con acceso → 403)
 - [x] Tests de `VaultService` + `VaultsController` (suite completa 52/52)
       → commit `test: add vault service and controller tests`
-- [ ] PR a `main`
+- [x] PR a `main` (#7)
 
-## 🟣 Sprint 7 — UI: vaults + entradas (cliente WASM)
-- [ ] Listado de vaults, CRUD de entradas, generador de contraseñas en el cliente
+## 🟢 Sprint 7 — UI: vaults + entradas (cliente WASM) · `feature/vaults-ui`
+> Consume las APIs de Sprint 4 (entries) y 6 (vaults). El `HttpClient` ya manda el
+> Bearer (lo setea `JwtAuthenticationStateProvider`).
+- [x] Increment 1 — `VaultClient` + página `/vaults` (listar/crear), link en el nav
+      → commit `feat: add vaults list and create UI`
+- [x] Increment 2 — `EntryClient` + `VaultClient.GetAsync` + página `/vaults/{id}`:
+      listar entradas, revelar contraseña una a una (GET `/{id}`)
+      → commit `feat: add vault detail with entries list`
+- [x] Increment 3 — alta/edición/borrado de entradas (acciones gated por `CanWrite`,
+      confirmación al borrar) + `EntryClient` Create/Update/Delete
+      → commit `feat: add entry create/edit/delete UI`
+- [x] Increment 4 — `PasswordGenerator` (Shared, RNG seguro, +tests) integrado al form
+      de entradas (longitud/símbolos, botón Generate, toggle Show)
+      → commit `feat: add password generator`
+- [ ] PR a `main`
