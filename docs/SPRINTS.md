@@ -57,5 +57,26 @@
 > Decisión de diseño: el listado devuelve solo metadata; la contraseña descifrada se entrega
 > únicamente en `GET /api/entries/{id}` (estilo Bitwarden/1Password).
 
-## 🟣 Sprint 5 — UI Blazor (Fase 5)
-- [ ] Login/registro, listado de vaults, CRUD de entradas en el cliente WASM
+## ✅ Sprint 5 — UI: auth + tema · `feature/client-auth` + `feature/ui-theme`
+- [x] `AuthService` + `JwtAuthenticationStateProvider` + `LocalStorageService`, guards de ruta
+      (`AuthorizeRouteView` + `RedirectToLogin`), páginas Login/Register
+      → commit `feat: add client auth (login/register, JWT state, route guards)`
+- [x] Tema oscuro + app shell → commit `feat: add dark theme and app shell styling`
+- [x] Paleta Workshop + design tokens → commit `feat: apply Workshop palette and design tokens`
+- [ ] PR a `main`
+
+## 🟢 Sprint 6 — Vaults API (CRUD `Vault` + membresías) · `feature/vaults-api`
+> Prerequisito de la UI de vaults: hoy `EntriesController` recibe un `vaultId` pero
+> no hay forma de listar/crear vaults. Reusa `IVaultAccessService` (Sprint 4).
+- [ ] DTOs `VaultCreateRequest/VaultUpdateRequest/VaultResponse/VaultListItem`
+      → commit `feat: add vault DTOs`
+- [ ] `VaultService` + `VaultsController` `[Authorize]` (list propios/compartidos, get, create,
+      update, delete soft); al crear → alta de `VaultMember` Owner para el usuario
+      → commit `feat: add vaults CRUD API`
+- [ ] Autorización por membresía vía `IVaultAccessService`; sin acceso → 404
+- [ ] Tests de `VaultService` + `VaultsController`
+      → commit `test: add vault service and controller tests`
+- [ ] PR a `main`
+
+## 🟣 Sprint 7 — UI: vaults + entradas (cliente WASM)
+- [ ] Listado de vaults, CRUD de entradas, generador de contraseñas en el cliente
