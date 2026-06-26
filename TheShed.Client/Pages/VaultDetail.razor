@@ -3,6 +3,7 @@
 @using TheShed.Client.Services
 @using TheShed.Shared.Models.DTOs.Entries
 @using TheShed.Shared.Models.DTOs.Vaults
+@using TheShed.Shared.Helpers
 @inject VaultClient VaultApi
 @inject EntryClient EntryApi
 @inject IJSRuntime JS
@@ -60,8 +61,23 @@ else
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="password">Password</label>
-                        <InputText id="password" type="password" class="form-control" @bind-Value="_form.Password" autocomplete="off" />
+                        <div class="input-group">
+                            <InputText id="password" type="@(_showPassword ? "text" : "password")" class="form-control" @bind-Value="_form.Password" autocomplete="off" />
+                            <button type="button" class="btn btn-outline-secondary" @onclick="() => _showPassword = !_showPassword">
+                                @(_showPassword ? "Hide" : "Show")
+                            </button>
+                        </div>
                         <ValidationMessage For="@(() => _form.Password)" />
+                        <div class="d-flex align-items-center gap-2 mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="GeneratePassword">Generate</button>
+                            <label class="form-label mb-0 small">Length</label>
+                            <input type="number" min="4" max="128" class="form-control form-control-sm" style="width: 5rem"
+                                   @bind="_genLength" />
+                            <div class="form-check mb-0">
+                                <input id="gen-symbols" type="checkbox" class="form-check-input" @bind="_genSymbols" />
+                                <label class="form-check-label small" for="gen-symbols">Symbols</label>
+                            </div>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="url">URL (optional)</label>
@@ -139,6 +155,10 @@ else
     private bool _busy;
     private string? _error;
 
+    private bool _showPassword;        // toggles the form password field between text/password
+    private int _genLength = 20;       // password generator options
+    private bool _genSymbols = true;
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -201,6 +221,19 @@ else
         _form = null;
         _editingId = null;
         _error = null;
+        _showPassword = false;
+    }
+
+    private void GeneratePassword()
+    {
+        if (_form is null)
+        {
+            return;
+        }
+
+        var length = Math.Clamp(_genLength, 4, 128); // guard against out-of-range typed values
+        _form.Password = PasswordGenerator.Generate(length, _genSymbols);
+        _showPassword = true; // reveal so the user can see what was generated
     }
 
     private async Task SubmitAsync()

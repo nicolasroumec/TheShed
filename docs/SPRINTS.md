@@ -92,6 +92,7 @@
 - [x] Increment 3 — alta/edición/borrado de entradas (acciones gated por `CanWrite`,
       confirmación al borrar) + `EntryClient` Create/Update/Delete
       → commit `feat: add entry create/edit/delete UI`
-- [ ] Increment 4 — generador de contraseñas
+- [x] Increment 4 — `PasswordGenerator` (Shared, RNG seguro, +tests) integrado al form
+      de entradas (longitud/símbolos, botón Generate, toggle Show)
       → commit `feat: add password generator`
 - [ ] PR a `main`
