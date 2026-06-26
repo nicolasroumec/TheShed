@@ -46,6 +46,9 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 // Application services — vault access (Scoped: depends on TheShedContext)
 builder.Services.AddScoped<IVaultAccessService, VaultAccessService>();
 
+// Application services — vaults (Scoped: depends on TheShedContext)
+builder.Services.AddScoped<IVaultService, VaultService>();
+
 // Application services — password entries (Scoped: depends on TheShedContext)
 builder.Services.AddScoped<IPasswordEntryService, PasswordEntryService>();
 

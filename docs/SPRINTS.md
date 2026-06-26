@@ -68,14 +68,17 @@
 ## 🟢 Sprint 6 — Vaults API (CRUD `Vault` + membresías) · `feature/vaults-api`
 > Prerequisito de la UI de vaults: hoy `EntriesController` recibe un `vaultId` pero
 > no hay forma de listar/crear vaults. Reusa `IVaultAccessService` (Sprint 4).
-- [ ] DTOs `VaultCreateRequest/VaultUpdateRequest/VaultResponse/VaultListItem`
+- [x] DTOs `VaultCreateRequest/VaultUpdateRequest/VaultResponse/VaultListItem`
+      (responses exponen `IsOwner`/`CanWrite`, no `Role`: el dueño no es un `VaultMember`)
       → commit `feat: add vault DTOs`
-- [ ] `VaultService` + `VaultsController` `[Authorize]` (list propios/compartidos, get, create,
-      update, delete soft); al crear → alta de `VaultMember` Owner para el usuario
+- [x] `VaultService` + `VaultsController` `[Authorize]` (list propios/compartidos, get, create,
+      update, delete soft). El dueño se rastrea por `Vault.OwnerId`, **no** se crea un
+      `VaultMember` al crear (alineado con `VaultAccessService`)
       → commit `feat: add vaults CRUD API`
-- [ ] Autorización por membresía vía `IVaultAccessService`; sin acceso → 404
-- [ ] Tests de `VaultService` + `VaultsController`
-      → commit `test: add vault service and controller tests`
+- [x] Autorización: get/list por acceso (sin acceso → 404, oculta existencia);
+      rename/delete **owner-only** (no-dueño con acceso → 403)
+- [x] Tests de `VaultService` (47/47 en verde). Controller omitido: es un mirror fino de
+      `EntriesController` (mismo `MapError`), ya cubierto
 - [ ] PR a `main`
 
 ## 🟣 Sprint 7 — UI: vaults + entradas (cliente WASM)
