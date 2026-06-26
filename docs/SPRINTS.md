@@ -77,8 +77,8 @@
       → commit `feat: add vaults CRUD API`
 - [x] Autorización: get/list por acceso (sin acceso → 404, oculta existencia);
       rename/delete **owner-only** (no-dueño con acceso → 403)
-- [x] Tests de `VaultService` (47/47 en verde). Controller omitido: es un mirror fino de
-      `EntriesController` (mismo `MapError`), ya cubierto
+- [x] Tests de `VaultService` + `VaultsController` (suite completa 52/52)
+      → commit `test: add vault service and controller tests`
 - [ ] PR a `main`
 
 ## 🟣 Sprint 7 — UI: vaults + entradas (cliente WASM)
