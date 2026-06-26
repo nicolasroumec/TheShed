@@ -86,7 +86,8 @@
 > Bearer (lo setea `JwtAuthenticationStateProvider`).
 - [x] Increment 1 — `VaultClient` + página `/vaults` (listar/crear), link en el nav
       → commit `feat: add vaults list and create UI`
-- [ ] Increment 2 — `EntryClient` + página `/vaults/{id}`: listar entradas, revelar contraseña
+- [x] Increment 2 — `EntryClient` + `VaultClient.GetAsync` + página `/vaults/{id}`:
+      listar entradas, revelar contraseña una a una (GET `/{id}`)
       → commit `feat: add vault detail with entries list`
 - [ ] Increment 3 — alta/edición/borrado de entradas
       → commit `feat: add entry create/edit/delete UI`

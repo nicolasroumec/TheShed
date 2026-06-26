@@ -20,5 +20,6 @@ builder.Services.AddAuthorizationCore();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<VaultClient>();
+builder.Services.AddScoped<EntryClient>();
 
 await builder.Build().RunAsync();

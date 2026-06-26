@@ -1,0 +1,101 @@
+@page "/vaults/{Id:int}"
+@attribute [Authorize]
+@using TheShed.Client.Services
+@using TheShed.Shared.Models.DTOs.Entries
+@using TheShed.Shared.Models.DTOs.Vaults
+@inject VaultClient VaultApi
+@inject EntryClient EntryApi
+
+<PageTitle>@(_vault?.Name ?? "Vault") — The Shed</PageTitle>
+
+@if (_notFound)
+{
+    <p class="text-muted">This vault does not exist or you do not have access to it.</p>
+    <a href="vaults">← Back to vaults</a>
+}
+else if (_vault is null)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <div class="mb-4">
+        <a href="vaults">← Vaults</a>
+        <h1 class="mt-2">@_vault.Name</h1>
+        @if (!string.IsNullOrWhiteSpace(_vault.Description))
+        {
+            <p class="text-muted">@_vault.Description</p>
+        }
+    </div>
+
+    @if (_entries is null)
+    {
+        <p>Loading entries…</p>
+    }
+    else if (_entries.Count == 0)
+    {
+        <p class="text-muted">No entries in this vault yet.</p>
+    }
+    else
+    {
+        <div class="list-group">
+            @foreach (var entry in _entries)
+            {
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">@entry.Name</div>
+                            <small class="text-muted">@entry.Username</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleRevealAsync(entry.Id)">
+                            @(_revealed.ContainsKey(entry.Id) ? "Hide" : "Reveal")
+                        </button>
+                    </div>
+                    @if (_revealed.TryGetValue(entry.Id, out var password))
+                    {
+                        <div class="mt-2">
+                            <code>@password</code>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private VaultResponse? _vault;
+    private IReadOnlyList<EntryListItem>? _entries;
+    private readonly Dictionary<int, string> _revealed = new();
+    private bool _notFound;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _vault = await VaultApi.GetAsync(Id);
+            _entries = await EntryApi.ListAsync(Id);
+        }
+        catch (HttpRequestException)
+        {
+            // 404/403 from the API: vault missing or no access.
+            _notFound = true;
+        }
+    }
+
+    private async Task ToggleRevealAsync(int entryId)
+    {
+        if (_revealed.Remove(entryId))
+        {
+            return; // was shown, now hidden
+        }
+
+        var entry = await EntryApi.GetAsync(entryId);
+        if (entry is not null)
+        {
+            _revealed[entryId] = entry.Password;
+        }
+    }
+}

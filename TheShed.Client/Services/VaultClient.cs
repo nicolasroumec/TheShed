@@ -14,6 +14,9 @@ namespace TheShed.Client.Services
         public async Task<IReadOnlyList<VaultListItem>> ListAsync() =>
             await _http.GetFromJsonAsync<List<VaultListItem>>("api/vaults") ?? [];
 
+        public Task<VaultResponse?> GetAsync(int id) =>
+            _http.GetFromJsonAsync<VaultResponse>($"api/vaults/{id}");
+
         public async Task<VaultResponse?> CreateAsync(VaultCreateRequest request)
         {
             var response = await _http.PostAsJsonAsync("api/vaults", request);
