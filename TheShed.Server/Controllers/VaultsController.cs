@@ -52,6 +52,36 @@ namespace TheShed.Server.Controllers
             return result.Success ? NoContent() : MapError(result.Error);
         }
 
+        // --- Members (owner-only) ---
+
+        [HttpGet("{id:int}/members")]
+        public async Task<IActionResult> ListMembers(int id, CancellationToken ct)
+        {
+            var result = await _vaults.ListMembersAsync(CurrentUserId, id, ct);
+            return result.Success ? Ok(result.Value) : MapError(result.Error);
+        }
+
+        [HttpPost("{id:int}/members")]
+        public async Task<IActionResult> AddMember(int id, VaultMemberAddRequest request, CancellationToken ct)
+        {
+            var result = await _vaults.AddMemberAsync(CurrentUserId, id, request, ct);
+            return result.Success ? Ok(result.Value) : MapError(result.Error);
+        }
+
+        [HttpPut("{id:int}/members/{memberUserId:int}")]
+        public async Task<IActionResult> UpdateMemberRole(int id, int memberUserId, VaultMemberRoleUpdateRequest request, CancellationToken ct)
+        {
+            var result = await _vaults.UpdateMemberRoleAsync(CurrentUserId, id, memberUserId, request, ct);
+            return result.Success ? Ok(result.Value) : MapError(result.Error);
+        }
+
+        [HttpDelete("{id:int}/members/{memberUserId:int}")]
+        public async Task<IActionResult> RemoveMember(int id, int memberUserId, CancellationToken ct)
+        {
+            var result = await _vaults.RemoveMemberAsync(CurrentUserId, id, memberUserId, ct);
+            return result.Success ? NoContent() : MapError(result.Error);
+        }
+
         /// <summary>Current user id, taken from the JWT "sub" claim.</summary>
         private int CurrentUserId =>
             int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -62,6 +92,8 @@ namespace TheShed.Server.Controllers
         {
             EntryError.NotFound => NotFound(),
             EntryError.Forbidden => Forbid(),
+            EntryError.UserNotFound => NotFound("No user with that email."),
+            EntryError.AlreadyMember => Conflict("That user already has access to this vault."),
             _ => Problem()
         };
     }

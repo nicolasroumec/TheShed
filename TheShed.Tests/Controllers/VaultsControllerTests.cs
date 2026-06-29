@@ -91,6 +91,39 @@ namespace TheShed.Tests.Controllers
             Assert.IsType<NoContentResult>(result);
         }
 
+        [Fact]
+        public async Task AddMember_UserNotFound_Returns404()
+        {
+            var fake = new FakeVaultService { AddMemberResult = EntryResult<VaultMemberItem>.Fail(EntryError.UserNotFound) };
+            var controller = CreateController(fake);
+
+            var result = await controller.AddMember(id: 1, new VaultMemberAddRequest { Email = "x@y.com" }, CancellationToken.None);
+
+            Assert.IsType<NotFoundObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task AddMember_AlreadyMember_Returns409()
+        {
+            var fake = new FakeVaultService { AddMemberResult = EntryResult<VaultMemberItem>.Fail(EntryError.AlreadyMember) };
+            var controller = CreateController(fake);
+
+            var result = await controller.AddMember(id: 1, new VaultMemberAddRequest { Email = "x@y.com" }, CancellationToken.None);
+
+            Assert.IsType<ConflictObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task RemoveMember_Success_Returns204()
+        {
+            var fake = new FakeVaultService { RemoveMemberResult = EntryResult<bool>.Ok(true) };
+            var controller = CreateController(fake);
+
+            var result = await controller.RemoveMember(id: 1, memberUserId: 2, CancellationToken.None);
+
+            Assert.IsType<NoContentResult>(result);
+        }
+
         // Fake service: returns preconfigured results and records the user id it received.
         private sealed class FakeVaultService : IVaultService
         {
@@ -100,6 +133,10 @@ namespace TheShed.Tests.Controllers
             public VaultResponse CreateResult { get; set; } = default!;
             public EntryResult<VaultResponse> UpdateResult { get; set; } = default!;
             public EntryResult<bool> DeleteResult { get; set; } = default!;
+            public EntryResult<IReadOnlyList<VaultMemberItem>> ListMembersResult { get; set; } = default!;
+            public EntryResult<VaultMemberItem> AddMemberResult { get; set; } = default!;
+            public EntryResult<VaultMemberItem> UpdateMemberRoleResult { get; set; } = default!;
+            public EntryResult<bool> RemoveMemberResult { get; set; } = default!;
 
             public Task<IReadOnlyList<VaultListItem>> ListAsync(int userId, CancellationToken ct = default)
             {
@@ -129,6 +166,30 @@ namespace TheShed.Tests.Controllers
             {
                 LastUserId = userId;
                 return Task.FromResult(DeleteResult);
+            }
+
+            public Task<EntryResult<IReadOnlyList<VaultMemberItem>>> ListMembersAsync(int userId, int vaultId, CancellationToken ct = default)
+            {
+                LastUserId = userId;
+                return Task.FromResult(ListMembersResult);
+            }
+
+            public Task<EntryResult<VaultMemberItem>> AddMemberAsync(int userId, int vaultId, VaultMemberAddRequest request, CancellationToken ct = default)
+            {
+                LastUserId = userId;
+                return Task.FromResult(AddMemberResult);
+            }
+
+            public Task<EntryResult<VaultMemberItem>> UpdateMemberRoleAsync(int userId, int vaultId, int memberUserId, VaultMemberRoleUpdateRequest request, CancellationToken ct = default)
+            {
+                LastUserId = userId;
+                return Task.FromResult(UpdateMemberRoleResult);
+            }
+
+            public Task<EntryResult<bool>> RemoveMemberAsync(int userId, int vaultId, int memberUserId, CancellationToken ct = default)
+            {
+                LastUserId = userId;
+                return Task.FromResult(RemoveMemberResult);
             }
         }
     }

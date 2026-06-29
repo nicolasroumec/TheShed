@@ -230,5 +230,147 @@ namespace TheShed.Tests.Services
             Assert.Equal(EntryError.Forbidden, result.Error);
             Assert.Equal(1, await db.Vaults.CountAsync());
         }
+
+        // --- Members ---
+
+        // Adds a user with a known email (AddUserAsync randomizes it).
+        private static async Task<int> AddUserWithEmailAsync(TheShedContext db, string name, string email)
+        {
+            var user = new User { Username = name, Email = email, PasswordHash = "h" };
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+            return user.Id;
+        }
+
+        [Fact]
+        public async Task AddMemberAsync_Owner_SharesByEmail()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var targetId = await AddUserWithEmailAsync(db, "bob", "bob@test.com");
+            var service = CreateService(db);
+
+            var result = await service.AddMemberAsync(ownerId, vaultId,
+                new VaultMemberAddRequest { Email = "bob@test.com", Role = VaultRole.Editor });
+
+            Assert.True(result.Success);
+            Assert.Equal(targetId, result.Value!.UserId);
+            Assert.Equal(VaultRole.Editor, result.Value!.Role);
+            Assert.True(await db.VaultMembers.AnyAsync(m => m.VaultId == vaultId && m.UserId == targetId));
+        }
+
+        [Fact]
+        public async Task AddMemberAsync_UnknownEmail_ReturnsUserNotFound()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+
+            var result = await service.AddMemberAsync(ownerId, vaultId,
+                new VaultMemberAddRequest { Email = "nobody@test.com" });
+
+            Assert.Equal(EntryError.UserNotFound, result.Error);
+        }
+
+        [Fact]
+        public async Task AddMemberAsync_AlreadyMember_ReturnsAlreadyMember()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var targetId = await AddUserWithEmailAsync(db, "bob", "bob@test.com");
+            db.VaultMembers.Add(new VaultMember { VaultId = vaultId, UserId = targetId, Role = VaultRole.Viewer });
+            await db.SaveChangesAsync();
+            var service = CreateService(db);
+
+            var result = await service.AddMemberAsync(ownerId, vaultId,
+                new VaultMemberAddRequest { Email = "bob@test.com" });
+
+            Assert.Equal(EntryError.AlreadyMember, result.Error);
+        }
+
+        [Fact]
+        public async Task AddMemberAsync_NonOwner_ReturnsForbidden()
+        {
+            using var db = CreateContext();
+            var (_, vaultId) = await SeedVaultAsync(db);
+            var editorId = await AddMemberAsync(db, vaultId, VaultRole.Editor);
+            await AddUserWithEmailAsync(db, "bob", "bob@test.com");
+            var service = CreateService(db);
+
+            var result = await service.AddMemberAsync(editorId, vaultId,
+                new VaultMemberAddRequest { Email = "bob@test.com" });
+
+            Assert.Equal(EntryError.Forbidden, result.Error);
+        }
+
+        [Fact]
+        public async Task ListMembersAsync_Owner_ReturnsMembers()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            await AddMemberAsync(db, vaultId, VaultRole.Viewer);
+            var service = CreateService(db);
+
+            var result = await service.ListMembersAsync(ownerId, vaultId);
+
+            Assert.True(result.Success);
+            Assert.Single(result.Value!);
+        }
+
+        [Fact]
+        public async Task UpdateMemberRoleAsync_Owner_ChangesRole()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var memberId = await AddMemberAsync(db, vaultId, VaultRole.Viewer);
+            var service = CreateService(db);
+
+            var result = await service.UpdateMemberRoleAsync(ownerId, vaultId, memberId,
+                new VaultMemberRoleUpdateRequest { Role = VaultRole.Editor });
+
+            Assert.True(result.Success);
+            Assert.Equal(VaultRole.Editor, result.Value!.Role);
+            Assert.Equal(VaultRole.Editor, (await db.VaultMembers.SingleAsync()).Role);
+        }
+
+        [Fact]
+        public async Task UpdateMemberRoleAsync_NotAMember_ReturnsNotFound()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+
+            var result = await service.UpdateMemberRoleAsync(ownerId, vaultId, StrangerId,
+                new VaultMemberRoleUpdateRequest { Role = VaultRole.Editor });
+
+            Assert.Equal(EntryError.NotFound, result.Error);
+        }
+
+        [Fact]
+        public async Task RemoveMemberAsync_Owner_RemovesMembership()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var memberId = await AddMemberAsync(db, vaultId, VaultRole.Viewer);
+            var service = CreateService(db);
+
+            var result = await service.RemoveMemberAsync(ownerId, vaultId, memberId);
+
+            Assert.True(result.Success);
+            Assert.Equal(0, await db.VaultMembers.CountAsync());
+        }
+
+        [Fact]
+        public async Task RemoveMemberAsync_NonOwner_ReturnsForbidden()
+        {
+            using var db = CreateContext();
+            var (_, vaultId) = await SeedVaultAsync(db);
+            var editorId = await AddMemberAsync(db, vaultId, VaultRole.Editor);
+            var service = CreateService(db);
+
+            var result = await service.RemoveMemberAsync(editorId, vaultId, 12345);
+
+            Assert.Equal(EntryError.Forbidden, result.Error);
+        }
     }
 }

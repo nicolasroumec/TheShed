@@ -12,5 +12,11 @@ namespace TheShed.Server.Services
         Task<VaultResponse> CreateAsync(int userId, VaultCreateRequest request, CancellationToken ct = default);
         Task<EntryResult<VaultResponse>> UpdateAsync(int userId, int vaultId, VaultUpdateRequest request, CancellationToken ct = default);
         Task<EntryResult<bool>> DeleteAsync(int userId, int vaultId, CancellationToken ct = default);
+
+        // Member management — owner-only.
+        Task<EntryResult<IReadOnlyList<VaultMemberItem>>> ListMembersAsync(int userId, int vaultId, CancellationToken ct = default);
+        Task<EntryResult<VaultMemberItem>> AddMemberAsync(int userId, int vaultId, VaultMemberAddRequest request, CancellationToken ct = default);
+        Task<EntryResult<VaultMemberItem>> UpdateMemberRoleAsync(int userId, int vaultId, int memberUserId, VaultMemberRoleUpdateRequest request, CancellationToken ct = default);
+        Task<EntryResult<bool>> RemoveMemberAsync(int userId, int vaultId, int memberUserId, CancellationToken ct = default);
     }
 }
