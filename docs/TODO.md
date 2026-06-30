@@ -8,8 +8,9 @@
 - [~] Fase 5 — UI Blazor (auth ✅, vaults+entradas ✅, generador ✅, compartir vaults ✅) ← en curso
 
 ## Próximo paso
-**Cerrar Sprint 8 — Compartir vaults** (`feature/vault-sharing`): código + tests hechos
-(suite 67/67), falta el PR a `main`. Ver `SPRINTS.md`.
+**Sprint 9 — Notas seguras** (`feature/secure-notes`): CRUD API + UI, cifrando
+`SecureNote.ContentEncrypted`. Reusa el patrón de entries. Ver el backlog completo
+(Sprints 9→18 + traducción) en `SPRINTS.md`.
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra
