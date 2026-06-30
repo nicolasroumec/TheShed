@@ -28,3 +28,18 @@ Implica que el servidor puede descifrar; aceptable en esta etapa.
 vault para vaults compartidos.
 **Implementación:** `TheShed.Server/Security/{IEncryptionService,AesEncryptionService,EncryptionSettings}.cs`;
 nonce aleatorio por operación; tests en `TheShed.Tests/Security/AesEncryptionServiceTests.cs`.
+
+## D4 — Vaults compartidos: dueño por `OwnerId`, miembros por `VaultMember` + rol
+**Decisión:** el dueño de un vault se rastrea con `Vault.OwnerId` y **no** se crea un
+`VaultMember` para él. Compartir = agregar filas `VaultMember (UserId, Role)` con
+`VaultRole` ∈ `{Viewer, Editor}`. La gestión de miembros (listar/invitar/cambiar rol/quitar)
+es **exclusiva del dueño**.
+**Contexto:** evita el caso ambiguo "dueño que también es member" (sin dedup en el listado)
+y mantiene una única fuente de verdad para la propiedad. El acceso efectivo se resuelve por
+`IVaultAccessService` (D del Sprint 4): `Owner/Editor → Write`, `Viewer → Read`, resto → `None`.
+**Autorización:** sin acceso al vault → 404 (oculta existencia); con acceso pero no dueño → 403.
+Invitar por email exacto: usuario inexistente → 404, ya member o el propio dueño → 409.
+**Evolución futura:** clave AES por vault para sharing real zero-knowledge (ver D3).
+**Implementación:** `VaultService` (Add/UpdateRole/Remove/ListMembers) + `VaultsController`
+bajo `/api/vaults/{id}/members`; DTOs en `TheShed.Shared/Models/DTOs/Vaults/`; tests en
+`TheShed.Tests/{Services/VaultServiceTests,Controllers/VaultsControllerTests}.cs`.
