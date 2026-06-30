@@ -32,7 +32,7 @@
       EntryHistory, PasswordEntryTag → `Restrict`), migración `InitialCreate` regenerada
       → commit `fix: avoid multiple cascade paths in SQL Server schema`
 - [x] Verificación e2e ✅ (register 201/409, login 200/401, claims `sub/email/username/exp` OK)
-- [ ] PR a `main`
+- [x] PR a `main` (#3)
 
 ## ✅ Sprint 3.5 — Tests de auth · `feature/jwt-auth`
 - [x] Tests de `AuthService` (register: alta + email duplicado; login: ok, password mala,
@@ -52,7 +52,7 @@
 - [x] Autorización por vault/membresía; listado sin contraseñas, reveal una a una en `GET /{id}`;
       sin acceso → 404 (no revela existencia)
 - [x] Tests de `PasswordEntryService` + `EntriesController` (suite completa 36/36)
-- [ ] PR a `main`
+- [x] PR a `main` (#4)
 
 > Decisión de diseño: el listado devuelve solo metadata; la contraseña descifrada se entrega
 > únicamente en `GET /api/entries/{id}` (estilo Bitwarden/1Password).
@@ -63,9 +63,9 @@
       → commit `feat: add client auth (login/register, JWT state, route guards)`
 - [x] Tema oscuro + app shell → commit `feat: add dark theme and app shell styling`
 - [x] Paleta Workshop + design tokens → commit `feat: apply Workshop palette and design tokens`
-- [ ] PR a `main`
+- [x] PR a `main` (#5 client-auth + #6 ui-theme)
 
-## 🟢 Sprint 6 — Vaults API (CRUD `Vault` + membresías) · `feature/vaults-api`
+## ✅ Sprint 6 — Vaults API (CRUD `Vault` + membresías) · `feature/vaults-api`
 > Prerequisito de la UI de vaults: hoy `EntriesController` recibe un `vaultId` pero
 > no hay forma de listar/crear vaults. Reusa `IVaultAccessService` (Sprint 4).
 - [x] DTOs `VaultCreateRequest/VaultUpdateRequest/VaultResponse/VaultListItem`
@@ -81,7 +81,7 @@
       → commit `test: add vault service and controller tests`
 - [x] PR a `main` (#7)
 
-## 🟢 Sprint 7 — UI: vaults + entradas (cliente WASM) · `feature/vaults-ui`
+## ✅ Sprint 7 — UI: vaults + entradas (cliente WASM) · `feature/vaults-ui`
 > Consume las APIs de Sprint 4 (entries) y 6 (vaults). El `HttpClient` ya manda el
 > Bearer (lo setea `JwtAuthenticationStateProvider`).
 - [x] Increment 1 — `VaultClient` + página `/vaults` (listar/crear), link en el nav
@@ -95,4 +95,29 @@
 - [x] Increment 4 — `PasswordGenerator` (Shared, RNG seguro, +tests) integrado al form
       de entradas (longitud/símbolos, botón Generate, toggle Show)
       → commit `feat: add password generator`
+- [x] PR a `main` (#8)
+
+## 🟢 Sprint 8 — Compartir vaults (members) · `feature/vault-sharing`
+> Cierra el feature de vaults compartidos: el dueño invita a otros usuarios por email
+> y les asigna rol. Reusa `IVaultAccessService` (Sprint 4) para resolver el acceso de
+> los miembros; el dueño se rastrea por `Vault.OwnerId`, **no** es un `VaultMember`.
+- [x] DTOs `VaultMemberAddRequest` (email + rol), `VaultMemberItem` (userId/username/email/rol),
+      `VaultMemberRoleUpdateRequest` → commit `feat: add vault member DTOs`
+- [x] `VaultService` (Add/UpdateRole/Remove/ListMembers) + endpoints en `VaultsController`
+      bajo `/api/vaults/{id}/members[/{memberUserId}]` → commit `feat: add vault member management to
+      VaultService and API endpoints`
+- [x] UI: panel de members en `/vaults/{id}` (listar/invitar/cambiar rol/quitar) + `VaultClient`
+      → commit `feat: add vault members UI`
+- [x] Tests de `VaultService` + `VaultsController` (members) — suite completa **67/67** en verde
 - [ ] PR a `main`
+
+### Decisiones de diseño (Sprint 8)
+- **Gestión owner-only:** listar/invitar/cambiar rol/quitar son exclusivos del dueño. Sin acceso
+  al vault → 404 (oculta existencia); con acceso pero no dueño (un member) → 403. Gate compartido
+  `OwnerOnlyAsync` (mismo que rename/delete del Sprint 6).
+- **Roles:** `VaultRole` = `Viewer` (lectura) | `Editor` (lectura+escritura). Mapea a
+  `VaultAccess` vía `IVaultAccessService`; el listado de vaults expone `CanWrite = Role == Editor`.
+- **Invitar por email:** el target se resuelve por email exacto. Email inexistente → 404
+  (`UserNotFound`); ya es member o es el propio dueño → 409 (`AlreadyMember`).
+- **`EntryError` reutilizado:** se sumaron `UserNotFound`/`AlreadyMember`. Sigue marcado con
+  `ponytail:` para renombrar a `ServiceError` cuando crezca un consumidor más.

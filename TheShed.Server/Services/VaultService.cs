@@ -109,6 +109,124 @@ namespace TheShed.Server.Services
             return EntryResult<bool>.Ok(true);
         }
 
+        public async Task<EntryResult<IReadOnlyList<VaultMemberItem>>> ListMembersAsync(int userId, int vaultId, CancellationToken ct = default)
+        {
+            var denied = await OwnerOnlyAsync(vaultId, userId, ct);
+            if (denied is not null)
+            {
+                return EntryResult<IReadOnlyList<VaultMemberItem>>.Fail(denied.Value);
+            }
+
+            var members = await _db.VaultMembers
+                .Where(m => m.VaultId == vaultId)
+                .Select(m => new VaultMemberItem
+                {
+                    UserId = m.UserId,
+                    Username = m.User.Username,
+                    Email = m.User.Email,
+                    Role = m.Role
+                })
+                .OrderBy(m => m.Username)
+                .ToListAsync(ct);
+
+            return EntryResult<IReadOnlyList<VaultMemberItem>>.Ok(members);
+        }
+
+        public async Task<EntryResult<VaultMemberItem>> AddMemberAsync(int userId, int vaultId, VaultMemberAddRequest request, CancellationToken ct = default)
+        {
+            var denied = await OwnerOnlyAsync(vaultId, userId, ct);
+            if (denied is not null)
+            {
+                return EntryResult<VaultMemberItem>.Fail(denied.Value);
+            }
+
+            var email = request.Email.Trim();
+            var target = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+            if (target is null)
+            {
+                return EntryResult<VaultMemberItem>.Fail(EntryError.UserNotFound);
+            }
+
+            // The owner is not a member; sharing with yourself is a no-op error.
+            var vault = await _db.Vaults.FirstAsync(v => v.Id == vaultId, ct);
+            if (target.Id == vault.OwnerId)
+            {
+                return EntryResult<VaultMemberItem>.Fail(EntryError.AlreadyMember);
+            }
+
+            var existing = await _db.VaultMembers
+                .FirstOrDefaultAsync(m => m.VaultId == vaultId && m.UserId == target.Id, ct);
+            if (existing is not null)
+            {
+                return EntryResult<VaultMemberItem>.Fail(EntryError.AlreadyMember);
+            }
+
+            _db.VaultMembers.Add(new VaultMember
+            {
+                VaultId = vaultId,
+                UserId = target.Id,
+                Role = request.Role
+            });
+            await _db.SaveChangesAsync(ct);
+
+            return EntryResult<VaultMemberItem>.Ok(new VaultMemberItem
+            {
+                UserId = target.Id,
+                Username = target.Username,
+                Email = target.Email,
+                Role = request.Role
+            });
+        }
+
+        public async Task<EntryResult<VaultMemberItem>> UpdateMemberRoleAsync(int userId, int vaultId, int memberUserId, VaultMemberRoleUpdateRequest request, CancellationToken ct = default)
+        {
+            var denied = await OwnerOnlyAsync(vaultId, userId, ct);
+            if (denied is not null)
+            {
+                return EntryResult<VaultMemberItem>.Fail(denied.Value);
+            }
+
+            var member = await _db.VaultMembers
+                .Include(m => m.User)
+                .FirstOrDefaultAsync(m => m.VaultId == vaultId && m.UserId == memberUserId, ct);
+            if (member is null)
+            {
+                return EntryResult<VaultMemberItem>.Fail(EntryError.NotFound);
+            }
+
+            member.Role = request.Role;
+            await _db.SaveChangesAsync(ct);
+
+            return EntryResult<VaultMemberItem>.Ok(new VaultMemberItem
+            {
+                UserId = member.UserId,
+                Username = member.User.Username,
+                Email = member.User.Email,
+                Role = member.Role
+            });
+        }
+
+        public async Task<EntryResult<bool>> RemoveMemberAsync(int userId, int vaultId, int memberUserId, CancellationToken ct = default)
+        {
+            var denied = await OwnerOnlyAsync(vaultId, userId, ct);
+            if (denied is not null)
+            {
+                return EntryResult<bool>.Fail(denied.Value);
+            }
+
+            var member = await _db.VaultMembers
+                .FirstOrDefaultAsync(m => m.VaultId == vaultId && m.UserId == memberUserId, ct);
+            if (member is null)
+            {
+                return EntryResult<bool>.Fail(EntryError.NotFound);
+            }
+
+            _db.VaultMembers.Remove(member);
+            await _db.SaveChangesAsync(ct);
+
+            return EntryResult<bool>.Ok(true);
+        }
+
         /// <summary>Owner-only gate for mutating the vault itself (rename/delete). Returns null
         /// if the caller owns the vault, NotFound if they have no access (existence hidden), or
         /// Forbidden if they can see it (a member) but do not own it.</summary>
