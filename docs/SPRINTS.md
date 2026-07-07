@@ -131,34 +131,34 @@
 > Cada sprint = una rama con PR a `main`. Todas las entidades (`SecureNote`, `Tag`,
 > `EntryHistory`, `Attachment`) **ya existen** en el modelo; falta API + UI.
 
-## 🟢 Sprint 9 — Notas seguras (CRUD) · `feature/secure-notes`
+## ✅ Sprint 9 — Notas seguras (CRUD) · `feature/secure-notes`
 > Reusa todo el patrón de entries: `IVaultAccessService` para permisos, `IEncryptionService`
 > para cifrar `SecureNote.ContentEncrypted` (mismo formato AES-GCM que las entradas).
 > **Sin migración:** la entidad/tabla `SecureNote` ya existe; solo falta API + UI.
 
 ### Increment 1 — DTOs · `TheShed.Shared/Models/DTOs/Notes/`
-- [ ] `NoteCreateRequest` (VaultId, Title [Req, Max 200], Content [Req], IsFavorite)
-- [ ] `NoteUpdateRequest` (Title, Content, IsFavorite — sin VaultId, como `EntryUpdateRequest`)
-- [ ] `NoteResponse` (Id, VaultId, Title, Content descifrado, IsFavorite, CreatedAt, UpdatedAt)
-- [ ] `NoteListItem` (Id, Title, IsFavorite — **sin contenido**)
+- [x] `NoteCreateRequest` (VaultId, Title [Req, Max 200], Content [Req], IsFavorite)
+- [x] `NoteUpdateRequest` (Title, Content, IsFavorite — sin VaultId, como `EntryUpdateRequest`)
+- [x] `NoteResponse` (Id, VaultId, Title, Content descifrado, IsFavorite, CreatedAt, UpdatedAt)
+- [x] `NoteListItem` (Id, Title, IsFavorite — **sin contenido**)
       → commit `feat: add secure note DTOs`
 
 ### Increment 2 — Service + API
-- [ ] `ISecureNoteService` + `SecureNoteService` (espejo de `PasswordEntryService`, cifra
+- [x] `ISecureNoteService` + `SecureNoteService` (espejo de `PasswordEntryService`, cifra
       `ContentEncrypted`; reusa `EntryResult<T>`/`EntryError`/`IVaultAccessService`)
-- [ ] `SecureNotesController` `[Authorize]` ruta `api/notes` (List?vaultId, Get{id}, Post, Put{id},
+- [x] `NotesController` `[Authorize]` ruta `api/notes` (List?vaultId, Get{id}, Post, Put{id},
       Delete{id}); DI `AddScoped<ISecureNoteService, SecureNoteService>` en `Server/Program.cs`
       → commit `feat: add secure notes CRUD API`
 
 ### Increment 3 — UI
-- [ ] `NoteClient` (espejo de `EntryClient`) + DI en `Client/Program.cs`
-- [ ] Sección "Secure notes" en `VaultDetail.razor` (debajo de entradas): listar, revelar
+- [x] `NoteClient` (espejo de `EntryClient`) + DI en `Client/Program.cs`
+- [x] Sección "Secure notes" en `VaultDetail.razor` (debajo de entradas): listar, revelar
       contenido una a una, alta/edición/borrado gated por `CanWrite`, confirmar al borrar
       → commit `feat: add secure notes UI`
 
 ### Increment 4 — Tests
-- [ ] `SecureNoteServiceTests` + `SecureNotesControllerTests` (espejo de los de entries)
-      → commit `test: add secure notes service and controller tests`
+- [x] `SecureNoteServiceTests` + `NotesControllerTests` (espejo de los de entries) — suite
+      completa **83/83** en verde → commit `test: add secure notes service and controller tests`
 - [ ] PR a `main`
 
 ### Decisiones de diseño (Sprint 9)
