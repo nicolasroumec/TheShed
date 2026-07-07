@@ -1,3 +1,5 @@
+using TheShed.Shared.Models.DTOs.Tags;
+
 namespace TheShed.Shared.Models.DTOs.Entries
 {
     /// <summary>Lightweight entry shape for listings. Carries only metadata and
@@ -10,5 +12,6 @@ namespace TheShed.Shared.Models.DTOs.Entries
         public string Username { get; set; } = string.Empty;
         public string? Url { get; set; }
         public bool IsFavorite { get; set; }
+        public List<TagResponse> Tags { get; set; } = [];
     }
 }

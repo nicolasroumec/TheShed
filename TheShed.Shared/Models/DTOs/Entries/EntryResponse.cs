@@ -1,3 +1,5 @@
+using TheShed.Shared.Models.DTOs.Tags;
+
 namespace TheShed.Shared.Models.DTOs.Entries
 {
     /// <summary>Detail of a single entry. Includes the decrypted password; returned
@@ -13,6 +15,7 @@ namespace TheShed.Shared.Models.DTOs.Entries
         public string? Url { get; set; }
         public string? Notes { get; set; }
         public bool IsFavorite { get; set; }
+        public List<TagResponse> Tags { get; set; } = [];
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

@@ -3,6 +3,7 @@ using TheShed.Server.Data;
 using TheShed.Server.Enums;
 using TheShed.Server.Security;
 using TheShed.Shared.Models.DTOs.Entries;
+using TheShed.Shared.Models.DTOs.Tags;
 using TheShed.Shared.Models.Entities;
 
 namespace TheShed.Server.Services
@@ -20,7 +21,7 @@ namespace TheShed.Server.Services
             _access = access;
         }
 
-        public async Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, CancellationToken ct = default)
+        public async Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, CancellationToken ct = default)
         {
             var access = await _access.GetAccessAsync(vaultId, userId, ct);
             if (access == VaultAccess.None)
@@ -29,8 +30,13 @@ namespace TheShed.Server.Services
                 return EntryResult<IReadOnlyList<EntryListItem>>.Fail(EntryError.NotFound);
             }
 
-            var items = await _db.PasswordEntries
-                .Where(e => e.VaultId == vaultId)
+            var query = _db.PasswordEntries.Where(e => e.VaultId == vaultId);
+            if (tagId is not null)
+            {
+                query = query.Where(e => e.Tags.Any(pet => pet.TagId == tagId));
+            }
+
+            var items = await query
                 .OrderBy(e => e.Name)
                 .Select(e => new EntryListItem
                 {
@@ -38,7 +44,12 @@ namespace TheShed.Server.Services
                     Name = e.Name,
                     Username = e.Username,
                     Url = e.Url,
-                    IsFavorite = e.IsFavorite
+                    IsFavorite = e.IsFavorite,
+                    Tags = e.Tags
+                        .Where(pet => !pet.Tag.IsDeleted)
+                        .Select(pet => new TagResponse { Id = pet.Tag.Id, Name = pet.Tag.Name })
+                        .OrderBy(t => t.Name)
+                        .ToList()
                 })
                 .ToListAsync(ct);
 
@@ -59,7 +70,7 @@ namespace TheShed.Server.Services
                 return EntryResult<EntryResponse>.Fail(EntryError.NotFound);
             }
 
-            return EntryResult<EntryResponse>.Ok(ToResponse(entry));
+            return EntryResult<EntryResponse>.Ok(ToResponse(entry, await LoadTagsAsync(entry.Id, ct)));
         }
 
         public async Task<EntryResult<EntryResponse>> CreateAsync(int userId, EntryCreateRequest request, CancellationToken ct = default)
@@ -88,7 +99,8 @@ namespace TheShed.Server.Services
             _db.PasswordEntries.Add(entry);
             await _db.SaveChangesAsync(ct);
 
-            return EntryResult<EntryResponse>.Ok(ToResponse(entry));
+            // A freshly created entry has no tags yet.
+            return EntryResult<EntryResponse>.Ok(ToResponse(entry, []));
         }
 
         public async Task<EntryResult<EntryResponse>> UpdateAsync(int userId, int entryId, EntryUpdateRequest request, CancellationToken ct = default)
@@ -118,7 +130,7 @@ namespace TheShed.Server.Services
 
             await _db.SaveChangesAsync(ct);
 
-            return EntryResult<EntryResponse>.Ok(ToResponse(entry));
+            return EntryResult<EntryResponse>.Ok(ToResponse(entry, await LoadTagsAsync(entry.Id, ct)));
         }
 
         public async Task<EntryResult<bool>> DeleteAsync(int userId, int entryId, CancellationToken ct = default)
@@ -146,8 +158,82 @@ namespace TheShed.Server.Services
             return EntryResult<bool>.Ok(true);
         }
 
+        public async Task<EntryResult<bool>> AddTagAsync(int userId, int entryId, int tagId, CancellationToken ct = default)
+        {
+            var entry = await _db.PasswordEntries.FirstOrDefaultAsync(e => e.Id == entryId, ct);
+            if (entry is null)
+            {
+                return EntryResult<bool>.Fail(EntryError.NotFound);
+            }
+
+            var access = await _access.GetAccessAsync(entry.VaultId, userId, ct);
+            if (access == VaultAccess.None)
+            {
+                return EntryResult<bool>.Fail(EntryError.NotFound);
+            }
+            if (access != VaultAccess.Write)
+            {
+                return EntryResult<bool>.Fail(EntryError.Forbidden);
+            }
+
+            // The tag must be one of the caller's own tags.
+            var tagOwned = await _db.Tags.AnyAsync(t => t.Id == tagId && t.UserId == userId, ct);
+            if (!tagOwned)
+            {
+                return EntryResult<bool>.Fail(EntryError.NotFound);
+            }
+
+            var alreadyTagged = await _db.PasswordEntryTags
+                .AnyAsync(pet => pet.PasswordEntryId == entryId && pet.TagId == tagId, ct);
+            if (!alreadyTagged) // idempotent: assigning an already-present tag is a no-op
+            {
+                _db.PasswordEntryTags.Add(new PasswordEntryTag { PasswordEntryId = entryId, TagId = tagId });
+                await _db.SaveChangesAsync(ct);
+            }
+
+            return EntryResult<bool>.Ok(true);
+        }
+
+        public async Task<EntryResult<bool>> RemoveTagAsync(int userId, int entryId, int tagId, CancellationToken ct = default)
+        {
+            var entry = await _db.PasswordEntries.FirstOrDefaultAsync(e => e.Id == entryId, ct);
+            if (entry is null)
+            {
+                return EntryResult<bool>.Fail(EntryError.NotFound);
+            }
+
+            var access = await _access.GetAccessAsync(entry.VaultId, userId, ct);
+            if (access == VaultAccess.None)
+            {
+                return EntryResult<bool>.Fail(EntryError.NotFound);
+            }
+            if (access != VaultAccess.Write)
+            {
+                return EntryResult<bool>.Fail(EntryError.Forbidden);
+            }
+
+            var link = await _db.PasswordEntryTags
+                .FirstOrDefaultAsync(pet => pet.PasswordEntryId == entryId && pet.TagId == tagId, ct);
+            if (link is not null) // idempotent: removing an absent tag is a no-op
+            {
+                // Join rows are not soft-deleted; drop the link outright.
+                _db.PasswordEntryTags.Remove(link);
+                await _db.SaveChangesAsync(ct);
+            }
+
+            return EntryResult<bool>.Ok(true);
+        }
+
+        /// <summary>Loads an entry's tags, skipping any that were soft-deleted.</summary>
+        private Task<List<TagResponse>> LoadTagsAsync(int entryId, CancellationToken ct) =>
+            _db.PasswordEntryTags
+                .Where(pet => pet.PasswordEntryId == entryId)
+                .Join(_db.Tags, pet => pet.TagId, t => t.Id, (pet, t) => new TagResponse { Id = t.Id, Name = t.Name })
+                .OrderBy(t => t.Name)
+                .ToListAsync(ct);
+
         /// <summary>Maps an entry to its detail DTO, decrypting the stored password.</summary>
-        private EntryResponse ToResponse(PasswordEntry entry) => new()
+        private EntryResponse ToResponse(PasswordEntry entry, List<TagResponse> tags) => new()
         {
             Id = entry.Id,
             VaultId = entry.VaultId,
@@ -157,6 +243,7 @@ namespace TheShed.Server.Services
             Url = entry.Url,
             Notes = entry.Notes,
             IsFavorite = entry.IsFavorite,
+            Tags = tags,
             CreatedAt = entry.CreatedAt,
             UpdatedAt = entry.UpdatedAt
         };

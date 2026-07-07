@@ -44,7 +44,7 @@ namespace TheShed.Tests.Controllers
             };
             var controller = CreateController(fake);
 
-            var result = await controller.List(vaultId: 1, CancellationToken.None);
+            var result = await controller.List(vaultId: 1, tagId: null, CancellationToken.None);
 
             Assert.IsType<OkObjectResult>(result);
             Assert.Equal(UserId, fake.LastUserId); // controller pulled the id from the JWT claim
@@ -105,7 +105,7 @@ namespace TheShed.Tests.Controllers
             public EntryResult<EntryResponse> UpdateResult { get; set; } = default!;
             public EntryResult<bool> DeleteResult { get; set; } = default!;
 
-            public Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, CancellationToken ct = default)
+            public Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, CancellationToken ct = default)
             {
                 LastUserId = userId;
                 return Task.FromResult(ListResult);
@@ -130,6 +130,18 @@ namespace TheShed.Tests.Controllers
             }
 
             public Task<EntryResult<bool>> DeleteAsync(int userId, int entryId, CancellationToken ct = default)
+            {
+                LastUserId = userId;
+                return Task.FromResult(DeleteResult);
+            }
+
+            public Task<EntryResult<bool>> AddTagAsync(int userId, int entryId, int tagId, CancellationToken ct = default)
+            {
+                LastUserId = userId;
+                return Task.FromResult(DeleteResult);
+            }
+
+            public Task<EntryResult<bool>> RemoveTagAsync(int userId, int entryId, int tagId, CancellationToken ct = default)
             {
                 LastUserId = userId;
                 return Task.FromResult(DeleteResult);

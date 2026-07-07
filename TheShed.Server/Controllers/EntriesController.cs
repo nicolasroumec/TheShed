@@ -16,11 +16,11 @@ namespace TheShed.Server.Controllers
 
         public EntriesController(IPasswordEntryService entries) => _entries = entries;
 
-        // GET /api/entries?vaultId=123 — metadata only, no passwords.
+        // GET /api/entries?vaultId=123&tagId=5 — metadata only, no passwords. tagId filters optionally.
         [HttpGet]
-        public async Task<IActionResult> List([FromQuery] int vaultId, CancellationToken ct)
+        public async Task<IActionResult> List([FromQuery] int vaultId, [FromQuery] int? tagId, CancellationToken ct)
         {
-            var result = await _entries.ListAsync(CurrentUserId, vaultId, ct);
+            var result = await _entries.ListAsync(CurrentUserId, vaultId, tagId, ct);
             return result.Success ? Ok(result.Value) : MapError(result.Error);
         }
 
@@ -54,6 +54,21 @@ namespace TheShed.Server.Controllers
         public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
             var result = await _entries.DeleteAsync(CurrentUserId, id, ct);
+            return result.Success ? NoContent() : MapError(result.Error);
+        }
+
+        // PUT /api/entries/123/tags/5 — assign one of the caller's tags to the entry (idempotent).
+        [HttpPut("{id:int}/tags/{tagId:int}")]
+        public async Task<IActionResult> AddTag(int id, int tagId, CancellationToken ct)
+        {
+            var result = await _entries.AddTagAsync(CurrentUserId, id, tagId, ct);
+            return result.Success ? NoContent() : MapError(result.Error);
+        }
+
+        [HttpDelete("{id:int}/tags/{tagId:int}")]
+        public async Task<IActionResult> RemoveTag(int id, int tagId, CancellationToken ct)
+        {
+            var result = await _entries.RemoveTagAsync(CurrentUserId, id, tagId, ct);
             return result.Success ? NoContent() : MapError(result.Error);
         }
 
