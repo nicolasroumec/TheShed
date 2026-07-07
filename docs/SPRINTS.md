@@ -121,3 +121,135 @@
   (`UserNotFound`); ya es member o es el propio dueño → 409 (`AlreadyMember`).
 - **`EntryError` reutilizado:** se sumaron `UserNotFound`/`AlreadyMember`. Sigue marcado con
   `ponytail:` para renombrar a `ServiceError` cuando crezca un consumidor más.
+
+---
+
+# Backlog — sprints planificados (Sprint 9 → fin)
+
+> Orden por dependencia + valor: primero lo que reusa el patrón vault/entry ya engrasado,
+> después lo que toca infra de soft-delete, luego storage y por último extras de seguridad.
+> Cada sprint = una rama con PR a `main`. Todas las entidades (`SecureNote`, `Tag`,
+> `EntryHistory`, `Attachment`) **ya existen** en el modelo; falta API + UI.
+
+## ✅ Sprint 9 — Notas seguras (CRUD) · `feature/secure-notes`
+> Reusa todo el patrón de entries: `IVaultAccessService` para permisos, `IEncryptionService`
+> para cifrar `SecureNote.ContentEncrypted` (mismo formato AES-GCM que las entradas).
+> **Sin migración:** la entidad/tabla `SecureNote` ya existe; solo falta API + UI.
+
+### Increment 1 — DTOs · `TheShed.Shared/Models/DTOs/Notes/`
+- [x] `NoteCreateRequest` (VaultId, Title [Req, Max 200], Content [Req], IsFavorite)
+- [x] `NoteUpdateRequest` (Title, Content, IsFavorite — sin VaultId, como `EntryUpdateRequest`)
+- [x] `NoteResponse` (Id, VaultId, Title, Content descifrado, IsFavorite, CreatedAt, UpdatedAt)
+- [x] `NoteListItem` (Id, Title, IsFavorite — **sin contenido**)
+      → commit `feat: add secure note DTOs`
+
+### Increment 2 — Service + API
+- [x] `ISecureNoteService` + `SecureNoteService` (espejo de `PasswordEntryService`, cifra
+      `ContentEncrypted`; reusa `EntryResult<T>`/`EntryError`/`IVaultAccessService`)
+- [x] `NotesController` `[Authorize]` ruta `api/notes` (List?vaultId, Get{id}, Post, Put{id},
+      Delete{id}); DI `AddScoped<ISecureNoteService, SecureNoteService>` en `Server/Program.cs`
+      → commit `feat: add secure notes CRUD API`
+
+### Increment 3 — UI
+- [x] `NoteClient` (espejo de `EntryClient`) + DI en `Client/Program.cs`
+- [x] Sección "Secure notes" en `VaultDetail.razor` (debajo de entradas): listar, revelar
+      contenido una a una, alta/edición/borrado gated por `CanWrite`, confirmar al borrar
+      → commit `feat: add secure notes UI`
+
+### Increment 4 — Tests
+- [x] `SecureNoteServiceTests` + `NotesControllerTests` (espejo de los de entries) — suite
+      completa **83/83** en verde → commit `test: add secure notes service and controller tests`
+- [ ] PR a `main`
+
+### Decisiones de diseño (Sprint 9)
+- **Contenido = secreto:** `Content` se cifra con el mismo AES que las contraseñas y se devuelve
+  descifrado solo en `GET /{id}`; el listado lleva solo metadata (Title/IsFavorite).
+- **Duplicación aceptada:** `SecureNoteService` es ~90% copia de `PasswordEntryService`; con 2
+  consumidores de formas distintas no se abstrae aún (comentario `ponytail:`). Igual `MapError`/
+  `CurrentUserId`, ya en su 3ª copia en controllers: se deja, sube a un base controller si crece.
+- **UI:** sección aparte en la misma página `/vaults/{id}`, no tab ni página nueva.
+
+## 🔵 Sprint 10 — Tags (categorizar entradas) · `feature/tags`
+> `Tag` es **por usuario** (`Tag.UserId`); se asignan a entradas vía join `PasswordEntryTag`.
+- [ ] DTOs + `TagService` + `TagsController` (CRUD de tags del usuario)
+- [ ] Asignar/quitar tags a una entrada (endpoint en entries o tags); incluir tags en `EntryResponse`
+- [ ] UI: gestionar tags, asignarlos en el form de entrada, **filtrar** entradas por tag en `/vaults/{id}`
+- [ ] Tests
+- [ ] PR a `main`
+
+## 🔵 Sprint 11 — UX de entradas: favoritos + búsqueda + copiar · `feature/entry-ux`
+> Mayormente cliente; `PasswordEntry.IsFavorite` y `SecureNote.IsFavorite` ya existen.
+- [ ] Toggle favorito (PATCH ligero o reuso de update) + orden/filtro "favoritos primero"
+- [ ] Búsqueda de entradas por nombre/URL/usuario (filtro server-side en el listado o client-side)
+- [ ] Copiar contraseña al clipboard sin revelarla en pantalla (Clipboard API)
+- [ ] Tests de lo que tenga lógica (búsqueda/orden)
+- [ ] PR a `main`
+
+## 🔵 Sprint 12 — Historial de versiones · `feature/entry-history`
+> `EntryHistory` versiona solo la **contraseña** (`PasswordEncrypted` + `ChangedByUserId`).
+- [ ] Al actualizar una entrada, snapshot de la contraseña anterior en `EntryHistory`
+      (en `PasswordEntryService.UpdateAsync`)
+- [ ] `GET /api/entries/{id}/history` (descifra versiones para mostrar) — gated por acceso
+- [ ] UI: ver historial de una entrada, revelar versión vieja una a una
+- [ ] Tests (snapshot al editar, autorización)
+- [ ] PR a `main`
+
+## 🔵 Sprint 13 — Papelera / recuperar · `feature/trash`
+> Reusa el soft-delete (`AuditableEntity.IsDeleted` + global query filter). Hoy borrar = ocultar.
+- [ ] Listar borrados (bypass del filtro con `IgnoreQueryFilters`), restaurar y purgar definitivo
+      — entradas y notas (y vaults para el dueño)
+- [ ] Endpoints `GET /trash`, `POST /{id}/restore`, `DELETE /{id}/purge`; autorización por acceso
+- [ ] UI: vista de papelera con restaurar / borrar definitivo (con confirmación)
+- [ ] Tests
+- [ ] PR a `main`
+
+## 🔵 Sprint 14 — Adjuntos · `feature/attachments`
+> `Attachment` guarda `StoragePath` + `FileSizeBytes` → el archivo va **fuera de la DB**
+> (filesystem local en dev). Decidir límite de tamaño y si se cifra el blob.
+- [ ] Upload/download/delete de adjuntos de una entrada; validar tamaño/tipo en el boundary
+- [ ] `AttachmentService` + controller; storage local (carpeta configurable) detrás de una interfaz
+      mínima por si después se va a blob storage
+- [ ] UI: adjuntar/descargar/quitar en el detalle de entrada (gated por `CanWrite`)
+- [ ] Tests (validación de límites, autorización)
+- [ ] PR a `main`
+> ⚠️ Decisión pendiente: ¿cifrar el contenido del adjunto con AES como las contraseñas? (recomendado)
+
+## 🔵 Sprint 15 — Salud de contraseñas · `feature/password-health`
+> Detectores de débiles y repetidas. Reusa `PasswordGenerator`/criterios del Shared.
+- [ ] Detector de débiles (longitud/variedad/entropía simple) — Shared, con tests
+- [ ] Detector de repetidas entre entradas del usuario (comparar descifradas en memoria, nunca log)
+- [ ] UI: panel/badges de salud; nunca exponer la contraseña, solo el veredicto
+- [ ] Tests de los detectores
+- [ ] PR a `main`
+
+## 🔵 Sprint 16 — Importar / Exportar (CSV) · `feature/import-export`
+> CSV de LastPass / Bitwarden / 1Password (import) y export de entradas propias.
+- [ ] Parser CSV por formato (mapear columnas → `EntryCreate`); cifra al importar
+- [ ] Export de entradas propias a CSV (⚠️ contraseñas en claro en el archivo → warning explícito)
+- [ ] UI: subir CSV con preview/selección de vault destino; botón export
+- [ ] Tests de parsers (cada formato + filas inválidas)
+- [ ] PR a `main`
+
+## 🟣 Sprint 17 — 2FA (TOTP) · `feature/2fa`
+> `User.TwoFactorSecret` (nullable, null = desactivado) ya existe en el modelo.
+- [ ] Activar 2FA: generar secret TOTP + QR, verificar código antes de activar
+- [ ] Exigir código TOTP en login si está activado (segundo paso del flujo de auth)
+- [ ] Desactivar 2FA (reverificando)
+- [ ] Tests del flujo TOTP (validación de código, ventana de tiempo)
+- [ ] PR a `main`
+
+## 🟣 Sprint 18 — Cierre por inactividad · `feature/session-timeout`
+> Cliente: timeout configurable que cierra sesión y limpia el token de LocalStorage.
+- [ ] Detectar inactividad (timers + eventos), auto-logout + redirect a login
+- [ ] Timeout configurable (constante o setting de usuario)
+- [ ] PR a `main`
+
+---
+
+## 🔵 Transversal — Traducir a inglés · `feature/i18n-english`
+> **Hacerla pronto** (no bloquea features pero la deuda crece con cada sprint). CLAUDE.md
+> exige inglés en código/comentarios/docs. Pasar `docs/*.md` y los comentarios viejos de
+> auth/encryption a inglés. Rama independiente, mergeable en cualquier momento.
+
+> **Fuera de scope (post-roadmap):** modelo zero-knowledge (clave derivada del master /
+> clave por vault, ver D3/D4), refresh tokens (D2), app móvil, extensión de navegador, offline.
