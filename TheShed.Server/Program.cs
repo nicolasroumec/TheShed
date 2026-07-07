@@ -51,6 +51,7 @@ builder.Services.AddScoped<IVaultService, VaultService>();
 
 // Application services — password entries (Scoped: depends on TheShedContext)
 builder.Services.AddScoped<IPasswordEntryService, PasswordEntryService>();
+builder.Services.AddScoped<ISecureNoteService, SecureNoteService>();
 
 // Add services to the container.
 builder.Services.AddControllers();
