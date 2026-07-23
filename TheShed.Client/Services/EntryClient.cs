@@ -11,8 +11,13 @@ namespace TheShed.Client.Services
 
         public EntryClient(HttpClient http) => _http = http;
 
-        public async Task<IReadOnlyList<EntryListItem>> ListAsync(int vaultId) =>
-            await _http.GetFromJsonAsync<List<EntryListItem>>($"api/entries?vaultId={vaultId}") ?? [];
+        public async Task<IReadOnlyList<EntryListItem>> ListAsync(int vaultId, int? tagId = null)
+        {
+            var url = tagId is null
+                ? $"api/entries?vaultId={vaultId}"
+                : $"api/entries?vaultId={vaultId}&tagId={tagId}";
+            return await _http.GetFromJsonAsync<List<EntryListItem>>(url) ?? [];
+        }
 
         public Task<EntryResponse?> GetAsync(int entryId) =>
             _http.GetFromJsonAsync<EntryResponse>($"api/entries/{entryId}");
@@ -33,5 +38,11 @@ namespace TheShed.Client.Services
 
         public async Task DeleteAsync(int entryId) =>
             (await _http.DeleteAsync($"api/entries/{entryId}")).EnsureSuccessStatusCode();
+
+        public async Task AddTagAsync(int entryId, int tagId) =>
+            (await _http.PutAsync($"api/entries/{entryId}/tags/{tagId}", null)).EnsureSuccessStatusCode();
+
+        public async Task RemoveTagAsync(int entryId, int tagId) =>
+            (await _http.DeleteAsync($"api/entries/{entryId}/tags/{tagId}")).EnsureSuccessStatusCode();
     }
 }
