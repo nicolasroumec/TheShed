@@ -169,13 +169,26 @@
   `CurrentUserId`, ya en su 3ª copia en controllers: se deja, sube a un base controller si crece.
 - **UI:** sección aparte en la misma página `/vaults/{id}`, no tab ni página nueva.
 
-## 🔵 Sprint 10 — Tags (categorizar entradas) · `feature/tags`
+## ✅ Sprint 10 — Tags (categorizar entradas) · `feature/tags` + `feature/tags-ui`
 > `Tag` es **por usuario** (`Tag.UserId`); se asignan a entradas vía join `PasswordEntryTag`.
-- [ ] DTOs + `TagService` + `TagsController` (CRUD de tags del usuario)
-- [ ] Asignar/quitar tags a una entrada (endpoint en entries o tags); incluir tags en `EntryResponse`
-- [ ] UI: gestionar tags, asignarlos en el form de entrada, **filtrar** entradas por tag en `/vaults/{id}`
-- [ ] Tests
+- [x] DTOs + `TagService` + `TagsController` (CRUD de tags del usuario)
+      → commit `feat: add tags CRUD API and entry assignment.`
+- [x] Asignar/quitar tags a una entrada (`PUT/DELETE api/entries/{id}/tags/{tagId}`, idempotente);
+      tags incluidos en `EntryResponse` y `EntryListItem`, filtro opcional `?tagId` en el listado
+- [x] UI: `TagClient` + en `/vaults/{id}` filtro por tag, gestión (crear/borrar) y asignación en el
+      form de edición, badges de tags en el listado → commit `feat: add tags UI (filter, manage, assign to entries)`
+- [x] Tests de `TagService` + `TagsController` (suite completa **97/97** en verde)
+      → commit `test: add tag service and controller tests`
 - [ ] PR a `main`
+
+### Decisiones de diseño (Sprint 10)
+- **Backend directo en `main`:** el CRUD + asignación se mergeó en `main` (commit `d63b7ef`); la UI y
+  los tests van en `feature/tags-ui` sobre esa base.
+- **Asignación solo al editar:** en la UI el toggle de tags aparece solo editando una entrada ya
+  persistida (necesita `entryId`); una entrada nueva se crea primero y se etiqueta al editarla.
+- **Borrar tag = soft-delete:** deja huérfanas las filas `PasswordEntryTag`, que dejan de resolver por
+  el global query filter (comentario `ponytail:` en `TagService`). Purgar el join si se acumula.
+- **UI sin rename:** `TagClient` solo crea/borra/lista aunque la API soporte `PUT` (comentario `ponytail:`).
 
 ## 🔵 Sprint 11 — UX de entradas: favoritos + búsqueda + copiar · `feature/entry-ux`
 > Mayormente cliente; `PasswordEntry.IsFavorite` y `SecureNote.IsFavorite` ya existen.
