@@ -22,5 +22,6 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<VaultClient>();
 builder.Services.AddScoped<EntryClient>();
 builder.Services.AddScoped<NoteClient>();
+builder.Services.AddScoped<TagClient>();
 
 await builder.Build().RunAsync();
