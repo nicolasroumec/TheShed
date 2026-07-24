@@ -113,6 +113,17 @@ namespace TheShed.Server.Services
                 return EntryResult<EntryResponse>.Fail(error);
             }
 
+            if (_encryption.Decrypt(entry.PasswordEncrypted) != request.Password)
+            {
+                // Snapshot the outgoing password before it's overwritten.
+                _db.EntryHistory.Add(new EntryHistory
+                {
+                    PasswordEntryId = entry.Id,
+                    PasswordEncrypted = entry.PasswordEncrypted,
+                    ChangedByUserId = userId
+                });
+            }
+
             entry.Name = request.Name.Trim();
             entry.Username = request.Username;
             entry.PasswordEncrypted = _encryption.Encrypt(request.Password);

@@ -8,10 +8,9 @@
 - [~] Fase 5 — UI Blazor (auth ✅, vaults+entradas ✅, generador ✅, compartir vaults ✅, notas seguras ✅, tags ✅, UX de entradas ✅) ← en curso
 
 ## Próximo paso
-Sprint 11 (`feature/entry-ux`) cerrado: favoritos (toggle + orden favoritos-primero), búsqueda
-por nombre/username/URL y copiar contraseña al clipboard sin revelarla, con tests (106/106) y
-verificación e2e en navegador. Falta el PR a `main`. Siguiente: Sprint 12 — historial de
-versiones (`feature/entry-history`). Ver detalle en `SPRINTS.md`.
+Sprint 11 (tags UX: favoritos + búsqueda + copiar) cerrado y mergeado a `main` (PR #12).
+Arrancando Sprint 12 (`feature/entry-history`) — historial de versiones de contraseñas
+(`EntryHistory`). Ver detalle en `SPRINTS.md`.
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra
