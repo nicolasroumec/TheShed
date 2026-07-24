@@ -141,6 +141,8 @@ namespace TheShed.Tests.Controllers
             public EntryResult<EntryResponse> UpdateResult { get; set; } = default!;
             public EntryResult<bool> DeleteResult { get; set; } = default!;
             public EntryResult<bool> SetFavoriteResult { get; set; } = default!;
+            public EntryResult<IReadOnlyList<EntryHistoryItem>> HistoryResult { get; set; } = default!;
+            public EntryResult<EntryHistoryDetail> HistoryEntryResult { get; set; } = default!;
 
             public Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, string? search = null, CancellationToken ct = default)
             {
@@ -189,6 +191,18 @@ namespace TheShed.Tests.Controllers
                 LastUserId = userId;
                 LastIsFavorite = isFavorite;
                 return Task.FromResult(SetFavoriteResult);
+            }
+
+            public Task<EntryResult<IReadOnlyList<EntryHistoryItem>>> GetHistoryAsync(int userId, int entryId, CancellationToken ct = default)
+            {
+                LastUserId = userId;
+                return Task.FromResult(HistoryResult);
+            }
+
+            public Task<EntryResult<EntryHistoryDetail>> GetHistoryEntryAsync(int userId, int entryId, int historyId, CancellationToken ct = default)
+            {
+                LastUserId = userId;
+                return Task.FromResult(HistoryEntryResult);
             }
         }
     }

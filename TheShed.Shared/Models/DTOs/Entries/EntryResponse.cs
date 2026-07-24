@@ -18,5 +18,8 @@ namespace TheShed.Shared.Models.DTOs.Entries
         public List<TagResponse> Tags { get; set; } = [];
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+
+        /// <summary>When the current password became active (see EntryListItem).</summary>
+        public DateTime PasswordChangedAt { get; set; }
     }
 }
