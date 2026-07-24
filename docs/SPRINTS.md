@@ -179,7 +179,7 @@
       form de edición, badges de tags en el listado → commit `feat: add tags UI (filter, manage, assign to entries)`
 - [x] Tests de `TagService` + `TagsController` (suite completa **97/97** en verde)
       → commit `test: add tag service and controller tests`
-- [ ] PR a `main`
+- [x] PR a `main`
 
 ### Decisiones de diseño (Sprint 10)
 - **Backend directo en `main`:** el CRUD + asignación se mergeó en `main` (commit `d63b7ef`); la UI y
@@ -190,12 +190,38 @@
   el global query filter (comentario `ponytail:` en `TagService`). Purgar el join si se acumula.
 - **UI sin rename:** `TagClient` solo crea/borra/lista aunque la API soporte `PUT` (comentario `ponytail:`).
 
-## 🔵 Sprint 11 — UX de entradas: favoritos + búsqueda + copiar · `feature/entry-ux`
-> Mayormente cliente; `PasswordEntry.IsFavorite` y `SecureNote.IsFavorite` ya existen.
-- [ ] Toggle favorito (PATCH ligero o reuso de update) + orden/filtro "favoritos primero"
-- [ ] Búsqueda de entradas por nombre/URL/usuario (filtro server-side en el listado o client-side)
-- [ ] Copiar contraseña al clipboard sin revelarla en pantalla (Clipboard API)
-- [ ] Tests de lo que tenga lógica (búsqueda/orden)
+## 🟢 Sprint 11 — UX de entradas: favoritos + búsqueda + copiar · `feature/entry-ux`
+> Solo `PasswordEntry` por ahora (`SecureNote` tiene `IsFavorite` también pero queda para un sprint
+> posterior). `EntryListItem` no expone la contraseña, así que el toggle de favorito no puede
+> reusar `UpdateAsync` (pide el payload completo); se agrega un endpoint idempotente propio,
+> mismo patrón que la asignación de tags (`PUT/DELETE .../tags/{tagId}`).
+
+### Increment 1 — Backend: favorito
+- [ ] Extraer `LoadEntryForAccessAsync(entryId, requireWrite)` en `PasswordEntryService` (el
+      bloque `FirstOrDefault → GetAccessAsync → None/Forbidden` se repetía 5 veces; con
+      `SetFavoriteAsync` sería la 6ª) y reusarlo en Get/Update/Delete/AddTag/RemoveTag/SetFavorite
+- [ ] `PasswordEntryService.SetFavoriteAsync` + rutas `PUT/DELETE /api/entries/{id}/favorite`
+      (mismo molde idempotente que `AddTag`/`RemoveTag`)
+      → commit `refactor: extract entry access-check helper and add favorite toggle endpoint`
+
+### Increment 2 — Backend: búsqueda + orden
+- [ ] `ListAsync` suma `search` (contains sobre Name/Username/Url, case-insensitive) + orden
+      default `IsFavorite desc, Name asc`; `EntriesController` con `[FromQuery] string? search`
+      → commit `feat: add search filter and favorite-first ordering to entries list`
+
+### Increment 3 — UI: favorito + búsqueda
+- [ ] `EntryClient.SetFavoriteAsync` + `ListAsync(..., search)`; input de búsqueda y botón
+      estrella por fila en `VaultDetail.razor` (mismo `btn-group` que Reveal/Hide)
+      → commit `feat: add favorite toggle and search UI to vault detail`
+
+### Increment 4 — UI: copiar al clipboard
+- [ ] `wwwroot/js/interop.js` (`navigator.clipboard.writeText`) + botón "Copy" que llama
+      `GetAsync` y copia sin activar el Reveal
+      → commit `feat: add copy-to-clipboard for entry passwords`
+
+### Increment 5 — Tests
+- [ ] Tests de servicio (orden/búsqueda, toggle favorito) + controller
+      → commit `test: add tests for favorites, search and clipboard flow`
 - [ ] PR a `main`
 
 ## 🔵 Sprint 12 — Historial de versiones · `feature/entry-history`

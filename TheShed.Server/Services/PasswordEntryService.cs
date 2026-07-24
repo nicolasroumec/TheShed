@@ -58,16 +58,10 @@ namespace TheShed.Server.Services
 
         public async Task<EntryResult<EntryResponse>> GetAsync(int userId, int entryId, CancellationToken ct = default)
         {
-            var entry = await _db.PasswordEntries.FirstOrDefaultAsync(e => e.Id == entryId, ct);
+            var (entry, error) = await LoadForAccessAsync(userId, entryId, requireWrite: false, ct);
             if (entry is null)
             {
-                return EntryResult<EntryResponse>.Fail(EntryError.NotFound);
-            }
-
-            var access = await _access.GetAccessAsync(entry.VaultId, userId, ct);
-            if (access == VaultAccess.None)
-            {
-                return EntryResult<EntryResponse>.Fail(EntryError.NotFound);
+                return EntryResult<EntryResponse>.Fail(error);
             }
 
             return EntryResult<EntryResponse>.Ok(ToResponse(entry, await LoadTagsAsync(entry.Id, ct)));
@@ -105,20 +99,10 @@ namespace TheShed.Server.Services
 
         public async Task<EntryResult<EntryResponse>> UpdateAsync(int userId, int entryId, EntryUpdateRequest request, CancellationToken ct = default)
         {
-            var entry = await _db.PasswordEntries.FirstOrDefaultAsync(e => e.Id == entryId, ct);
+            var (entry, error) = await LoadForAccessAsync(userId, entryId, requireWrite: true, ct);
             if (entry is null)
             {
-                return EntryResult<EntryResponse>.Fail(EntryError.NotFound);
-            }
-
-            var access = await _access.GetAccessAsync(entry.VaultId, userId, ct);
-            if (access == VaultAccess.None)
-            {
-                return EntryResult<EntryResponse>.Fail(EntryError.NotFound);
-            }
-            if (access != VaultAccess.Write)
-            {
-                return EntryResult<EntryResponse>.Fail(EntryError.Forbidden);
+                return EntryResult<EntryResponse>.Fail(error);
             }
 
             entry.Name = request.Name.Trim();
@@ -135,20 +119,10 @@ namespace TheShed.Server.Services
 
         public async Task<EntryResult<bool>> DeleteAsync(int userId, int entryId, CancellationToken ct = default)
         {
-            var entry = await _db.PasswordEntries.FirstOrDefaultAsync(e => e.Id == entryId, ct);
+            var (entry, error) = await LoadForAccessAsync(userId, entryId, requireWrite: true, ct);
             if (entry is null)
             {
-                return EntryResult<bool>.Fail(EntryError.NotFound);
-            }
-
-            var access = await _access.GetAccessAsync(entry.VaultId, userId, ct);
-            if (access == VaultAccess.None)
-            {
-                return EntryResult<bool>.Fail(EntryError.NotFound);
-            }
-            if (access != VaultAccess.Write)
-            {
-                return EntryResult<bool>.Fail(EntryError.Forbidden);
+                return EntryResult<bool>.Fail(error);
             }
 
             // Soft delete: the SaveChanges override turns this into an IsDeleted update.
@@ -160,20 +134,10 @@ namespace TheShed.Server.Services
 
         public async Task<EntryResult<bool>> AddTagAsync(int userId, int entryId, int tagId, CancellationToken ct = default)
         {
-            var entry = await _db.PasswordEntries.FirstOrDefaultAsync(e => e.Id == entryId, ct);
+            var (entry, error) = await LoadForAccessAsync(userId, entryId, requireWrite: true, ct);
             if (entry is null)
             {
-                return EntryResult<bool>.Fail(EntryError.NotFound);
-            }
-
-            var access = await _access.GetAccessAsync(entry.VaultId, userId, ct);
-            if (access == VaultAccess.None)
-            {
-                return EntryResult<bool>.Fail(EntryError.NotFound);
-            }
-            if (access != VaultAccess.Write)
-            {
-                return EntryResult<bool>.Fail(EntryError.Forbidden);
+                return EntryResult<bool>.Fail(error);
             }
 
             // The tag must be one of the caller's own tags.
@@ -196,20 +160,10 @@ namespace TheShed.Server.Services
 
         public async Task<EntryResult<bool>> RemoveTagAsync(int userId, int entryId, int tagId, CancellationToken ct = default)
         {
-            var entry = await _db.PasswordEntries.FirstOrDefaultAsync(e => e.Id == entryId, ct);
+            var (entry, error) = await LoadForAccessAsync(userId, entryId, requireWrite: true, ct);
             if (entry is null)
             {
-                return EntryResult<bool>.Fail(EntryError.NotFound);
-            }
-
-            var access = await _access.GetAccessAsync(entry.VaultId, userId, ct);
-            if (access == VaultAccess.None)
-            {
-                return EntryResult<bool>.Fail(EntryError.NotFound);
-            }
-            if (access != VaultAccess.Write)
-            {
-                return EntryResult<bool>.Fail(EntryError.Forbidden);
+                return EntryResult<bool>.Fail(error);
             }
 
             var link = await _db.PasswordEntryTags
@@ -222,6 +176,46 @@ namespace TheShed.Server.Services
             }
 
             return EntryResult<bool>.Ok(true);
+        }
+
+        public async Task<EntryResult<bool>> SetFavoriteAsync(int userId, int entryId, bool isFavorite, CancellationToken ct = default)
+        {
+            var (entry, error) = await LoadForAccessAsync(userId, entryId, requireWrite: true, ct);
+            if (entry is null)
+            {
+                return EntryResult<bool>.Fail(error);
+            }
+
+            if (entry.IsFavorite != isFavorite) // idempotent: setting the same value is a no-op
+            {
+                entry.IsFavorite = isFavorite;
+                await _db.SaveChangesAsync(ct);
+            }
+
+            return EntryResult<bool>.Ok(true);
+        }
+
+        /// <summary>Loads an entry the caller can access, or the reason it's unavailable
+        /// (not found/no access → NotFound, read-only access when write is required → Forbidden).</summary>
+        private async Task<(PasswordEntry? Entry, EntryError Error)> LoadForAccessAsync(int userId, int entryId, bool requireWrite, CancellationToken ct)
+        {
+            var entry = await _db.PasswordEntries.FirstOrDefaultAsync(e => e.Id == entryId, ct);
+            if (entry is null)
+            {
+                return (null, EntryError.NotFound);
+            }
+
+            var access = await _access.GetAccessAsync(entry.VaultId, userId, ct);
+            if (access == VaultAccess.None)
+            {
+                return (null, EntryError.NotFound);
+            }
+            if (requireWrite && access != VaultAccess.Write)
+            {
+                return (null, EntryError.Forbidden);
+            }
+
+            return (entry, EntryError.None);
         }
 
         /// <summary>Loads an entry's tags, skipping any that were soft-deleted.</summary>

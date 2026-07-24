@@ -72,6 +72,21 @@ namespace TheShed.Server.Controllers
             return result.Success ? NoContent() : MapError(result.Error);
         }
 
+        // PUT /api/entries/123/favorite — mark as favorite (idempotent). DELETE unmarks it.
+        [HttpPut("{id:int}/favorite")]
+        public async Task<IActionResult> SetFavorite(int id, CancellationToken ct)
+        {
+            var result = await _entries.SetFavoriteAsync(CurrentUserId, id, true, ct);
+            return result.Success ? NoContent() : MapError(result.Error);
+        }
+
+        [HttpDelete("{id:int}/favorite")]
+        public async Task<IActionResult> UnsetFavorite(int id, CancellationToken ct)
+        {
+            var result = await _entries.SetFavoriteAsync(CurrentUserId, id, false, ct);
+            return result.Success ? NoContent() : MapError(result.Error);
+        }
+
         /// <summary>Current user id, taken from the JWT "sub" claim.</summary>
         private int CurrentUserId =>
             int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
