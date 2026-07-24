@@ -20,5 +20,7 @@ namespace TheShed.Server.Services
         Task<EntryResult<bool>> AddTagAsync(int userId, int entryId, int tagId, CancellationToken ct = default);
         Task<EntryResult<bool>> RemoveTagAsync(int userId, int entryId, int tagId, CancellationToken ct = default);
         Task<EntryResult<bool>> SetFavoriteAsync(int userId, int entryId, bool isFavorite, CancellationToken ct = default);
+        Task<EntryResult<IReadOnlyList<EntryHistoryItem>>> GetHistoryAsync(int userId, int entryId, CancellationToken ct = default);
+        Task<EntryResult<EntryHistoryDetail>> GetHistoryEntryAsync(int userId, int entryId, int historyId, CancellationToken ct = default);
     }
 }

@@ -88,6 +88,22 @@ namespace TheShed.Server.Controllers
             return result.Success ? NoContent() : MapError(result.Error);
         }
 
+        // GET /api/entries/123/history — past passwords, metadata only (no passwords), newest first.
+        [HttpGet("{id:int}/history")]
+        public async Task<IActionResult> GetHistory(int id, CancellationToken ct)
+        {
+            var result = await _entries.GetHistoryAsync(CurrentUserId, id, ct);
+            return result.Success ? Ok(result.Value) : MapError(result.Error);
+        }
+
+        // GET /api/entries/123/history/456 — a single past password, decrypted.
+        [HttpGet("{id:int}/history/{historyId:int}")]
+        public async Task<IActionResult> GetHistoryEntry(int id, int historyId, CancellationToken ct)
+        {
+            var result = await _entries.GetHistoryEntryAsync(CurrentUserId, id, historyId, ct);
+            return result.Success ? Ok(result.Value) : MapError(result.Error);
+        }
+
         /// <summary>Current user id, taken from the JWT "sub" claim.</summary>
         private int CurrentUserId =>
             int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)

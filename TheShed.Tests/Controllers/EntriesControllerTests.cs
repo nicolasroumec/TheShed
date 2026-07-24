@@ -130,6 +130,55 @@ namespace TheShed.Tests.Controllers
             Assert.IsType<ForbidResult>(result);
         }
 
+        [Fact]
+        public async Task GetHistory_Success_Returns200AndForwardsUserId()
+        {
+            var fake = new FakeEntryService { HistoryResult = EntryResult<IReadOnlyList<EntryHistoryItem>>.Ok(new List<EntryHistoryItem>()) };
+            var controller = CreateController(fake);
+
+            var result = await controller.GetHistory(id: 1, CancellationToken.None);
+
+            Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(UserId, fake.LastUserId);
+        }
+
+        [Fact]
+        public async Task GetHistory_NotFound_Returns404()
+        {
+            var fake = new FakeEntryService { HistoryResult = EntryResult<IReadOnlyList<EntryHistoryItem>>.Fail(EntryError.NotFound) };
+            var controller = CreateController(fake);
+
+            var result = await controller.GetHistory(id: 1, CancellationToken.None);
+
+            Assert.IsType<NotFoundResult>(result);
+        }
+
+        [Fact]
+        public async Task GetHistoryEntry_Success_Returns200()
+        {
+            var fake = new FakeEntryService
+            {
+                HistoryEntryResult = EntryResult<EntryHistoryDetail>.Ok(new EntryHistoryDetail { Id = 5, Password = "old-secret" })
+            };
+            var controller = CreateController(fake);
+
+            var result = await controller.GetHistoryEntry(id: 1, historyId: 5, CancellationToken.None);
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            Assert.IsType<EntryHistoryDetail>(ok.Value);
+        }
+
+        [Fact]
+        public async Task GetHistoryEntry_NotFound_Returns404()
+        {
+            var fake = new FakeEntryService { HistoryEntryResult = EntryResult<EntryHistoryDetail>.Fail(EntryError.NotFound) };
+            var controller = CreateController(fake);
+
+            var result = await controller.GetHistoryEntry(id: 1, historyId: 5, CancellationToken.None);
+
+            Assert.IsType<NotFoundResult>(result);
+        }
+
         // Fake service: returns preconfigured results and records the user id it received.
         private sealed class FakeEntryService : IPasswordEntryService
         {
@@ -141,6 +190,8 @@ namespace TheShed.Tests.Controllers
             public EntryResult<EntryResponse> UpdateResult { get; set; } = default!;
             public EntryResult<bool> DeleteResult { get; set; } = default!;
             public EntryResult<bool> SetFavoriteResult { get; set; } = default!;
+            public EntryResult<IReadOnlyList<EntryHistoryItem>> HistoryResult { get; set; } = default!;
+            public EntryResult<EntryHistoryDetail> HistoryEntryResult { get; set; } = default!;
 
             public Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, string? search = null, CancellationToken ct = default)
             {
@@ -189,6 +240,18 @@ namespace TheShed.Tests.Controllers
                 LastUserId = userId;
                 LastIsFavorite = isFavorite;
                 return Task.FromResult(SetFavoriteResult);
+            }
+
+            public Task<EntryResult<IReadOnlyList<EntryHistoryItem>>> GetHistoryAsync(int userId, int entryId, CancellationToken ct = default)
+            {
+                LastUserId = userId;
+                return Task.FromResult(HistoryResult);
+            }
+
+            public Task<EntryResult<EntryHistoryDetail>> GetHistoryEntryAsync(int userId, int entryId, int historyId, CancellationToken ct = default)
+            {
+                LastUserId = userId;
+                return Task.FromResult(HistoryEntryResult);
             }
         }
     }

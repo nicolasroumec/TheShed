@@ -228,16 +228,53 @@
 - [x] Verificado e2e en navegador: orden favoritos-primero, toggle ★, búsqueda por
       nombre/username/URL, copy-to-clipboard sin revelar la contraseña en pantalla — sin errores
       de consola
+- [x] PR a `main` (#12)
+
+## ✅ Sprint 12 — Historial de versiones · `feature/entry-history`
+> `EntryHistory` versiona solo la **contraseña** (`PasswordEncrypted` + `ChangedByUserId`).
+> AES-GCM cifra con nonce aleatorio, así que dos cifrados del mismo texto dan ciphertext
+> distinto: para saber si la contraseña realmente cambió hay que comparar contra el
+> plaintext descifrado, no contra el ciphertext viejo.
+
+### Increment 1 — Backend: snapshot al actualizar
+- [x] En `PasswordEntryService.UpdateAsync`, si `request.Password` difiere del plaintext
+      actual, guarda un `EntryHistory` (contraseña vieja cifrada + `ChangedByUserId`) antes
+      de aplicar el update. Si no cambió, no genera entrada (evita ruido en el historial)
+      → commit `feat: snapshot previous password into EntryHistory on update`
+
+### Increment 2 — Backend: endpoints de historial
+- [x] DTO `EntryHistoryItem` (Id, CreatedAt, ChangedByUsername — sin contraseña, mismo
+      patrón metadata-en-listado que `EntryListItem`) + `EntryHistoryDetail` (revela una
+      contraseña vieja puntual, descifrada)
+- [x] `GetHistoryAsync` (lista ordenada por fecha desc) + `GetHistoryEntryAsync`;
+      autorización vía `LoadForAccessAsync` (solo lectura, del Sprint 11) → rutas
+      `GET /api/entries/{id}/history` y `GET /api/entries/{id}/history/{historyId}`
+- [x] `EntryListItem`/`EntryResponse` suman `PasswordChangedAt` (el `CreatedAt` del último
+      `EntryHistory` de la entrada, o el `CreatedAt` de la propia entrada si nunca cambió) —
+      "antigüedad de la contraseña actual" visible sin abrir el historial
+      → commit `feat: add entry history endpoints`
+
+### Increment 3 — UI
+- [x] `EntryClient.GetHistoryAsync`/`GetHistoryEntryAsync`; botón "History" por entrada en
+      `VaultDetail.razor` que despliega la lista (fecha + quién cambió) con Reveal
+      individual por versión (mismo patrón que el Reveal de la contraseña actual)
+- [x] Texto "Password changed X days ago" en el listado de entradas, con `PasswordChangedAt`
+      → commit `feat: add entry history UI`
+
+### Increment 4 — Tests
+- [x] Snapshot solo cuando cambia la contraseña (no en ediciones que solo tocan
+      nombre/URL/notas), orden desc, autorización (viewer lee, no-miembro → 404, historial
+      de otra entrada → 404), reveal del valor descifrado correcto, cálculo de
+      `PasswordChangedAt` (con y sin historial) — suite completa **118/118** en verde
+      → commit `test: add tests for entry history`
 - [ ] PR a `main`
 
-## 🔵 Sprint 12 — Historial de versiones · `feature/entry-history`
-> `EntryHistory` versiona solo la **contraseña** (`PasswordEncrypted` + `ChangedByUserId`).
-- [ ] Al actualizar una entrada, snapshot de la contraseña anterior en `EntryHistory`
-      (en `PasswordEntryService.UpdateAsync`)
-- [ ] `GET /api/entries/{id}/history` (descifra versiones para mostrar) — gated por acceso
-- [ ] UI: ver historial de una entrada, revelar versión vieja una a una
-- [ ] Tests (snapshot al editar, autorización)
-- [ ] PR a `main`
+### Decisiones de diseño (Sprint 12)
+- **Sin purga ni límite de versiones:** el historial crece sin tope por ahora (comentario
+  `ponytail:` en el código). No hay evidencia todavía de que la tabla crezca lo suficiente
+  como para justificar un límite o una purga automática; si se vuelve un problema real,
+  la mejora natural es capar a las N versiones más recientes por entrada o purgar por
+  antigüedad, no antes.
 
 ## 🔵 Sprint 13 — Papelera / recuperar · `feature/trash`
 > Reusa el soft-delete (`AuditableEntity.IsDeleted` + global query filter). Hoy borrar = ocultar.

@@ -364,5 +364,151 @@ namespace TheShed.Tests.Services
             Assert.False(result.Success);
             Assert.Equal(EntryError.NotFound, result.Error);
         }
+
+        // --- History ---
+
+        [Fact]
+        public async Task UpdateAsync_PasswordChanged_SnapshotsOutgoingPassword()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+            var created = await service.CreateAsync(ownerId, SampleCreate(vaultId)); // password: super-secret
+
+            await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest
+            {
+                Name = "Gmail",
+                Username = "ana@gmail.com",
+                Password = "new-secret",
+                IsFavorite = false
+            });
+
+            var history = await service.GetHistoryAsync(ownerId, created.Value!.Id);
+            var item = Assert.Single(history.Value!);
+            Assert.Equal(ownerId, (await db.EntryHistory.FirstAsync()).ChangedByUserId);
+
+            var detail = await service.GetHistoryEntryAsync(ownerId, created.Value!.Id, item.Id);
+            Assert.Equal("super-secret", detail.Value!.Password); // the old password, decrypted
+        }
+
+        [Fact]
+        public async Task UpdateAsync_PasswordUnchanged_DoesNotSnapshot()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+            var created = await service.CreateAsync(ownerId, SampleCreate(vaultId)); // password: super-secret
+
+            await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest
+            {
+                Name = "Gmail renamed",
+                Username = "ana@gmail.com",
+                Password = "super-secret", // unchanged
+                IsFavorite = false
+            });
+
+            var history = await service.GetHistoryAsync(ownerId, created.Value!.Id);
+            Assert.Empty(history.Value!);
+        }
+
+        [Fact]
+        public async Task GetHistoryAsync_ReturnsNewestFirst()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+            var created = await service.CreateAsync(ownerId, SampleCreate(vaultId)); // password: super-secret
+
+            await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "second-secret" });
+            await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "third-secret" });
+
+            var history = await service.GetHistoryAsync(ownerId, created.Value!.Id);
+
+            Assert.Equal(2, history.Value!.Count);
+            Assert.True(history.Value![0].CreatedAt >= history.Value![1].CreatedAt);
+        }
+
+        [Fact]
+        public async Task GetHistoryAsync_NonMember_ReturnsNotFound()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+            var created = await service.CreateAsync(ownerId, SampleCreate(vaultId));
+
+            var result = await service.GetHistoryAsync(StrangerId, created.Value!.Id);
+
+            Assert.False(result.Success);
+            Assert.Equal(EntryError.NotFound, result.Error);
+        }
+
+        [Fact]
+        public async Task GetHistoryEntryAsync_ViewerMember_CanRead()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var viewerId = await AddMemberAsync(db, vaultId, VaultRole.Viewer);
+            var service = CreateService(db);
+            var created = await service.CreateAsync(ownerId, SampleCreate(vaultId));
+            await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "new-secret" });
+            var historyId = (await service.GetHistoryAsync(ownerId, created.Value!.Id)).Value!.Single().Id;
+
+            var result = await service.GetHistoryEntryAsync(viewerId, created.Value!.Id, historyId);
+
+            Assert.True(result.Success);
+            Assert.Equal("super-secret", result.Value!.Password);
+        }
+
+        [Fact]
+        public async Task GetHistoryEntryAsync_HistoryFromAnotherEntry_ReturnsNotFound()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+            var entryA = await service.CreateAsync(ownerId, SampleCreate(vaultId));
+            var entryB = await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Other", Username = "b", Password = "b-pass" });
+            await service.UpdateAsync(ownerId, entryA.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "new-secret" });
+            var historyId = (await service.GetHistoryAsync(ownerId, entryA.Value!.Id)).Value!.Single().Id;
+
+            var result = await service.GetHistoryEntryAsync(ownerId, entryB.Value!.Id, historyId);
+
+            Assert.False(result.Success);
+            Assert.Equal(EntryError.NotFound, result.Error);
+        }
+
+        [Fact]
+        public async Task PasswordChangedAt_DefaultsToEntryCreation_WhenNeverChanged()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+            var created = await service.CreateAsync(ownerId, SampleCreate(vaultId));
+
+            var listed = await service.ListAsync(ownerId, vaultId);
+            var got = await service.GetAsync(ownerId, created.Value!.Id);
+
+            Assert.Equal(created.Value!.CreatedAt, listed.Value!.Single().PasswordChangedAt);
+            Assert.Equal(created.Value!.CreatedAt, got.Value!.PasswordChangedAt);
+        }
+
+        [Fact]
+        public async Task PasswordChangedAt_ReflectsLatestSnapshot_AfterPasswordChange()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+            var created = await service.CreateAsync(ownerId, SampleCreate(vaultId));
+
+            var updated = await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest
+            {
+                Name = "Gmail",
+                Username = "ana@gmail.com",
+                Password = "new-secret"
+            });
+
+            var historySnapshot = (await service.GetHistoryAsync(ownerId, created.Value!.Id)).Value!.Single();
+            Assert.Equal(historySnapshot.CreatedAt, updated.Value!.PasswordChangedAt);
+            Assert.NotEqual(created.Value!.CreatedAt, updated.Value!.PasswordChangedAt);
+        }
     }
 }

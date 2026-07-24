@@ -57,7 +57,11 @@ namespace TheShed.Server.Services
                         .Where(pet => !pet.Tag.IsDeleted)
                         .Select(pet => new TagResponse { Id = pet.Tag.Id, Name = pet.Tag.Name })
                         .OrderBy(t => t.Name)
-                        .ToList()
+                        .ToList(),
+                    PasswordChangedAt = e.History
+                        .OrderByDescending(h => h.CreatedAt)
+                        .Select(h => (DateTime?)h.CreatedAt)
+                        .FirstOrDefault() ?? e.CreatedAt
                 })
                 .ToListAsync(ct);
 
@@ -72,7 +76,8 @@ namespace TheShed.Server.Services
                 return EntryResult<EntryResponse>.Fail(error);
             }
 
-            return EntryResult<EntryResponse>.Ok(ToResponse(entry, await LoadTagsAsync(entry.Id, ct)));
+            var passwordChangedAt = await GetPasswordChangedAtAsync(entry, ct);
+            return EntryResult<EntryResponse>.Ok(ToResponse(entry, await LoadTagsAsync(entry.Id, ct), passwordChangedAt));
         }
 
         public async Task<EntryResult<EntryResponse>> CreateAsync(int userId, EntryCreateRequest request, CancellationToken ct = default)
@@ -101,8 +106,8 @@ namespace TheShed.Server.Services
             _db.PasswordEntries.Add(entry);
             await _db.SaveChangesAsync(ct);
 
-            // A freshly created entry has no tags yet.
-            return EntryResult<EntryResponse>.Ok(ToResponse(entry, []));
+            // A freshly created entry has no tags or history yet.
+            return EntryResult<EntryResponse>.Ok(ToResponse(entry, [], entry.CreatedAt));
         }
 
         public async Task<EntryResult<EntryResponse>> UpdateAsync(int userId, int entryId, EntryUpdateRequest request, CancellationToken ct = default)
@@ -111,6 +116,18 @@ namespace TheShed.Server.Services
             if (entry is null)
             {
                 return EntryResult<EntryResponse>.Fail(error);
+            }
+
+            if (_encryption.Decrypt(entry.PasswordEncrypted) != request.Password)
+            {
+                // Snapshot the outgoing password before it's overwritten.
+                // ponytail: no cap on versions kept per entry; purge/limit if the table ever grows enough to matter.
+                _db.EntryHistory.Add(new EntryHistory
+                {
+                    PasswordEntryId = entry.Id,
+                    PasswordEncrypted = entry.PasswordEncrypted,
+                    ChangedByUserId = userId
+                });
             }
 
             entry.Name = request.Name.Trim();
@@ -122,7 +139,8 @@ namespace TheShed.Server.Services
 
             await _db.SaveChangesAsync(ct);
 
-            return EntryResult<EntryResponse>.Ok(ToResponse(entry, await LoadTagsAsync(entry.Id, ct)));
+            var passwordChangedAt = await GetPasswordChangedAtAsync(entry, ct);
+            return EntryResult<EntryResponse>.Ok(ToResponse(entry, await LoadTagsAsync(entry.Id, ct), passwordChangedAt));
         }
 
         public async Task<EntryResult<bool>> DeleteAsync(int userId, int entryId, CancellationToken ct = default)
@@ -203,6 +221,67 @@ namespace TheShed.Server.Services
             return EntryResult<bool>.Ok(true);
         }
 
+        public async Task<EntryResult<IReadOnlyList<EntryHistoryItem>>> GetHistoryAsync(int userId, int entryId, CancellationToken ct = default)
+        {
+            var (entry, error) = await LoadForAccessAsync(userId, entryId, requireWrite: false, ct);
+            if (entry is null)
+            {
+                return EntryResult<IReadOnlyList<EntryHistoryItem>>.Fail(error);
+            }
+
+            var items = await _db.EntryHistory
+                .Where(h => h.PasswordEntryId == entryId)
+                .OrderByDescending(h => h.CreatedAt)
+                .Select(h => new EntryHistoryItem
+                {
+                    Id = h.Id,
+                    CreatedAt = h.CreatedAt,
+                    ChangedByUsername = h.ChangedBy.Username
+                })
+                .ToListAsync(ct);
+
+            return EntryResult<IReadOnlyList<EntryHistoryItem>>.Ok(items);
+        }
+
+        public async Task<EntryResult<EntryHistoryDetail>> GetHistoryEntryAsync(int userId, int entryId, int historyId, CancellationToken ct = default)
+        {
+            var (entry, error) = await LoadForAccessAsync(userId, entryId, requireWrite: false, ct);
+            if (entry is null)
+            {
+                return EntryResult<EntryHistoryDetail>.Fail(error);
+            }
+
+            var history = await _db.EntryHistory
+                .Where(h => h.Id == historyId && h.PasswordEntryId == entryId)
+                .Select(h => new EntryHistoryDetail
+                {
+                    Id = h.Id,
+                    Password = h.PasswordEncrypted,
+                    CreatedAt = h.CreatedAt,
+                    ChangedByUsername = h.ChangedBy.Username
+                })
+                .FirstOrDefaultAsync(ct);
+            if (history is null)
+            {
+                return EntryResult<EntryHistoryDetail>.Fail(EntryError.NotFound);
+            }
+
+            history.Password = _encryption.Decrypt(history.Password);
+            return EntryResult<EntryHistoryDetail>.Ok(history);
+        }
+
+        /// <summary>When the current password became active: the latest EntryHistory
+        /// snapshot's CreatedAt, or the entry's own CreatedAt if it never changed.</summary>
+        private async Task<DateTime> GetPasswordChangedAtAsync(PasswordEntry entry, CancellationToken ct)
+        {
+            var lastChange = await _db.EntryHistory
+                .Where(h => h.PasswordEntryId == entry.Id)
+                .OrderByDescending(h => h.CreatedAt)
+                .Select(h => (DateTime?)h.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+            return lastChange ?? entry.CreatedAt;
+        }
+
         /// <summary>Loads an entry the caller can access, or the reason it's unavailable
         /// (not found/no access → NotFound, read-only access when write is required → Forbidden).</summary>
         private async Task<(PasswordEntry? Entry, EntryError Error)> LoadForAccessAsync(int userId, int entryId, bool requireWrite, CancellationToken ct)
@@ -235,7 +314,7 @@ namespace TheShed.Server.Services
                 .ToListAsync(ct);
 
         /// <summary>Maps an entry to its detail DTO, decrypting the stored password.</summary>
-        private EntryResponse ToResponse(PasswordEntry entry, List<TagResponse> tags) => new()
+        private EntryResponse ToResponse(PasswordEntry entry, List<TagResponse> tags, DateTime passwordChangedAt) => new()
         {
             Id = entry.Id,
             VaultId = entry.VaultId,
@@ -247,7 +326,8 @@ namespace TheShed.Server.Services
             IsFavorite = entry.IsFavorite,
             Tags = tags,
             CreatedAt = entry.CreatedAt,
-            UpdatedAt = entry.UpdatedAt
+            UpdatedAt = entry.UpdatedAt,
+            PasswordChangedAt = passwordChangedAt
         };
     }
 }

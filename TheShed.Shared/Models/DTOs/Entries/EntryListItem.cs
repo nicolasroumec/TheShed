@@ -13,5 +13,10 @@ namespace TheShed.Shared.Models.DTOs.Entries
         public string? Url { get; set; }
         public bool IsFavorite { get; set; }
         public List<TagResponse> Tags { get; set; } = [];
+
+        /// <summary>When the current password became active: the most recent
+        /// EntryHistory snapshot's CreatedAt, or the entry's own CreatedAt if
+        /// the password has never changed.</summary>
+        public DateTime PasswordChangedAt { get; set; }
     }
 }
