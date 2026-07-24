@@ -16,11 +16,12 @@ namespace TheShed.Server.Controllers
 
         public EntriesController(IPasswordEntryService entries) => _entries = entries;
 
-        // GET /api/entries?vaultId=123&tagId=5 — metadata only, no passwords. tagId filters optionally.
+        // GET /api/entries?vaultId=123&tagId=5&search=foo — metadata only, no passwords.
+        // tagId/search filter optionally; favorites sort first.
         [HttpGet]
-        public async Task<IActionResult> List([FromQuery] int vaultId, [FromQuery] int? tagId, CancellationToken ct)
+        public async Task<IActionResult> List([FromQuery] int vaultId, [FromQuery] int? tagId, [FromQuery] string? search, CancellationToken ct)
         {
-            var result = await _entries.ListAsync(CurrentUserId, vaultId, tagId, ct);
+            var result = await _entries.ListAsync(CurrentUserId, vaultId, tagId, search, ct);
             return result.Success ? Ok(result.Value) : MapError(result.Error);
         }
 
@@ -69,6 +70,21 @@ namespace TheShed.Server.Controllers
         public async Task<IActionResult> RemoveTag(int id, int tagId, CancellationToken ct)
         {
             var result = await _entries.RemoveTagAsync(CurrentUserId, id, tagId, ct);
+            return result.Success ? NoContent() : MapError(result.Error);
+        }
+
+        // PUT /api/entries/123/favorite — mark as favorite (idempotent). DELETE unmarks it.
+        [HttpPut("{id:int}/favorite")]
+        public async Task<IActionResult> SetFavorite(int id, CancellationToken ct)
+        {
+            var result = await _entries.SetFavoriteAsync(CurrentUserId, id, true, ct);
+            return result.Success ? NoContent() : MapError(result.Error);
+        }
+
+        [HttpDelete("{id:int}/favorite")]
+        public async Task<IActionResult> UnsetFavorite(int id, CancellationToken ct)
+        {
+            var result = await _entries.SetFavoriteAsync(CurrentUserId, id, false, ct);
             return result.Success ? NoContent() : MapError(result.Error);
         }
 
