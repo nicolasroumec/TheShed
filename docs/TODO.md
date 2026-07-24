@@ -5,11 +5,13 @@
 - [x] Fase 2 — Limpieza (modelos y docs de natación eliminados)
 - [x] Fase 3 — Modelo de datos (entidades del gestor de contraseñas)
 - [x] Fase 4 — Seguridad (Argon2 ✅, AES-256 ✅, JWT ✅, tests ✅, API de entradas ✅) — ver `SPRINTS.md`
-- [~] Fase 5 — UI Blazor (auth ✅, vaults+entradas ✅, generador ✅, compartir vaults ✅, notas seguras ✅, tags ✅) ← en curso
+- [~] Fase 5 — UI Blazor (auth ✅, vaults+entradas ✅, generador ✅, compartir vaults ✅, notas seguras ✅, tags ✅, UX de entradas ✅) ← en curso
 
 ## Próximo paso
-Sprint 10 (tags) cerrado y mergeado a `main`. Arrancando Sprint 11 (`feature/entry-ux`) — UX de
-entradas: favoritos + búsqueda + copiar al clipboard. Ver detalle en `SPRINTS.md`.
+Sprint 11 (`feature/entry-ux`) cerrado: favoritos (toggle + orden favoritos-primero), búsqueda
+por nombre/username/URL y copiar contraseña al clipboard sin revelarla, con tests (106/106) y
+verificación e2e en navegador. Falta el PR a `main`. Siguiente: Sprint 12 — historial de
+versiones (`feature/entry-history`). Ver detalle en `SPRINTS.md`.
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra

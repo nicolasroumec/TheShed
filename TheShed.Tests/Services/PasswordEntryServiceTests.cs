@@ -189,6 +189,42 @@ namespace TheShed.Tests.Services
             Assert.Equal(EntryError.NotFound, result.Error);
         }
 
+        [Fact]
+        public async Task ListAsync_FavoritesSortFirst()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Amazon", Username = "a", Password = "p" });
+            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Zelda", Username = "z", Password = "p", IsFavorite = true });
+
+            var result = await service.ListAsync(ownerId, vaultId);
+
+            Assert.Collection(result.Value!,
+                first => Assert.Equal("Zelda", first.Name),   // favorite, despite sorting after "Amazon" alphabetically
+                second => Assert.Equal("Amazon", second.Name));
+        }
+
+        [Fact]
+        public async Task ListAsync_Search_FiltersByNameUsernameOrUrl()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Gmail", Username = "ana", Password = "p", Url = "https://gmail.com" });
+            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Amazon", Username = "shopper", Password = "p", Url = "https://amazon.com" });
+
+            var byName = await service.ListAsync(ownerId, vaultId, search: "gmail");
+            var byUsername = await service.ListAsync(ownerId, vaultId, search: "shopper");
+            var byUrl = await service.ListAsync(ownerId, vaultId, search: "amazon.com");
+            var noMatch = await service.ListAsync(ownerId, vaultId, search: "nope");
+
+            Assert.Equal("Gmail", Assert.Single(byName.Value!).Name);
+            Assert.Equal("Amazon", Assert.Single(byUsername.Value!).Name);
+            Assert.Equal("Amazon", Assert.Single(byUrl.Value!).Name);
+            Assert.Empty(noMatch.Value!);
+        }
+
         // --- Update ---
 
         [Fact]
@@ -267,6 +303,66 @@ namespace TheShed.Tests.Services
             Assert.False(result.Success);
             Assert.Equal(EntryError.Forbidden, result.Error);
             Assert.Equal(1, await db.PasswordEntries.CountAsync());
+        }
+
+        // --- SetFavorite ---
+
+        [Fact]
+        public async Task SetFavoriteAsync_EditorMember_TogglesFlag()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var editorId = await AddMemberAsync(db, vaultId, VaultRole.Editor);
+            var service = CreateService(db);
+            var created = await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Gmail", Username = "a", Password = "p", IsFavorite = false });
+
+            var result = await service.SetFavoriteAsync(editorId, created.Value!.Id, true);
+
+            Assert.True(result.Success);
+            var reread = await service.GetAsync(ownerId, created.Value!.Id);
+            Assert.True(reread.Value!.IsFavorite);
+        }
+
+        [Fact]
+        public async Task SetFavoriteAsync_SameValue_IsNoopButSucceeds()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+            var created = await service.CreateAsync(ownerId, SampleCreate(vaultId)); // IsFavorite = true
+
+            var result = await service.SetFavoriteAsync(ownerId, created.Value!.Id, true);
+
+            Assert.True(result.Success);
+        }
+
+        [Fact]
+        public async Task SetFavoriteAsync_ViewerMember_ReturnsForbidden()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var viewerId = await AddMemberAsync(db, vaultId, VaultRole.Viewer);
+            var service = CreateService(db);
+            var created = await service.CreateAsync(ownerId, SampleCreate(vaultId));
+
+            var result = await service.SetFavoriteAsync(viewerId, created.Value!.Id, true);
+
+            Assert.False(result.Success);
+            Assert.Equal(EntryError.Forbidden, result.Error);
+        }
+
+        [Fact]
+        public async Task SetFavoriteAsync_NonMember_ReturnsNotFound()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var service = CreateService(db);
+            var created = await service.CreateAsync(ownerId, SampleCreate(vaultId));
+
+            var result = await service.SetFavoriteAsync(StrangerId, created.Value!.Id, true);
+
+            Assert.False(result.Success);
+            Assert.Equal(EntryError.NotFound, result.Error);
         }
     }
 }

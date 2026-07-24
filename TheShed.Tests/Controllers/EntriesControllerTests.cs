@@ -44,7 +44,7 @@ namespace TheShed.Tests.Controllers
             };
             var controller = CreateController(fake);
 
-            var result = await controller.List(vaultId: 1, tagId: null, CancellationToken.None);
+            var result = await controller.List(vaultId: 1, tagId: null, search: null, CancellationToken.None);
 
             Assert.IsType<OkObjectResult>(result);
             Assert.Equal(UserId, fake.LastUserId); // controller pulled the id from the JWT claim
@@ -95,17 +95,54 @@ namespace TheShed.Tests.Controllers
             Assert.IsType<NoContentResult>(result);
         }
 
+        [Fact]
+        public async Task SetFavorite_Success_Returns204AndPassesTrue()
+        {
+            var fake = new FakeEntryService { SetFavoriteResult = EntryResult<bool>.Ok(true) };
+            var controller = CreateController(fake);
+
+            var result = await controller.SetFavorite(id: 1, CancellationToken.None);
+
+            Assert.IsType<NoContentResult>(result);
+            Assert.True(fake.LastIsFavorite);
+        }
+
+        [Fact]
+        public async Task UnsetFavorite_Success_Returns204AndPassesFalse()
+        {
+            var fake = new FakeEntryService { SetFavoriteResult = EntryResult<bool>.Ok(true) };
+            var controller = CreateController(fake);
+
+            var result = await controller.UnsetFavorite(id: 1, CancellationToken.None);
+
+            Assert.IsType<NoContentResult>(result);
+            Assert.False(fake.LastIsFavorite);
+        }
+
+        [Fact]
+        public async Task SetFavorite_Forbidden_Returns403()
+        {
+            var fake = new FakeEntryService { SetFavoriteResult = EntryResult<bool>.Fail(EntryError.Forbidden) };
+            var controller = CreateController(fake);
+
+            var result = await controller.SetFavorite(id: 1, CancellationToken.None);
+
+            Assert.IsType<ForbidResult>(result);
+        }
+
         // Fake service: returns preconfigured results and records the user id it received.
         private sealed class FakeEntryService : IPasswordEntryService
         {
             public int LastUserId { get; private set; }
+            public bool LastIsFavorite { get; private set; }
             public EntryResult<IReadOnlyList<EntryListItem>> ListResult { get; set; } = default!;
             public EntryResult<EntryResponse> GetResult { get; set; } = default!;
             public EntryResult<EntryResponse> CreateResult { get; set; } = default!;
             public EntryResult<EntryResponse> UpdateResult { get; set; } = default!;
             public EntryResult<bool> DeleteResult { get; set; } = default!;
+            public EntryResult<bool> SetFavoriteResult { get; set; } = default!;
 
-            public Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, CancellationToken ct = default)
+            public Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, string? search = null, CancellationToken ct = default)
             {
                 LastUserId = userId;
                 return Task.FromResult(ListResult);
@@ -145,6 +182,13 @@ namespace TheShed.Tests.Controllers
             {
                 LastUserId = userId;
                 return Task.FromResult(DeleteResult);
+            }
+
+            public Task<EntryResult<bool>> SetFavoriteAsync(int userId, int entryId, bool isFavorite, CancellationToken ct = default)
+            {
+                LastUserId = userId;
+                LastIsFavorite = isFavorite;
+                return Task.FromResult(SetFavoriteResult);
             }
         }
     }
