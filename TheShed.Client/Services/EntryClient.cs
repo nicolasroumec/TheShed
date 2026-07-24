@@ -58,5 +58,11 @@ namespace TheShed.Client.Services
                 : await _http.DeleteAsync($"api/entries/{entryId}/favorite");
             response.EnsureSuccessStatusCode();
         }
+
+        public async Task<IReadOnlyList<EntryHistoryItem>> GetHistoryAsync(int entryId) =>
+            await _http.GetFromJsonAsync<List<EntryHistoryItem>>($"api/entries/{entryId}/history") ?? [];
+
+        public Task<EntryHistoryDetail?> GetHistoryEntryAsync(int entryId, int historyId) =>
+            _http.GetFromJsonAsync<EntryHistoryDetail>($"api/entries/{entryId}/history/{historyId}");
     }
 }

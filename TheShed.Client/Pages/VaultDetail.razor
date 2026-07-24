@@ -179,6 +179,7 @@ else
                         <div>
                             <div class="fw-bold">@entry.Name</div>
                             <small class="text-muted">@entry.Username</small>
+                            <small class="text-muted d-block">Password changed @DaysAgoText(entry.PasswordChangedAt)</small>
                             @if (entry.Tags.Count > 0)
                             {
                                 <div class="mt-1 d-flex flex-wrap gap-1">
@@ -202,6 +203,9 @@ else
                             <button class="btn btn-sm btn-outline-secondary" @onclick="() => CopyPasswordAsync(entry.Id)">
                                 @(_copiedId == entry.Id ? "Copied!" : "Copy")
                             </button>
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleHistoryAsync(entry.Id)">
+                                @(_historyOpenIds.Contains(entry.Id) ? "Hide history" : "History")
+                            </button>
                             @if (_vault.CanWrite)
                             {
                                 <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(entry.Id)">Edit</button>
@@ -212,6 +216,35 @@ else
                     @if (_revealed.TryGetValue(entry.Id, out var password))
                     {
                         <div class="mt-2"><code>@password</code></div>
+                    }
+                    @if (_historyOpenIds.Contains(entry.Id))
+                    {
+                        <div class="mt-2">
+                            @if (!_history.TryGetValue(entry.Id, out var history))
+                            {
+                                <p class="text-muted small mb-0">Loading history…</p>
+                            }
+                            else if (history.Count == 0)
+                            {
+                                <p class="text-muted small mb-0">No previous passwords.</p>
+                            }
+                            else
+                            {
+                                @foreach (var h in history)
+                                {
+                                    <div class="d-flex justify-content-between align-items-center small py-1 border-top">
+                                        <span class="text-muted">@h.CreatedAt.ToLocalTime().ToString("g") · changed by @h.ChangedByUsername</span>
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleHistoryRevealAsync(entry.Id, h.Id)">
+                                            @(_revealedHistory.ContainsKey(h.Id) ? "Hide" : "Reveal")
+                                        </button>
+                                    </div>
+                                    @if (_revealedHistory.TryGetValue(h.Id, out var oldPassword))
+                                    {
+                                        <div class="mb-1"><code>@oldPassword</code></div>
+                                    }
+                                }
+                            }
+                        </div>
                     }
                 </div>
             }
@@ -362,6 +395,9 @@ else
     private IReadOnlyList<EntryListItem>? _entries;
     private readonly Dictionary<int, string> _revealed = new();
     private int? _copiedId; // entry whose password was last copied, for the "Copied!" label
+    private readonly HashSet<int> _historyOpenIds = new();                                   // entry ids with the history panel open
+    private readonly Dictionary<int, IReadOnlyList<EntryHistoryItem>> _history = new();       // entryId -> past passwords (metadata)
+    private readonly Dictionary<int, string> _revealedHistory = new();                        // historyId -> decrypted old password
     private bool _notFound;
 
     private EntryCreateRequest? _form;   // non-null while the create/edit form is open
@@ -488,6 +524,45 @@ else
 
         await JS.InvokeVoidAsync("copyToClipboard", entry.Password);
         _copiedId = entryId; // never shown on screen, only copied
+    }
+
+    private static string DaysAgoText(DateTime changedAt)
+    {
+        var days = (int)(DateTime.UtcNow - changedAt).TotalDays;
+        return days switch
+        {
+            0 => "today",
+            1 => "1 day ago",
+            _ => $"{days} days ago"
+        };
+    }
+
+    private async Task ToggleHistoryAsync(int entryId)
+    {
+        if (!_historyOpenIds.Add(entryId))
+        {
+            _historyOpenIds.Remove(entryId); // was open, now closed
+            return;
+        }
+
+        if (!_history.ContainsKey(entryId))
+        {
+            _history[entryId] = await EntryApi.GetHistoryAsync(entryId);
+        }
+    }
+
+    private async Task ToggleHistoryRevealAsync(int entryId, int historyId)
+    {
+        if (_revealedHistory.Remove(historyId))
+        {
+            return; // was shown, now hidden
+        }
+
+        var detail = await EntryApi.GetHistoryEntryAsync(entryId, historyId);
+        if (detail is not null)
+        {
+            _revealedHistory[historyId] = detail.Password;
+        }
     }
 
     private void StartCreate()
@@ -662,6 +737,8 @@ else
                     IsFavorite = _form.IsFavorite
                 });
                 _revealed.Remove(_editingId.Value); // stale password if it was shown
+                _history.Remove(_editingId.Value);  // stale: the update may have added a new version
+                _historyOpenIds.Remove(_editingId.Value);
             }
 
             CancelForm();
