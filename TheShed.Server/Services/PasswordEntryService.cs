@@ -21,7 +21,7 @@ namespace TheShed.Server.Services
             _access = access;
         }
 
-        public async Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, CancellationToken ct = default)
+        public async Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, string? search = null, CancellationToken ct = default)
         {
             var access = await _access.GetAccessAsync(vaultId, userId, ct);
             if (access == VaultAccess.None)
@@ -35,9 +35,17 @@ namespace TheShed.Server.Services
             {
                 query = query.Where(e => e.Tags.Any(pet => pet.TagId == tagId));
             }
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(e =>
+                    e.Name.Contains(search) ||
+                    e.Username.Contains(search) ||
+                    (e.Url != null && e.Url.Contains(search)));
+            }
 
             var items = await query
-                .OrderBy(e => e.Name)
+                .OrderByDescending(e => e.IsFavorite)
+                .ThenBy(e => e.Name)
                 .Select(e => new EntryListItem
                 {
                     Id = e.Id,

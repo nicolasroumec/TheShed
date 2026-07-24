@@ -16,11 +16,12 @@ namespace TheShed.Server.Controllers
 
         public EntriesController(IPasswordEntryService entries) => _entries = entries;
 
-        // GET /api/entries?vaultId=123&tagId=5 — metadata only, no passwords. tagId filters optionally.
+        // GET /api/entries?vaultId=123&tagId=5&search=foo — metadata only, no passwords.
+        // tagId/search filter optionally; favorites sort first.
         [HttpGet]
-        public async Task<IActionResult> List([FromQuery] int vaultId, [FromQuery] int? tagId, CancellationToken ct)
+        public async Task<IActionResult> List([FromQuery] int vaultId, [FromQuery] int? tagId, [FromQuery] string? search, CancellationToken ct)
         {
-            var result = await _entries.ListAsync(CurrentUserId, vaultId, tagId, ct);
+            var result = await _entries.ListAsync(CurrentUserId, vaultId, tagId, search, ct);
             return result.Success ? Ok(result.Value) : MapError(result.Error);
         }
 
