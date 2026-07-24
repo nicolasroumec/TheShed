@@ -134,6 +134,8 @@ else
             <button class="btn btn-sm @(_activeTagId == tag.Id ? "btn-primary" : "btn-outline-secondary")"
                     @onclick="() => FilterByTagAsync(tag.Id)">@tag.Name</button>
         }
+        <input class="form-control form-control-sm" style="max-width: 14rem" placeholder="Search entries…"
+               value="@_search" @oninput="SearchInputAsync" />
 
         <details class="ms-auto">
             <summary class="small text-muted" style="cursor: pointer">Manage tags</summary>
@@ -165,7 +167,7 @@ else
     }
     else if (_entries.Count == 0)
     {
-        <p class="text-muted">@(_activeTagId is null ? "No entries in this vault yet." : "No entries with this tag.")</p>
+        <p class="text-muted">@(_activeTagId is null && string.IsNullOrWhiteSpace(_search) ? "No entries in this vault yet." : "No entries match the current filter.")</p>
     }
     else
     {
@@ -188,6 +190,12 @@ else
                             }
                         </div>
                         <div class="btn-group">
+                            @if (_vault.CanWrite)
+                            {
+                                <button class="btn btn-sm @(entry.IsFavorite ? "btn-warning" : "btn-outline-secondary")"
+                                        title="@(entry.IsFavorite ? "Unfavorite" : "Favorite")"
+                                        @onclick="() => ToggleFavoriteAsync(entry)">★</button>
+                            }
                             <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleRevealAsync(entry.Id)">
                                 @(_revealed.ContainsKey(entry.Id) ? "Hide" : "Reveal")
                             </button>
@@ -363,6 +371,7 @@ else
 
     private IReadOnlyList<TagResponse> _tags = [];      // the caller's tags (per-user)
     private int? _activeTagId;                          // null = no tag filter
+    private string _search = string.Empty;               // empty = no search filter
     private readonly HashSet<int> _formTagIds = new();  // tags on the entry being edited
     private string _newTagName = string.Empty;
     private string? _tagError;
@@ -385,7 +394,7 @@ else
         try
         {
             _vault = await VaultApi.GetAsync(Id);
-            _entries = await EntryApi.ListAsync(Id);
+            await LoadEntriesAsync();
             _notes = await NoteApi.ListAsync(Id);
             _tags = await TagApi.ListAsync();
             if (_vault?.IsOwner == true)
@@ -508,12 +517,29 @@ else
         _formTagIds.Clear();
     }
 
+    private async Task LoadEntriesAsync()
+    {
+        _entries = await EntryApi.ListAsync(Id, _activeTagId, _search);
+    }
+
+    private async Task SearchInputAsync(ChangeEventArgs e)
+    {
+        _search = (string?)e.Value ?? string.Empty;
+        await LoadEntriesAsync();
+    }
+
+    private async Task ToggleFavoriteAsync(EntryListItem entry)
+    {
+        await EntryApi.SetFavoriteAsync(entry.Id, !entry.IsFavorite);
+        await LoadEntriesAsync();
+    }
+
     // --- Tags ---
 
     private async Task FilterByTagAsync(int? tagId)
     {
         _activeTagId = tagId;
-        _entries = await EntryApi.ListAsync(Id, _activeTagId);
+        await LoadEntriesAsync();
     }
 
     private async Task CreateTagAsync()
@@ -559,7 +585,7 @@ else
         }
         _formTagIds.Remove(tag.Id);
         _tags = await TagApi.ListAsync();
-        _entries = await EntryApi.ListAsync(Id, _activeTagId); // badges/filter may have changed
+        await LoadEntriesAsync(); // badges/filter may have changed
     }
 
     private async Task ToggleEntryTagAsync(int tagId)
@@ -623,7 +649,7 @@ else
             }
 
             CancelForm();
-            _entries = await EntryApi.ListAsync(Id, _activeTagId);
+            await LoadEntriesAsync();
         }
         catch (Exception)
         {
@@ -644,7 +670,7 @@ else
 
         await EntryApi.DeleteAsync(entryId);
         _revealed.Remove(entryId);
-        _entries = await EntryApi.ListAsync(Id, _activeTagId);
+        await LoadEntriesAsync();
     }
 
     // --- Secure notes ---

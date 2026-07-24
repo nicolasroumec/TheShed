@@ -11,11 +11,17 @@ namespace TheShed.Client.Services
 
         public EntryClient(HttpClient http) => _http = http;
 
-        public async Task<IReadOnlyList<EntryListItem>> ListAsync(int vaultId, int? tagId = null)
+        public async Task<IReadOnlyList<EntryListItem>> ListAsync(int vaultId, int? tagId = null, string? search = null)
         {
-            var url = tagId is null
-                ? $"api/entries?vaultId={vaultId}"
-                : $"api/entries?vaultId={vaultId}&tagId={tagId}";
+            var url = $"api/entries?vaultId={vaultId}";
+            if (tagId is not null)
+            {
+                url += $"&tagId={tagId}";
+            }
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                url += $"&search={Uri.EscapeDataString(search)}";
+            }
             return await _http.GetFromJsonAsync<List<EntryListItem>>(url) ?? [];
         }
 
@@ -44,5 +50,13 @@ namespace TheShed.Client.Services
 
         public async Task RemoveTagAsync(int entryId, int tagId) =>
             (await _http.DeleteAsync($"api/entries/{entryId}/tags/{tagId}")).EnsureSuccessStatusCode();
+
+        public async Task SetFavoriteAsync(int entryId, bool isFavorite)
+        {
+            var response = isFavorite
+                ? await _http.PutAsync($"api/entries/{entryId}/favorite", null)
+                : await _http.DeleteAsync($"api/entries/{entryId}/favorite");
+            response.EnsureSuccessStatusCode();
+        }
     }
 }
