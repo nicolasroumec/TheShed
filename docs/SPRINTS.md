@@ -230,40 +230,42 @@
       de consola
 - [x] PR a `main` (#12)
 
-## 🟢 Sprint 12 — Historial de versiones · `feature/entry-history`
+## ✅ Sprint 12 — Historial de versiones · `feature/entry-history`
 > `EntryHistory` versiona solo la **contraseña** (`PasswordEncrypted` + `ChangedByUserId`).
 > AES-GCM cifra con nonce aleatorio, así que dos cifrados del mismo texto dan ciphertext
 > distinto: para saber si la contraseña realmente cambió hay que comparar contra el
 > plaintext descifrado, no contra el ciphertext viejo.
 
 ### Increment 1 — Backend: snapshot al actualizar
-- [ ] En `PasswordEntryService.UpdateAsync`, si `request.Password` difiere del plaintext
+- [x] En `PasswordEntryService.UpdateAsync`, si `request.Password` difiere del plaintext
       actual, guarda un `EntryHistory` (contraseña vieja cifrada + `ChangedByUserId`) antes
       de aplicar el update. Si no cambió, no genera entrada (evita ruido en el historial)
       → commit `feat: snapshot previous password into EntryHistory on update`
 
 ### Increment 2 — Backend: endpoints de historial
-- [ ] DTO `EntryHistoryItem` (Id, CreatedAt, ChangedByUsername — sin contraseña, mismo
-      patrón metadata-en-listado que `EntryListItem`)
-- [ ] `GetHistoryAsync` (lista ordenada por fecha desc) + `GetHistoryEntryAsync` (revela una
-      contraseña vieja puntual); autorización vía `LoadForAccessAsync` (solo lectura, del
-      Sprint 11) → rutas `GET /api/entries/{id}/history` y `GET /api/entries/{id}/history/{historyId}`
-- [ ] `EntryListItem`/`EntryResponse` suman `PasswordChangedAt` (el `CreatedAt` del último
+- [x] DTO `EntryHistoryItem` (Id, CreatedAt, ChangedByUsername — sin contraseña, mismo
+      patrón metadata-en-listado que `EntryListItem`) + `EntryHistoryDetail` (revela una
+      contraseña vieja puntual, descifrada)
+- [x] `GetHistoryAsync` (lista ordenada por fecha desc) + `GetHistoryEntryAsync`;
+      autorización vía `LoadForAccessAsync` (solo lectura, del Sprint 11) → rutas
+      `GET /api/entries/{id}/history` y `GET /api/entries/{id}/history/{historyId}`
+- [x] `EntryListItem`/`EntryResponse` suman `PasswordChangedAt` (el `CreatedAt` del último
       `EntryHistory` de la entrada, o el `CreatedAt` de la propia entrada si nunca cambió) —
       "antigüedad de la contraseña actual" visible sin abrir el historial
       → commit `feat: add entry history endpoints`
 
 ### Increment 3 — UI
-- [ ] `EntryClient.GetHistoryAsync`/`GetHistoryEntryAsync`; toggle "History" por entrada en
-      `VaultDetail.razor` con lista (fecha + quién cambió) y Reveal individual por versión
-      (mismo patrón que el Reveal de la contraseña actual)
-- [ ] Badge "Changed X days ago" en el listado de entradas, con `PasswordChangedAt`
+- [x] `EntryClient.GetHistoryAsync`/`GetHistoryEntryAsync`; botón "History" por entrada en
+      `VaultDetail.razor` que despliega la lista (fecha + quién cambió) con Reveal
+      individual por versión (mismo patrón que el Reveal de la contraseña actual)
+- [x] Texto "Password changed X days ago" en el listado de entradas, con `PasswordChangedAt`
       → commit `feat: add entry history UI`
 
 ### Increment 4 — Tests
-- [ ] Snapshot solo cuando cambia la contraseña (no en ediciones que solo tocan
-      nombre/URL/notas), orden desc, autorización (viewer lee, sin acceso → 404), reveal
-      del valor descifrado correcto, cálculo de `PasswordChangedAt` (con y sin historial)
+- [x] Snapshot solo cuando cambia la contraseña (no en ediciones que solo tocan
+      nombre/URL/notas), orden desc, autorización (viewer lee, no-miembro → 404, historial
+      de otra entrada → 404), reveal del valor descifrado correcto, cálculo de
+      `PasswordChangedAt` (con y sin historial) — suite completa **118/118** en verde
       → commit `test: add tests for entry history`
 - [ ] PR a `main`
 

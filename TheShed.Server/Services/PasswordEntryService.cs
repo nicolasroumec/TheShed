@@ -121,6 +121,7 @@ namespace TheShed.Server.Services
             if (_encryption.Decrypt(entry.PasswordEncrypted) != request.Password)
             {
                 // Snapshot the outgoing password before it's overwritten.
+                // ponytail: no cap on versions kept per entry; purge/limit if the table ever grows enough to matter.
                 _db.EntryHistory.Add(new EntryHistory
                 {
                     PasswordEntryId = entry.Id,
