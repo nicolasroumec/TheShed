@@ -54,6 +54,10 @@ builder.Services.AddScoped<IPasswordEntryService, PasswordEntryService>();
 builder.Services.AddScoped<ISecureNoteService, SecureNoteService>();
 builder.Services.AddScoped<ITagService, TagService>();
 
+// Application services — trash (Scoped: depends on TheShedContext)
+builder.Services.Configure<TrashSettings>(builder.Configuration.GetSection("Trash"));
+builder.Services.AddScoped<ITrashService, TrashService>();
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

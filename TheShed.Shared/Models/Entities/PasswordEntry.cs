@@ -2,7 +2,7 @@
 
 namespace TheShed.Shared.Models.Entities
 {
-    public class PasswordEntry : AuditableEntity
+    public class PasswordEntry : AuditableEntity, IVaultScoped
     {
         public int Id { get; set; }
         public int VaultId { get; set; }

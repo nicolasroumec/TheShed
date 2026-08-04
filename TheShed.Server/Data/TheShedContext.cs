@@ -77,6 +77,12 @@ namespace TheShed.Server.Data
                         entry.Entity.UpdatedAt = now;
                         break;
                     case EntityState.Deleted:
+                        if (entry.Entity.IsDeleted)
+                        {
+                            // Already soft-deleted: Remove() here means a real purge from the
+                            // trash. Leave the state as Deleted so EF issues a hard DELETE.
+                            break;
+                        }
                         entry.Entity.IsDeleted = true;
                         entry.Entity.DeletedAt = now;
                         entry.Entity.UpdatedAt = now;
