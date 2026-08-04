@@ -78,6 +78,7 @@ namespace TheShed.Server.Data
                         break;
                     case EntityState.Deleted:
                         entry.Entity.IsDeleted = true;
+                        entry.Entity.DeletedAt = now;
                         entry.Entity.UpdatedAt = now;
                         entry.State = EntityState.Modified;
                         break;

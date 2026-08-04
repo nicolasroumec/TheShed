@@ -43,3 +43,16 @@ Invitar por email exacto: usuario inexistente → 404, ya member o el propio due
 **Implementación:** `VaultService` (Add/UpdateRole/Remove/ListMembers) + `VaultsController`
 bajo `/api/vaults/{id}/members`; DTOs en `TheShed.Shared/Models/DTOs/Vaults/`; tests en
 `TheShed.Tests/{Services/VaultServiceTests,Controllers/VaultsControllerTests}.cs`.
+
+## D5 — Papelera: purga automática a los 30 días
+**Decisión:** todo lo soft-deleted (`IsDeleted = true`) se purga (hard delete) automáticamente
+a los **30 días** de borrado, vía un `BackgroundService` que corre periódicamente. El usuario
+puede purgar antes manualmente desde la papelera, pero no puede evitar la purga automática.
+**Contexto:** hoy `AuditableEntity` no registra *cuándo* se borró, solo el flag `IsDeleted`;
+sin esa fecha no hay forma de calcular expiración. Se suma `DateTime? DeletedAt`.
+**Retención configurable:** `Trash:RetentionDays` (`appsettings.json`, default `30`) — no
+hardcodeado, para poder ajustarlo sin recompilar.
+**Alcance:** aplica a `PasswordEntry`, `SecureNote` y `Vault` (dueño). Un vault borrado arrastra
+sus entradas/notas: restaurar el vault las restaura a ellas; purgar el vault las purga a ellas.
+**Evolución futura:** si la purga periódica no escala (tabla muy grande), mover a un job por
+lotes o a nivel de base de datos (ej. SQL Agent job) en vez de `BackgroundService` in-process.

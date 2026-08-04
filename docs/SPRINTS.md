@@ -278,11 +278,38 @@
 
 ## 🔵 Sprint 13 — Papelera / recuperar · `feature/trash`
 > Reusa el soft-delete (`AuditableEntity.IsDeleted` + global query filter). Hoy borrar = ocultar.
-- [ ] Listar borrados (bypass del filtro con `IgnoreQueryFilters`), restaurar y purgar definitivo
-      — entradas y notas (y vaults para el dueño)
-- [ ] Endpoints `GET /trash`, `POST /{id}/restore`, `DELETE /{id}/purge`; autorización por acceso
-- [ ] UI: vista de papelera con restaurar / borrar definitivo (con confirmación)
-- [ ] Tests
+> Alcance: **entradas + notas + vaults** (dueño) juntos, mismo sprint. Suma **purga automática
+> a los 30 días** además de la purga manual.
+
+### Increment 1 — Modelo: `DeletedAt`
+- [ ] `AuditableEntity` suma `DateTime? DeletedAt` (se setea junto con `IsDeleted = true` en
+      cada soft-delete; se limpia a `null` al restaurar) — migración (toca las 7 entidades)
+- [ ] Auditar los soft-deletes existentes (`PasswordEntry`, `SecureNote`, `Vault`, ¿`Tag`?) para
+      que todos seteen `DeletedAt` de forma consistente
+
+### Increment 2 — Backend: listar/restaurar/purgar (manual)
+- [ ] `ITrashService`/`TrashService`: lista unificada de borrados del usuario (entries + notes +
+      vaults propios) con `IgnoreQueryFilters`; restaurar (`IsDeleted = false`, `DeletedAt = null`);
+      purgar definitivo (hard delete)
+- [ ] Endpoints `GET /api/trash`, `POST /api/{tipo}/{id}/restore`, `DELETE /api/{tipo}/{id}/purge`
+      — autorización: entries/notes por `IVaultAccessService` (write), vaults **owner-only**
+- [ ] Vault borrado: decidir si sus entradas/notas quedan ocultas junto con el vault y si
+      restaurar el vault las restaura a ellas también (probable: sí, siguen el estado del vault)
+
+### Increment 3 — Backend: purga automática (30 días)
+- [ ] `IHostedService`/`BackgroundService` (`TrashPurgeService`) que corre periódicamente
+      (ej. cada 24h) y hace hard-delete de todo lo `IsDeleted = true` con
+      `DeletedAt < UtcNow - 30 días`
+- [ ] Configurable (`Trash:RetentionDays`, default 30) — ver D5 en `DECISIONS.md`
+- [ ] Tests del cálculo de expiración sin depender de tiempo real (reloj inyectado/fake)
+
+### Increment 4 — UI
+- [ ] Página/panel de papelera: lista unificada (tipo + nombre + fecha de borrado + "expira en
+      N días"), acciones restaurar / borrar definitivo con confirmación
+
+### Increment 5 — Tests + PR
+- [ ] Tests de servicio + controller (listar, restaurar, purgar manual, autorización) y de la
+      purga automática (Increment 3)
 - [ ] PR a `main`
 
 ## 🔵 Sprint 14 — Adjuntos · `feature/attachments`
