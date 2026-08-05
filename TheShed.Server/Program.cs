@@ -59,6 +59,11 @@ builder.Services.Configure<TrashSettings>(builder.Configuration.GetSection("Tras
 builder.Services.AddScoped<ITrashService, TrashService>();
 builder.Services.AddHostedService<TrashPurgeService>();
 
+// Application services — attachments (local filesystem storage; Scoped: depends on TheShedContext)
+builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection("Attachments"));
+builder.Services.AddSingleton<IAttachmentStorage, LocalFileAttachmentStorage>();
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
