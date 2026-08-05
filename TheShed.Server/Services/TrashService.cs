@@ -174,6 +174,33 @@ namespace TheShed.Server.Services
             return EntryResult<bool>.Ok(true);
         }
 
+        // ponytail: only the types the trash UI shows (Vault/PasswordEntry/SecureNote/Tag) are
+        // swept. VaultMember soft-deletes (no restore flow) and EntryHistory/Attachment (cascade
+        // with their parent entry) are left out; sweep them too if they start piling up.
+        public async Task<int> PurgeExpiredAsync(DateTime now, CancellationToken ct = default)
+        {
+            var cutoff = now.AddDays(-_retentionDays);
+            var purged = 0;
+
+            purged += await PurgeExpiredSetAsync(_db.Vaults, cutoff, ct);
+            purged += await PurgeExpiredSetAsync(_db.PasswordEntries, cutoff, ct);
+            purged += await PurgeExpiredSetAsync(_db.SecureNotes, cutoff, ct);
+            purged += await PurgeExpiredSetAsync(_db.Tags, cutoff, ct);
+
+            await _db.SaveChangesAsync(ct);
+            return purged;
+        }
+
+        private static async Task<int> PurgeExpiredSetAsync<T>(DbSet<T> set, DateTime cutoff, CancellationToken ct)
+            where T : AuditableEntity
+        {
+            var expired = await set.IgnoreQueryFilters()
+                .Where(e => e.IsDeleted && e.DeletedAt < cutoff)
+                .ToListAsync(ct);
+            set.RemoveRange(expired);
+            return expired.Count;
+        }
+
         private async Task<(T? Item, EntryError Error)> LoadDeletedChildAsync<T>(DbSet<T> set, int userId, int id, CancellationToken ct)
             where T : AuditableEntity, IVaultScoped
         {

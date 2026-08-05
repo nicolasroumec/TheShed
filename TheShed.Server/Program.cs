@@ -57,6 +57,7 @@ builder.Services.AddScoped<ITagService, TagService>();
 // Application services — trash (Scoped: depends on TheShedContext)
 builder.Services.Configure<TrashSettings>(builder.Configuration.GetSection("Trash"));
 builder.Services.AddScoped<ITrashService, TrashService>();
+builder.Services.AddHostedService<TrashPurgeService>();
 
 // Add services to the container.
 builder.Services.AddControllers();
