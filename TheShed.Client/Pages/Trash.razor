@@ -1,0 +1,90 @@
+@page "/trash"
+@attribute [Authorize]
+@using TheShed.Client.Services
+@using TheShed.Shared.Models.DTOs.Trash
+@using TheShed.Shared.Models.Enums
+@inject TrashClient TrashApi
+@inject IJSRuntime JS
+
+<PageTitle>Trash — The Shed</PageTitle>
+
+<h1 class="mb-4">Trash</h1>
+
+@if (_items is null)
+{
+    <p>Loading…</p>
+}
+else if (_items.Count == 0)
+{
+    <p class="text-muted">Trash is empty.</p>
+}
+else
+{
+    <div class="list-group">
+        @foreach (var item in _items)
+        {
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-secondary me-2">@item.Type</span>
+                        <span class="fw-bold">@item.Name</span>
+                        @if (item.VaultName is not null)
+                        {
+                            <small class="text-muted d-block">in @item.VaultName</small>
+                        }
+                        <small class="text-muted d-block">Deleted @DaysAgoText(item.DeletedAt) · @ExpiresText(item.ExpiresAt)</small>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => RestoreAsync(item)">Restore</button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => PurgeAsync(item)">Delete forever</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<TrashItem>? _items;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _items = await TrashApi.ListAsync();
+    }
+
+    private static string DaysAgoText(DateTime deletedAt)
+    {
+        var days = (int)(DateTime.UtcNow - deletedAt).TotalDays;
+        return days switch
+        {
+            0 => "today",
+            1 => "1 day ago",
+            _ => $"{days} days ago"
+        };
+    }
+
+    private static string ExpiresText(DateTime expiresAt)
+    {
+        var days = (int)(expiresAt - DateTime.UtcNow).TotalDays;
+        return days <= 0 ? "expires today" : $"expires in {days} day{(days == 1 ? "" : "s")}";
+    }
+
+    private async Task RestoreAsync(TrashItem item)
+    {
+        await TrashApi.RestoreAsync(item.Type, item.Id);
+        await LoadAsync();
+    }
+
+    private async Task PurgeAsync(TrashItem item)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Permanently delete \"{item.Name}\"? This cannot be undone."))
+        {
+            return;
+        }
+
+        await TrashApi.PurgeAsync(item.Type, item.Id);
+        await LoadAsync();
+    }
+}

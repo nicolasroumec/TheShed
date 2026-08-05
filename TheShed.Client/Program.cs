@@ -23,5 +23,6 @@ builder.Services.AddScoped<VaultClient>();
 builder.Services.AddScoped<EntryClient>();
 builder.Services.AddScoped<NoteClient>();
 builder.Services.AddScoped<TagClient>();
+builder.Services.AddScoped<TrashClient>();
 
 await builder.Build().RunAsync();

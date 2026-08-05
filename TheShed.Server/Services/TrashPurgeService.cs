@@ -18,14 +18,21 @@ namespace TheShed.Server.Services
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                using (var scope = _scopeFactory.CreateScope())
+                try
                 {
+                    using var scope = _scopeFactory.CreateScope();
                     var trash = scope.ServiceProvider.GetRequiredService<ITrashService>();
                     var purged = await trash.PurgeExpiredAsync(DateTime.UtcNow, stoppingToken);
                     if (purged > 0)
                     {
                         _logger.LogInformation("Trash purge removed {Count} expired item(s).", purged);
                     }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // A transient DB hiccup shouldn't take down the whole host (the default
+                    // BackgroundServiceExceptionBehavior is StopHost); log and retry next cycle.
+                    _logger.LogError(ex, "Trash purge cycle failed.");
                 }
 
                 try

@@ -276,40 +276,55 @@
   la mejora natural es capar a las N versiones más recientes por entrada o purgar por
   antigüedad, no antes.
 
-## 🔵 Sprint 13 — Papelera / recuperar · `feature/trash`
+## 🟢 Sprint 13 — Papelera / recuperar · `feature/trash`
 > Reusa el soft-delete (`AuditableEntity.IsDeleted` + global query filter). Hoy borrar = ocultar.
 > Alcance: **entradas + notas + vaults** (dueño) juntos, mismo sprint. Suma **purga automática
 > a los 30 días** además de la purga manual.
 
 ### Increment 1 — Modelo: `DeletedAt`
-- [ ] `AuditableEntity` suma `DateTime? DeletedAt` (se setea junto con `IsDeleted = true` en
-      cada soft-delete; se limpia a `null` al restaurar) — migración (toca las 7 entidades)
-- [ ] Auditar los soft-deletes existentes (`PasswordEntry`, `SecureNote`, `Vault`, ¿`Tag`?) para
-      que todos seteen `DeletedAt` de forma consistente
+- [x] `AuditableEntity` suma `DateTime? DeletedAt` — migración (toca las 7 entidades)
+      → commit `feat: add DeletedAt to AuditableEntity for trash retention tracking`
+- [x] Auditoría centralizada: en vez de tocar cada soft-delete existente, `TheShedContext.SaveChangesAsync`
+      intercepta `EntityState.Deleted` y, si la fila no estaba ya `IsDeleted`, la convierte en un
+      update (`IsDeleted = true`, `DeletedAt = now`) — cualquier `_db.Remove(...)` en cualquier
+      servicio queda soft-delete automáticamente, sin auditar sitio por sitio. Si ya estaba
+      `IsDeleted` (purga), se deja pasar como hard delete real
 
 ### Increment 2 — Backend: listar/restaurar/purgar (manual)
-- [ ] `ITrashService`/`TrashService`: lista unificada de borrados del usuario (entries + notes +
+- [x] `ITrashService`/`TrashService`: lista unificada de borrados del usuario (entries + notes +
       vaults propios) con `IgnoreQueryFilters`; restaurar (`IsDeleted = false`, `DeletedAt = null`);
       purgar definitivo (hard delete)
-- [ ] Endpoints `GET /api/trash`, `POST /api/{tipo}/{id}/restore`, `DELETE /api/{tipo}/{id}/purge`
+- [x] Endpoints `GET /api/trash`, `POST /api/trash/{tipo}/{id}/restore`, `DELETE /api/trash/{tipo}/{id}/purge`
       — autorización: entries/notes por `IVaultAccessService` (write), vaults **owner-only**
-- [ ] Vault borrado: decidir si sus entradas/notas quedan ocultas junto con el vault y si
-      restaurar el vault las restaura a ellas también (probable: sí, siguen el estado del vault)
+      → commit `feat: add trash list/restore/purge endpoints for entries, notes and vaults`
+- [x] Vault borrado: sus entradas/notas quedan ocultas junto con el vault (no aparecen sueltas en
+      la papelera, solo el vault) y restaurar el vault las restaura a ellas también — siguen el
+      estado del vault, no tienen entrada propia en la papelera
 
 ### Increment 3 — Backend: purga automática (30 días)
-- [ ] `IHostedService`/`BackgroundService` (`TrashPurgeService`) que corre periódicamente
-      (ej. cada 24h) y hace hard-delete de todo lo `IsDeleted = true` con
-      `DeletedAt < UtcNow - 30 días`
-- [ ] Configurable (`Trash:RetentionDays`, default 30) — ver D5 en `DECISIONS.md`
-- [ ] Tests del cálculo de expiración sin depender de tiempo real (reloj inyectado/fake)
+- [x] `BackgroundService` (`TrashPurgeService`) que corre cada 24h y llama a
+      `TrashService.PurgeExpiredAsync(now)` (hard-delete de Vault/PasswordEntry/SecureNote/Tag
+      con `IsDeleted = true` y `DeletedAt < now - RetentionDays`) en un scope propio
+      (`IServiceScopeFactory`, porque `ITrashService` es Scoped)
+- [x] Configurable (`Trash:RetentionDays`, default 30, `appsettings.json`)
+- [x] Tests del cálculo de expiración pasando `now` directo (sin reloj real ni fake de tiempo)
+      → commit `feat: add automatic trash purge background service`
+- [x] El ciclo de purga atrapa excepciones y loguea en vez de dejarlas propagar: el default de
+      .NET (`BackgroundServiceExceptionBehavior.StopHost`) tumba **todo el host** ante una
+      excepción no manejada en un `BackgroundService` — un hiccup transitorio de DB no debe
+      bajar la API entera
 
 ### Increment 4 — UI
-- [ ] Página/panel de papelera: lista unificada (tipo + nombre + fecha de borrado + "expira en
-      N días"), acciones restaurar / borrar definitivo con confirmación
+- [x] Página `/trash` (link en el nav): lista unificada (tipo + nombre + vault + "Deleted X days
+      ago" + "expires in N days"), Restore / Delete forever con `confirm()` (mismo patrón que
+      el resto de la app) → `TrashClient` + `Trash.razor`
+- [x] Verificado e2e en navegador: crear vault → entrada → borrar → aparece en `/trash` con
+      countdown de expiración → Restore → vuelve a aparecer en el vault
 
 ### Increment 5 — Tests + PR
-- [ ] Tests de servicio + controller (listar, restaurar, purgar manual, autorización) y de la
-      purga automática (Increment 3)
+- [x] Tests de `TrashService` + `TrashController` (listar, restaurar, purgar manual, autorización
+      NotFound/Forbidden, purga automática por expiración) — suite completa **138/138** en verde
+      → commit `test: add trash service and controller tests`
 - [ ] PR a `main`
 
 ## 🔵 Sprint 14 — Adjuntos · `feature/attachments`
