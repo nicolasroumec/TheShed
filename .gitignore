@@ -81,6 +81,9 @@ appsettings.Local.json
 .env.*.local
 *.env
 
+# Local attachment storage (encrypted blobs, dev/local IAttachmentStorage)
+App_Data/
+
 # Database files
 *.db
 *.db-shm

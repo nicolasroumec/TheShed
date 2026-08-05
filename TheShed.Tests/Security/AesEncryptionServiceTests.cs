@@ -88,5 +88,17 @@ namespace TheShed.Tests.Security
 
             Assert.Throws<ArgumentException>(() => service.Decrypt(tooShort));
         }
+
+        [Fact]
+        public void EncryptBytes_Then_DecryptBytes_ReturnsOriginal()
+        {
+            var service = CreateService();
+            var original = RandomNumberGenerator.GetBytes(256); // binary content, e.g. an attachment
+
+            var cipher = service.EncryptBytes(original);
+            var result = service.DecryptBytes(cipher);
+
+            Assert.Equal(original, result);
+        }
     }
 }

@@ -8,10 +8,11 @@
 - [~] Fase 5 — UI Blazor (auth ✅, vaults+entradas ✅, generador ✅, compartir vaults ✅, notas seguras ✅, tags ✅, UX de entradas ✅, historial de versiones ✅, papelera ✅) ← en curso
 
 ## Próximo paso
-Sprint 13 (`feature/trash`) — Increments 1 a 5 cerrados: `DeletedAt` en `AuditableEntity` (soft-delete
+Sprint 13 (`feature/trash`) cerrado y en `main`: `DeletedAt` en `AuditableEntity` (soft-delete
 centralizado en `SaveChangesAsync`), `TrashService`/`TrashController` (listar/restaurar/purgar manual),
 purga automática cada 24h (`TrashPurgeService`, `Trash:RetentionDays`), UI en `/trash` verificada
-e2e en navegador — tests (138/138). Falta el PR a `main`. Ver detalle en `SPRINTS.md`.
+e2e en navegador — tests (138/138). Sin PR (ver nota en `SPRINTS.md`: push accidental directo a
+`main`). Siguiente: Sprint 14 — adjuntos (`feature/attachments`). Ver detalle en `SPRINTS.md`.
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra

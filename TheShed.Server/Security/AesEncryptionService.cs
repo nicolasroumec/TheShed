@@ -37,14 +37,25 @@ namespace TheShed.Server.Security
         public string Encrypt(string plaintext)
         {
             ArgumentNullException.ThrowIfNull(plaintext);
+            return Convert.ToBase64String(EncryptBytes(System.Text.Encoding.UTF8.GetBytes(plaintext)));
+        }
 
-            var plainBytes = System.Text.Encoding.UTF8.GetBytes(plaintext);
+        public string Decrypt(string ciphertext)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(ciphertext);
+            return System.Text.Encoding.UTF8.GetString(DecryptBytes(Convert.FromBase64String(ciphertext)));
+        }
+
+        public byte[] EncryptBytes(byte[] plaintext)
+        {
+            ArgumentNullException.ThrowIfNull(plaintext);
+
             var nonce = RandomNumberGenerator.GetBytes(NonceSize);
-            var cipherBytes = new byte[plainBytes.Length];
+            var cipherBytes = new byte[plaintext.Length];
             var tag = new byte[TagSize];
 
             using var aes = new AesGcm(_key, TagSize);
-            aes.Encrypt(nonce, plainBytes, cipherBytes, tag);
+            aes.Encrypt(nonce, plaintext, cipherBytes, tag);
 
             // Layout: nonce || ciphertext || tag
             var output = new byte[NonceSize + cipherBytes.Length + TagSize];
@@ -52,33 +63,31 @@ namespace TheShed.Server.Security
             Buffer.BlockCopy(cipherBytes, 0, output, NonceSize, cipherBytes.Length);
             Buffer.BlockCopy(tag, 0, output, NonceSize + cipherBytes.Length, TagSize);
 
-            return Convert.ToBase64String(output);
+            return output;
         }
 
-        public string Decrypt(string ciphertext)
+        public byte[] DecryptBytes(byte[] ciphertext)
         {
-            ArgumentException.ThrowIfNullOrEmpty(ciphertext);
-
-            var data = Convert.FromBase64String(ciphertext);
-            if (data.Length < NonceSize + TagSize)
+            ArgumentNullException.ThrowIfNull(ciphertext);
+            if (ciphertext.Length < NonceSize + TagSize)
             {
                 throw new ArgumentException("Texto cifrado inválido: longitud insuficiente.", nameof(ciphertext));
             }
 
-            var cipherLength = data.Length - NonceSize - TagSize;
+            var cipherLength = ciphertext.Length - NonceSize - TagSize;
             var nonce = new byte[NonceSize];
             var cipherBytes = new byte[cipherLength];
             var tag = new byte[TagSize];
 
-            Buffer.BlockCopy(data, 0, nonce, 0, NonceSize);
-            Buffer.BlockCopy(data, NonceSize, cipherBytes, 0, cipherLength);
-            Buffer.BlockCopy(data, NonceSize + cipherLength, tag, 0, TagSize);
+            Buffer.BlockCopy(ciphertext, 0, nonce, 0, NonceSize);
+            Buffer.BlockCopy(ciphertext, NonceSize, cipherBytes, 0, cipherLength);
+            Buffer.BlockCopy(ciphertext, NonceSize + cipherLength, tag, 0, TagSize);
 
             var plainBytes = new byte[cipherLength];
             using var aes = new AesGcm(_key, TagSize);
             aes.Decrypt(nonce, cipherBytes, tag, plainBytes);
 
-            return System.Text.Encoding.UTF8.GetString(plainBytes);
+            return plainBytes;
         }
     }
 }

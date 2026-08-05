@@ -168,6 +168,10 @@ namespace TheShed.Server.Services
             }
 
             // Already IsDeleted: the SaveChanges override lets this go through as a real hard delete.
+            // ponytail: purging a PasswordEntry cascades its Attachment rows away at the DB level,
+            // but the encrypted blobs in IAttachmentStorage are never told to delete — orphaned
+            // files on disk. Fix by loading the entry's attachments here and calling storage.DeleteAsync
+            // per file before removing, if that ever accumulates enough to matter.
             set.Remove(item);
             await _db.SaveChangesAsync(ct);
 
