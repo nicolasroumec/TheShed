@@ -1,6 +1,8 @@
 @page "/vaults/{Id:int}"
 @attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Forms
 @using TheShed.Client.Services
+@using TheShed.Shared.Models.DTOs.Attachments
 @using TheShed.Shared.Models.DTOs.Entries
 @using TheShed.Shared.Models.DTOs.Notes
 @using TheShed.Shared.Models.DTOs.Tags
@@ -11,6 +13,7 @@
 @inject EntryClient EntryApi
 @inject NoteClient NoteApi
 @inject TagClient TagApi
+@inject AttachmentClient AttachmentApi
 @inject IJSRuntime JS
 
 <PageTitle>@(_vault?.Name ?? "Vault") — The Shed</PageTitle>
@@ -206,6 +209,9 @@ else
                             <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleHistoryAsync(entry.Id)">
                                 @(_historyOpenIds.Contains(entry.Id) ? "Hide history" : "History")
                             </button>
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleAttachmentsAsync(entry.Id)">
+                                @(_attachmentsOpenIds.Contains(entry.Id) ? "Hide files" : "Files")
+                            </button>
                             @if (_vault.CanWrite)
                             {
                                 <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditAsync(entry.Id)">Edit</button>
@@ -242,6 +248,52 @@ else
                                     {
                                         <div class="mb-1"><code>@oldPassword</code></div>
                                     }
+                                }
+                            }
+                        </div>
+                    }
+                    @if (_attachmentsOpenIds.Contains(entry.Id))
+                    {
+                        <div class="mt-2">
+                            @if (!_attachments.TryGetValue(entry.Id, out var files))
+                            {
+                                <p class="text-muted small mb-0">Loading files…</p>
+                            }
+                            else
+                            {
+                                @if (files.Count == 0)
+                                {
+                                    <p class="text-muted small mb-0">No files attached.</p>
+                                }
+                                else
+                                {
+                                    @foreach (var file in files)
+                                    {
+                                        <div class="d-flex justify-content-between align-items-center small py-1 border-top">
+                                            <span>@file.FileName <span class="text-muted">(@FileSizeText(file.FileSizeBytes))</span></span>
+                                            <div class="btn-group">
+                                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => DownloadAttachmentAsync(entry.Id, file)">Download</button>
+                                                @if (_vault.CanWrite)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAttachmentAsync(entry.Id, file.Id)">Delete</button>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                @if (_vault.CanWrite)
+                                {
+                                    <div class="mt-2">
+                                        <InputFile OnChange="e => UploadAttachmentAsync(entry.Id, e)" />
+                                        @if (_attachmentBusyId == entry.Id)
+                                        {
+                                            <span class="text-muted small ms-2">Uploading…</span>
+                                        }
+                                    </div>
+                                }
+                                @if (_attachmentError is not null && _attachmentErrorEntryId == entry.Id)
+                                {
+                                    <div class="alert alert-danger py-1 px-2 small mt-2 mb-0" role="alert">@_attachmentError</div>
                                 }
                             }
                         </div>
@@ -399,6 +451,12 @@ else
     private readonly Dictionary<int, IReadOnlyList<EntryHistoryItem>> _history = new();       // entryId -> past passwords (metadata)
     private readonly Dictionary<int, string> _revealedHistory = new();                        // historyId -> decrypted old password
     private bool _notFound;
+
+    private readonly HashSet<int> _attachmentsOpenIds = new();                                // entry ids with the files panel open
+    private readonly Dictionary<int, IReadOnlyList<AttachmentResponse>> _attachments = new();  // entryId -> attachments
+    private int? _attachmentBusyId;     // entry id currently uploading, for the "Uploading…" label
+    private string? _attachmentError;
+    private int? _attachmentErrorEntryId;
 
     private EntryCreateRequest? _form;   // non-null while the create/edit form is open
     private int? _editingId;             // null = creating, otherwise the entry being edited
@@ -563,6 +621,66 @@ else
         {
             _revealedHistory[historyId] = detail.Password;
         }
+    }
+
+    // --- Attachments ---
+
+    private async Task ToggleAttachmentsAsync(int entryId)
+    {
+        if (!_attachmentsOpenIds.Add(entryId))
+        {
+            _attachmentsOpenIds.Remove(entryId); // was open, now closed
+            return;
+        }
+
+        _attachments[entryId] = await AttachmentApi.ListAsync(entryId);
+    }
+
+    private static string FileSizeText(long bytes) => bytes < 1024 * 1024
+        ? $"{bytes / 1024.0:0.#} KB"
+        : $"{bytes / 1024.0 / 1024.0:0.#} MB";
+
+    private async Task UploadAttachmentAsync(int entryId, InputFileChangeEventArgs e)
+    {
+        _attachmentError = null;
+        _attachmentBusyId = entryId;
+        try
+        {
+            var response = await AttachmentApi.UploadAsync(entryId, e.File);
+            if (!response.IsSuccessStatusCode)
+            {
+                _attachmentError = "Could not upload the file. Check the size (max 5 MB) and type (.pdf, .jpg, .jpeg, .png, .txt).";
+                _attachmentErrorEntryId = entryId;
+                return;
+            }
+            _attachments[entryId] = await AttachmentApi.ListAsync(entryId);
+        }
+        catch (Exception)
+        {
+            _attachmentError = "Could not upload the file. Please try again.";
+            _attachmentErrorEntryId = entryId;
+        }
+        finally
+        {
+            _attachmentBusyId = null;
+        }
+    }
+
+    private async Task DownloadAttachmentAsync(int entryId, AttachmentResponse file)
+    {
+        var (fileName, content) = await AttachmentApi.DownloadAsync(entryId, file.Id);
+        await JS.InvokeVoidAsync("downloadFile", fileName, content);
+    }
+
+    private async Task DeleteAttachmentAsync(int entryId, int attachmentId)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Delete this file? This cannot be undone."))
+        {
+            return;
+        }
+
+        await AttachmentApi.DeleteAsync(entryId, attachmentId);
+        _attachments[entryId] = await AttachmentApi.ListAsync(entryId);
     }
 
     private void StartCreate()
