@@ -4,7 +4,7 @@
 > con PR a `main`. Estado: 🟢 en curso · 🔵 pendiente · 🟣 futuro · ✅ hecho.
 > Ver fases generales en `TODO.md` y decisiones en `DECISIONS.md`.
 
-## 🟢 Sprint 1 — Cifrado AES-256 de entradas · `feature/encryption-aes`
+## ✅ Sprint 1 — Cifrado AES-256 de entradas · `feature/encryption-aes`
 - [x] Servicio `AesEncryptionService` (AES-256-GCM) + DI + config + `appsettings.Example`
       → commit `feat: add AES-256 encryption service for entries`
 - [x] Tests del servicio (round-trip, nonce aleatorio, manipulación, validaciones)
@@ -97,7 +97,7 @@
       → commit `feat: add password generator`
 - [x] PR a `main` (#8)
 
-## 🟢 Sprint 8 — Compartir vaults (members) · `feature/vault-sharing`
+## ✅ Sprint 8 — Compartir vaults (members) · `feature/vault-sharing`
 > Cierra el feature de vaults compartidos: el dueño invita a otros usuarios por email
 > y les asigna rol. Reusa `IVaultAccessService` (Sprint 4) para resolver el acceso de
 > los miembros; el dueño se rastrea por `Vault.OwnerId`, **no** es un `VaultMember`.
@@ -109,7 +109,7 @@
 - [x] UI: panel de members en `/vaults/{id}` (listar/invitar/cambiar rol/quitar) + `VaultClient`
       → commit `feat: add vault members UI`
 - [x] Tests de `VaultService` + `VaultsController` (members) — suite completa **67/67** en verde
-- [ ] PR a `main`
+- [x] PR a `main` (#9)
 
 ### Decisiones de diseño (Sprint 8)
 - **Gestión owner-only:** listar/invitar/cambiar rol/quitar son exclusivos del dueño. Sin acceso
@@ -159,7 +159,7 @@
 ### Increment 4 — Tests
 - [x] `SecureNoteServiceTests` + `NotesControllerTests` (espejo de los de entries) — suite
       completa **83/83** en verde → commit `test: add secure notes service and controller tests`
-- [ ] PR a `main`
+- [x] PR a `main` (#10)
 
 ### Decisiones de diseño (Sprint 9)
 - **Contenido = secreto:** `Content` se cifra con el mismo AES que las contraseñas y se devuelve
@@ -267,7 +267,7 @@
       de otra entrada → 404), reveal del valor descifrado correcto, cálculo de
       `PasswordChangedAt` (con y sin historial) — suite completa **118/118** en verde
       → commit `test: add tests for entry history`
-- [ ] PR a `main`
+- [x] PR a `main` (#13)
 
 ### Decisiones de diseño (Sprint 12)
 - **Sin purga ni límite de versiones:** el historial crece sin tope por ahora (comentario
@@ -276,7 +276,7 @@
   la mejora natural es capar a las N versiones más recientes por entrada o purgar por
   antigüedad, no antes.
 
-## 🟢 Sprint 13 — Papelera / recuperar · `feature/trash`
+## ✅ Sprint 13 — Papelera / recuperar · `feature/trash`
 > Reusa el soft-delete (`AuditableEntity.IsDeleted` + global query filter). Hoy borrar = ocultar.
 > Alcance: **entradas + notas + vaults** (dueño) juntos, mismo sprint. Suma **purga automática
 > a los 30 días** además de la purga manual.
@@ -325,7 +325,12 @@
 - [x] Tests de `TrashService` + `TrashController` (listar, restaurar, purgar manual, autorización
       NotFound/Forbidden, purga automática por expiración) — suite completa **138/138** en verde
       → commit `test: add trash service and controller tests`
-- [ ] PR a `main`
+- [x] ~~PR a `main`~~ — no hubo PR: `feature/trash` quedó con upstream apuntando a `origin/main`
+      (nunca se creó `origin/feature/trash`) y un push mandó los 5 commits directo a `main` sin
+      pasar por revisión, rompiendo el patrón del resto de los sprints. Se decidió dejarlo así
+      (el código ya estaba testeado y verificado en navegador) en vez de reescribir el historial
+      remoto de `main` con force-push. Para el próximo sprint: confirmar `git push -u origin
+      feature/<nombre>` explícito antes de empezar a commitear
 
 ## 🔵 Sprint 14 — Adjuntos · `feature/attachments`
 > `Attachment` guarda `StoragePath` + `FileSizeBytes` → el archivo va **fuera de la DB**

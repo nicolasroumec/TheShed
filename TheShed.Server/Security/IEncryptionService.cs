@@ -20,5 +20,14 @@ namespace TheShed.Server.Security
         /// Si el dato fue manipulado o la clave no coincide.
         /// </exception>
         string Decrypt(string ciphertext);
+
+        /// <summary>
+        /// Igual que <see cref="Encrypt"/> pero para contenido binario (p. ej. adjuntos).
+        /// Devuelve <c>nonce || ciphertext || tag</c> sin envolver en base64.
+        /// </summary>
+        byte[] EncryptBytes(byte[] plaintext);
+
+        /// <summary>Descifra un valor producido por <see cref="EncryptBytes"/>.</summary>
+        byte[] DecryptBytes(byte[] ciphertext);
     }
 }
