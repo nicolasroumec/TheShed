@@ -25,5 +25,6 @@ builder.Services.AddScoped<NoteClient>();
 builder.Services.AddScoped<TagClient>();
 builder.Services.AddScoped<TrashClient>();
 builder.Services.AddScoped<AttachmentClient>();
+builder.Services.AddScoped<HealthClient>();
 
 await builder.Build().RunAsync();

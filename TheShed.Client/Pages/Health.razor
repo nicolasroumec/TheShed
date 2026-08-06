@@ -1,0 +1,55 @@
+@page "/health"
+@attribute [Authorize]
+@using TheShed.Client.Services
+@using TheShed.Shared.Helpers
+@using TheShed.Shared.Models.DTOs.Health
+@inject HealthClient HealthApi
+
+<PageTitle>Password health — The Shed</PageTitle>
+
+<h1 class="mb-4">Password health</h1>
+
+@if (_items is null)
+{
+    <p>Loading…</p>
+}
+else if (_items.Count == 0)
+{
+    <p class="text-muted">No entries to check yet.</p>
+}
+else
+{
+    <div class="list-group">
+        @foreach (var item in _items)
+        {
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="@($"vaults/{item.VaultId}")">@item.EntryName</a>
+                </div>
+                <div>
+                    <span class="badge @StrengthBadgeClass(item.Strength) me-2">@item.Strength</span>
+                    @if (item.IsReused)
+                    {
+                        <span class="badge bg-warning text-dark">Reused</span>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<PasswordHealthItem>? _items;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _items = await HealthApi.GetPasswordReportAsync();
+    }
+
+    private static string StrengthBadgeClass(PasswordStrength strength) => strength switch
+    {
+        PasswordStrength.Weak => "bg-danger",
+        PasswordStrength.Medium => "bg-warning text-dark",
+        _ => "bg-success"
+    };
+}

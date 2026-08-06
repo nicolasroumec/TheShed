@@ -5,14 +5,15 @@
 - [x] Fase 2 — Limpieza (modelos y docs de natación eliminados)
 - [x] Fase 3 — Modelo de datos (entidades del gestor de contraseñas)
 - [x] Fase 4 — Seguridad (Argon2 ✅, AES-256 ✅, JWT ✅, tests ✅, API de entradas ✅) — ver `SPRINTS.md`
-- [~] Fase 5 — UI Blazor (auth ✅, vaults+entradas ✅, generador ✅, compartir vaults ✅, notas seguras ✅, tags ✅, UX de entradas ✅, historial de versiones ✅, papelera ✅) ← en curso
+- [~] Fase 5 — UI Blazor (auth ✅, vaults+entradas ✅, generador ✅, compartir vaults ✅, notas seguras ✅, tags ✅, UX de entradas ✅, historial de versiones ✅, papelera ✅, adjuntos ✅, salud de contraseñas ✅) ← en curso
 
 ## Próximo paso
-Sprint 13 (`feature/trash`) cerrado y en `main`: `DeletedAt` en `AuditableEntity` (soft-delete
-centralizado en `SaveChangesAsync`), `TrashService`/`TrashController` (listar/restaurar/purgar manual),
-purga automática cada 24h (`TrashPurgeService`, `Trash:RetentionDays`), UI en `/trash` verificada
-e2e en navegador — tests (138/138). Sin PR (ver nota en `SPRINTS.md`: push accidental directo a
-`main`). Siguiente: Sprint 14 — adjuntos (`feature/attachments`). Ver detalle en `SPRINTS.md`.
+Sprint 15 (`feature/password-health`) implementado y verificado e2e en navegador: detector de
+contraseñas débiles (`PasswordHealthChecker` en Shared, longitud/variedad/entropía simple),
+detector de repetidas (`PasswordHealthService`, compara descifradas en memoria entre entradas de
+los vaults del usuario, nunca logueadas), endpoint `GET /api/health/passwords` y página `/health`
+con badges de fuerza + "Reused" — tests (172/172). Falta el PR a `main` (ver detalle en
+`SPRINTS.md`). Siguiente: Sprint 16 — importar/exportar CSV (`feature/import-export`).
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra
