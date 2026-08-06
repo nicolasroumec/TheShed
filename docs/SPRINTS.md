@@ -332,23 +332,59 @@
       remoto de `main` con force-push. Para el próximo sprint: confirmar `git push -u origin
       feature/<nombre>` explícito antes de empezar a commitear
 
-## 🔵 Sprint 14 — Adjuntos · `feature/attachments`
+## ✅ Sprint 14 — Adjuntos · `feature/attachments`
 > `Attachment` guarda `StoragePath` + `FileSizeBytes` → el archivo va **fuera de la DB**
-> (filesystem local en dev). Decidir límite de tamaño y si se cifra el blob.
-- [ ] Upload/download/delete de adjuntos de una entrada; validar tamaño/tipo en el boundary
-- [ ] `AttachmentService` + controller; storage local (carpeta configurable) detrás de una interfaz
-      mínima por si después se va a blob storage
-- [ ] UI: adjuntar/descargar/quitar en el detalle de entrada (gated por `CanWrite`)
-- [ ] Tests (validación de límites, autorización)
-- [ ] PR a `main`
-> ⚠️ Decisión pendiente: ¿cifrar el contenido del adjunto con AES como las contraseñas? (recomendado)
+> (filesystem local en dev, carpeta configurable).
+- [x] `IEncryptionService` suma overloads `EncryptBytes`/`DecryptBytes` (AES-256-GCM, igual que las
+      contraseñas) para poder cifrar el contenido binario de los adjuntos
+      → commit `feat: add byte[] overloads to IEncryptionService for binary content`
+- [x] `AttachmentService` + `AttachmentsController` — sube/baja/borra adjuntos de una entrada;
+      valida extensión (`.pdf/.jpg/.jpeg/.png/.txt`) y tamaño (`MaxFileSizeBytes`, default 5 MB) en
+      el boundary; `IAttachmentStorage`/`LocalFileAttachmentStorage` (una interfaz mínima detrás,
+      por si más adelante se pasa a blob storage) guarda el blob cifrado bajo un nombre
+      `Guid.NewGuid()` (nunca el nombre de archivo del usuario, sin superficie de path-traversal)
+      → commit `feat: add attachments API`
+- [x] UI: adjuntar/descargar/quitar en el detalle de entrada (gated por `CanWrite`) — `AttachmentClient`
+      + sección en `VaultDetail.razor` → commit `feat: add attachments UI (upload/download/delete in vault detail)`
+- [x] Tests de `AttachmentService` + `AttachmentsController` (límites de tamaño/tipo, autorización)
+      → commit `test: add attachment service and controller tests`
+- [x] PR a `main` (#14)
 
-## 🔵 Sprint 15 — Salud de contraseñas · `feature/password-health`
-> Detectores de débiles y repetidas. Reusa `PasswordGenerator`/criterios del Shared.
-- [ ] Detector de débiles (longitud/variedad/entropía simple) — Shared, con tests
-- [ ] Detector de repetidas entre entradas del usuario (comparar descifradas en memoria, nunca log)
-- [ ] UI: panel/badges de salud; nunca exponer la contraseña, solo el veredicto
-- [ ] Tests de los detectores
+### Decisiones de diseño (Sprint 14)
+- **Blob cifrado:** el contenido se cifra con el mismo AES-256-GCM que las contraseñas antes de
+  tocar disco (decisión pendiente del plan original, resuelta a favor de cifrar).
+- **Borrado real, sin papelera:** a diferencia de entries/notes/vaults, los adjuntos no pasan por
+  soft-delete — el blob en disco no tiene "deshacer", así que la fila tampoco lo tiene
+  (`AttachmentService.DeleteAsync` fuerza `IsDeleted = true` antes del `Remove` para saltar el
+  soft-delete automático de `SaveChangesAsync` e ir directo al hard delete).
+
+## ✅ Sprint 15 — Salud de contraseñas · `feature/password-health`
+> Reusa `PasswordGenerator`/criterios del Shared para el detector de débiles; el de repetidas vive
+> en un servicio nuevo del Server porque necesita comparar contraseñas descifradas entre entradas.
+
+### Increment 1 — Detector de débiles
+- [x] `PasswordHealthChecker.EvaluateStrength` (Shared): `Weak`/`Medium`/`Strong` a partir de
+      longitud + variedad de clases de carácter + una estimación simple de entropía
+      (`length * log2(poolSize)`) — heurística, no un dictionary/pattern check tipo zxcvbn
+      → commit `feat: add weak password strength detector`
+
+### Increment 2 — Detector de repetidas + endpoint
+- [x] `PasswordHealthService`/`IPasswordHealthService` (Server): descifra en memoria las
+      contraseñas de todas las entradas en los vaults accesibles al usuario (propios + compartidos),
+      nunca las loguea, y arma el veredicto (`Strength` + `IsReused`, comparando por igualdad de
+      texto plano); DTO `PasswordHealthItem` (Shared) sin campo de contraseña
+- [x] `HealthController` `[Authorize]` — `GET /api/health/passwords`, nunca devuelve texto plano
+      → commit `feat: add password reuse detector and health report endpoint`
+- [x] Tests de `PasswordHealthService` + `HealthControllerTests` (fuerza por entrada, reutilización
+      cruzada, entradas de vaults compartidos, usuario sin vaults) — suite completa **172/172** en verde
+
+### Increment 3 — UI
+- [x] `HealthClient` + página `/health` (link "Password health" en el nav): lista de entradas con
+      badge de fuerza (rojo/ámbar/verde) y badge "Reused" aparte, cada una linkeada a su vault —
+      nunca se muestra la contraseña, solo el veredicto → commit `feat: add password health UI
+      (strength and reuse badges)`
+- [x] Verificado e2e en navegador: vault de prueba con entradas débil/fuerte/dos repetidas,
+      badges correctos, sin errores de consola
 - [ ] PR a `main`
 
 ## 🔵 Sprint 16 — Importar / Exportar (CSV) · `feature/import-export`
