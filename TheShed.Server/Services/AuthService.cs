@@ -63,11 +63,10 @@ namespace TheShed.Server.Services
             var (token, expiresAt) = _jwt.GenerateToken(user);
             return new AuthResult(true, AuthError.None, new AuthResponse
             {
-                Token = token,
                 ExpiresAt = expiresAt,
                 Username = user.Username,
                 Email = user.Email
-            });
+            }, token);
         }
     }
 }

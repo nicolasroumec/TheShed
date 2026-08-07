@@ -13,7 +13,8 @@ contraseñas débiles (`PasswordHealthChecker` en Shared, longitud/variedad/entr
 detector de repetidas (`PasswordHealthService`, compara descifradas en memoria entre entradas de
 los vaults del usuario, nunca logueadas), endpoint `GET /api/health/passwords` y página `/health`
 con badges de fuerza + "Reused" — tests (172/172). Falta el PR a `main` (ver detalle en
-`SPRINTS.md`). Siguiente: Sprint 16 — importar/exportar CSV (`feature/import-export`).
+`SPRINTS.md`). Siguiente: Sprint 16 — cookie httpOnly para el JWT (`feature/jwt-cookie`,
+diseño ya planificado en `SPRINTS.md`, hoy el JWT vive en LocalStorage y es robable vía XSS).
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra
