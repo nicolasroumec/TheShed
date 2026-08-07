@@ -37,6 +37,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwt.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key))
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                if (string.IsNullOrEmpty(ctx.Token) && ctx.Request.Cookies.TryGetValue("authToken", out var t))
+                {
+                    ctx.Token = t;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 builder.Services.AddAuthorization();
 
@@ -71,17 +82,6 @@ builder.Services.AddScoped<IPasswordHealthService, PasswordHealthService>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-// Add CORS for WebAssembly client
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -95,7 +95,6 @@ app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
-app.UseCors("AllowAll");
 app.UseRouting();
 
 app.UseAuthentication();
