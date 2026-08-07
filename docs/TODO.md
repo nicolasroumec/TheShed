@@ -8,12 +8,13 @@
 - [~] Fase 5 — UI Blazor (auth ✅, vaults+entradas ✅, generador ✅, compartir vaults ✅, notas seguras ✅, tags ✅, UX de entradas ✅, historial de versiones ✅, papelera ✅, adjuntos ✅, salud de contraseñas ✅) ← en curso
 
 ## Próximo paso
-Sprint 15 (`feature/password-health`) implementado y verificado e2e en navegador: detector de
-contraseñas débiles (`PasswordHealthChecker` en Shared, longitud/variedad/entropía simple),
-detector de repetidas (`PasswordHealthService`, compara descifradas en memoria entre entradas de
-los vaults del usuario, nunca logueadas), endpoint `GET /api/health/passwords` y página `/health`
-con badges de fuerza + "Reused" — tests (172/172). Falta el PR a `main` (ver detalle en
-`SPRINTS.md`). Siguiente: Sprint 16 — importar/exportar CSV (`feature/import-export`).
+Sprint 15 (`feature/password-health`) mergeado a `main` (PR #15). Sprint 16 (`feature/jwt-cookie`)
+implementado y verificado e2e (navegador + curl): el JWT pasó de `localStorage` a una cookie
+`HttpOnly`/`Secure`/`SameSite=Lax` (`AuthController` setea/borra la cookie, `GET /api/auth/me`
+reemplaza la lectura del token en el cliente, `JwtBearerEvents.OnMessageReceived` la lee en el
+server, se sacó el CORS `AllowAll`) — tests (176/176), decisión D6 documentada. Falta el PR a
+`main` (ver detalle en `SPRINTS.md`). Siguiente: Sprint 17 — Importar/Exportar CSV
+(`feature/import-export`).
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra

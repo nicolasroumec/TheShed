@@ -56,3 +56,26 @@ hardcodeado, para poder ajustarlo sin recompilar.
 sus entradas/notas: restaurar el vault las restaura a ellas; purgar el vault las purga a ellas.
 **Evolución futura:** si la purga periódica no escala (tabla muy grande), mover a un job por
 lotes o a nivel de base de datos (ej. SQL Agent job) en vez de `BackgroundService` in-process.
+
+## D6 — Sesión JWT: cookie `HttpOnly` en vez de `localStorage`
+**Decisión:** el JWT se transporta en una cookie `HttpOnly` (`authToken`, `Secure`, `SameSite=Lax`,
+`Path=/`) seteada por el servidor en `login`/`register`, en vez de devolverse en el body y
+guardarse en `localStorage`. El cliente ya no lee ni decodifica el token: usa `GET /api/auth/me`
+para saber si está logueado y quién es.
+**Por qué:** `localStorage` es legible por cualquier script — un XSS en un password manager
+compromete la sesión entera. Una cookie `HttpOnly` no es accesible desde JS ni con XSS.
+**Por qué `SameSite=Lax` y no `Strict`:** manda la cookie en navegaciones normales (click en un
+link, escribir la URL) pero la bloquea en POST/PUT/DELETE cross-site, que es lo que importa para
+CSRF; no rompe el flujo de abrir un link y seguir logueado.
+**Consecuencia — CORS:** se sacó la policy `AllowAll` (`AllowAnyOrigin+AllowAnyMethod+AllowAnyHeader`):
+cliente y API viven en el mismo origen (modelo hosted) y, con `SameSite=Lax` sin `AllowCredentials`,
+un request cross-origin no iba a poder autenticarse de todos modos.
+**Consecuencia — `TheShed.Client` standalone:** el `launchSettings.json` propio del Client
+(`:5064`/`:7163`, leftover del template hosted) deja de poder loguearse si se corre contra un
+`TheShed.Server` en otro puerto (la cookie no viaja cross-origin sin CORS+credentials). No se usa
+en el flujo real del proyecto (se corre `TheShed.Server`), así que no se tocó.
+**No cambia:** sigue siendo un JWT HMAC-SHA256 sin refresh token (D2); solo cambia el canal de
+transporte.
+**Implementación:** `AuthController` (`Cookies.Append`/`Delete`, `GET /me`), `JwtBearerEvents.OnMessageReceived`
+en `Program.cs` (cae a la cookie si no vino header `Authorization`), `JwtAuthenticationStateProvider`
++ `AuthService` (Client, sin `ILocalStorageService`/`JwtParser`).

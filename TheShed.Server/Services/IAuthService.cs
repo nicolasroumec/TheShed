@@ -3,7 +3,7 @@ using TheShed.Shared.Models.DTOs.Auth;
 
 namespace TheShed.Server.Services
 {
-    public record AuthResult(bool Success, AuthError Error, AuthResponse? Response);
+    public record AuthResult(bool Success, AuthError Error, AuthResponse? Response, string? Token = null);
 
     public interface IAuthService
     {

@@ -8,22 +8,17 @@ using TheShed.Shared.Models.DTOs.Auth;
 namespace TheShed.Client.Services
 {
     /// <summary>
-    /// Client-side auth orchestration: calls the API, persists the JWT and refreshes
-    /// the authentication state.
+    /// Client-side auth orchestration: calls the API and refreshes the authentication state.
+    /// The JWT itself lives in an HttpOnly cookie set by the server; the client never sees it.
     /// </summary>
     public class AuthService : IAuthService
     {
         private readonly HttpClient _http;
-        private readonly ILocalStorageService _storage;
         private readonly JwtAuthenticationStateProvider _stateProvider;
 
-        public AuthService(
-            HttpClient http,
-            ILocalStorageService storage,
-            AuthenticationStateProvider stateProvider)
+        public AuthService(HttpClient http, AuthenticationStateProvider stateProvider)
         {
             _http = http;
-            _storage = storage;
             _stateProvider = (JwtAuthenticationStateProvider)stateProvider;
         }
 
@@ -49,7 +44,7 @@ namespace TheShed.Client.Services
 
         public async Task LogoutAsync()
         {
-            await _storage.RemoveItemAsync(JwtAuthenticationStateProvider.TokenKey);
+            await _http.PostAsync("api/auth/logout", null);
             _stateProvider.NotifyLoggedOut();
         }
 
@@ -61,13 +56,12 @@ namespace TheShed.Client.Services
             }
 
             var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
-            if (auth is null || string.IsNullOrWhiteSpace(auth.Token))
+            if (auth is null)
             {
                 return AuthResult.Fail("Unexpected response from the server.");
             }
 
-            await _storage.SetItemAsync(JwtAuthenticationStateProvider.TokenKey, auth.Token);
-            _stateProvider.NotifyAuthenticated(auth.Token);
+            await _stateProvider.RefreshAsync();
             return AuthResult.Ok(auth);
         }
 

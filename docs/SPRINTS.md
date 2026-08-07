@@ -385,9 +385,108 @@
       (strength and reuse badges)`
 - [x] Verificado e2e en navegador: vault de prueba con entradas débil/fuerte/dos repetidas,
       badges correctos, sin errores de consola
+- [x] PR a `main` (#15)
+
+## ✅ Sprint 16 — Cookie httpOnly para el JWT · `feature/jwt-cookie`
+> Hoy el JWT viaja en el body de login/register, el cliente lo guarda en `localStorage`
+> (`LocalStorageService`) y lo reenvía a mano como header `Authorization`. Cualquier XSS
+> puede leer `localStorage` y robar la sesión — en un password manager es el punto más
+> sensible del cliente. Mover el JWT a una cookie `HttpOnly` (JS no puede leerla ni con
+> XSS) cierra ese hueco sin tocar la decisión D2 (`DECISIONS.md`): sigue siendo un JWT
+> HMAC-SHA256 sin refresh token, solo cambia el canal de transporte.
+>
+> **SameSite = `Lax`** (decidido): manda la cookie en navegaciones normales (click en un
+> link, escribir la URL) pero la bloquea en POST/PUT/DELETE cross-site, que es lo que
+> importa para CSRF.
+>
+> **Consecuencia a tener presente:** `TheShed.Client` tiene su propio `launchSettings.json`
+> standalone (:5064/:7163, leftover del template hosted de Blazor WASM) que hoy no se usa
+> en el flujo real del proyecto (`CLAUDE.md` solo documenta correr `TheShed.Server`, que
+> sirve API + cliente en el mismo origen). Con `SameSite=Lax` y sin CORS, correr el Client
+> standalone contra un `TheShed.Server` en otro puerto dejaría de poder loguearse (la
+> cookie no viaja cross-origin). No se toca ese `launchSettings.json` en este sprint.
+
+### Increment 1 — Separar el token secreto de `AuthResponse`
+> Hoy `AuthResponse.Token` viaja del servicio al controller *y* se serializa al cliente en
+> el mismo paso — hay que separarlos antes de tocar el controller.
+- [x] `TheShed.Shared/Models/DTOs/Auth/AuthResponse.cs` pierde `Token` (queda
+      `ExpiresAt`/`Username`/`Email`)
+- [x] `IAuthService.cs`: `AuthResult` (record interno, nunca cruza a HTTP tal cual) suma
+      `string? Token = null` como 4to parámetro posicional (con default, no rompe los
+      `new AuthResult(...)` de 3 args que ya existen en los tests)
+- [x] `AuthService.cs`: `Success(User)` pasa el token generado por `_jwt.GenerateToken(user)`
+      al nuevo campo `AuthResult.Token` en vez de a `AuthResponse.Token`
+- [x] `AuthServiceTests.cs` línea 41 (`result.Response!.Token`) pasa a `result.Token`
+      → commit `refactor: separate JWT token from AuthResponse into AuthResult`
+
+> Nota: este increment deja `TheShed.Client` sin compilar a propósito (`AuthService.cs`
+> del cliente todavía lee `auth.Token`) — se arregla recién en el Increment 4. `Shared`/
+> `Server`/tests compilan y pasan igual.
+
+### Increment 2 — `AuthController`: cookie + `/me` + `/logout`
+- [x] `Register`/`Login`: en éxito, `Response.Cookies.Append("authToken", result.Token!, new
+      CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Lax, Path = "/",
+      Expires = result.Response!.ExpiresAt })` antes de devolver `result.Response` (sin token)
+- [x] Nuevo `[Authorize] [HttpGet("me")]` — arma un `AuthResponse` desde `User` (claim
+      `"username"`, `ClaimTypes.Email`/`JwtRegisteredClaimNames.Email`, `exp` decodificado a
+      `ExpiresAt`). Es lo que el cliente usa para saber "¿estoy logueado y quién soy?" ahora
+      que no puede leer el JWT
+- [x] Nuevo `[HttpPost("logout")]` (sin `[Authorize]`, borrar una cookie ausente es
+      inofensivo) — `Response.Cookies.Delete("authToken", new CookieOptions { Path = "/" })`
+- [x] `AuthControllerTests.cs` — `SampleResponse()` sin `Token`; sumar casos: login/register
+      exitoso setea la cookie `authToken` en `HttpContext.Response` (con
+      `ControllerContext.HttpContext = new DefaultHttpContext()`, mismo patrón que
+      `EntriesControllerTests`), `Me` devuelve 200 con los claims esperados, `Logout` limpia
+      la cookie
+      → commit `feat: set httpOnly JWT cookie and add /me, /logout endpoints`
+
+### Increment 3 — `Program.cs`: el JwtBearer lee la cookie + sacar CORS `AllowAll`
+- [x] `options.Events = new JwtBearerEvents { OnMessageReceived = ctx => { if
+      (string.IsNullOrEmpty(ctx.Token) && ctx.Request.Cookies.TryGetValue("authToken", out var t))
+      ctx.Token = t; return Task.CompletedTask; } }`. Solo cae a la cookie si **no** vino un
+      header `Authorization` — así `Authorization: Bearer <token>` manual (Postman/REST
+      client, ya documentado en `AUTH_FLOW.md`) sigue funcionando igual que hoy
+- [x] Sacar la policy CORS `AllowAll` (`AllowAnyOrigin+AllowAnyMethod+AllowAnyHeader`) y su
+      `app.UseCors(...)`: cliente y API viven en el mismo origen (modelo hosted), no hace
+      falta, y con `SameSite=Lax` sin `AllowCredentials` un request cross-origin no iba a
+      poder autenticarse igual — dejarla wireada es superficie sin beneficio
+      → commit `feat: read JWT from cookie in JwtBearer and remove permissive CORS policy`
+
+### Increment 4 — Cliente: dejar de tocar el token a mano
+- [x] `JwtAuthenticationStateProvider.cs` — reescribir sin `ILocalStorageService`:
+      `GetAuthenticationStateAsync()` llama `GET api/auth/me`; 200 → arma el `ClaimsIdentity`
+      con claims `"username"` y `"email"` (**preservar el tipo `"username"` tal cual** —
+      `Home.razor:8` hace `context.User.FindFirst("username")`); si falla (401 →
+      `HttpRequestException`) devuelve `Anonymous`. `NotifyAuthenticated` pasa a
+      `RefreshAsync()` (re-llama `/me` y notifica) — se usa después de un login/register
+      exitoso, porque el `Set-Cookie` ya lo puso el browser solo. `NotifyLoggedOut` se
+      simplifica (ya no hay header `Authorization` que limpiar a mano)
+- [x] `JwtParser.cs` — **borrado** (nadie decodifica un JWT visible del lado cliente nunca más)
+- [x] `AuthService.cs` (client) — sin `ILocalStorageService`; `LoginAsync`/`RegisterAsync` ya
+      no leen/guardan `auth.Token` (el campo no existe más), llaman
+      `_stateProvider.RefreshAsync()` tras un POST exitoso; `LogoutAsync` pasa a `POST
+      api/auth/logout` + `NotifyLoggedOut()`
+- [x] `ILocalStorageService.cs`/`LocalStorageService.cs` — **borrados** (sin otros consumidores
+      tras este cambio, confirmado por grep). Sacado su `AddScoped` de `Program.cs`
+      → commit `refactor: switch client auth to cookie-based /me flow, drop localStorage`
+
+### Increment 5 — Docs + PR
+- [x] Sumar entrada **D6** en `DECISIONS.md` (cookie httpOnly, SameSite=Lax, motivo)
+      siguiendo el patrón de D1-D5
+- [x] Verificación e2e en navegador (ver abajo)
 - [ ] PR a `main`
 
-## 🔵 Sprint 16 — Importar / Exportar (CSV) · `feature/import-export`
+### Verificación
+- `dotnet build` (solución completa) + `dotnet test` — suite completa en verde.
+- E2E en navegador: login → DevTools ▸ Application ▸ Cookies muestra `authToken` con
+  `HttpOnly`/`Secure`/`SameSite=Lax`; Local Storage ya no tiene `authToken`;
+  `document.cookie` en consola no incluye `authToken` (prueba que JS no puede leerla). F5
+  con sesión activa → sigue logueado (roundtrip a `/me`). `/vaults`, `/health`, `/trash`
+  siguen andando (la cookie autentica los requests). "Welcome back, {username}" en Home
+  sigue mostrando el nombre (el claim `"username"` sigue llegando). Logout → cookie
+  borrada, páginas protegidas redirigen a `/login`.
+
+## 🔵 Sprint 17 — Importar / Exportar (CSV) · `feature/import-export`
 > CSV de LastPass / Bitwarden / 1Password (import) y export de entradas propias.
 - [ ] Parser CSV por formato (mapear columnas → `EntryCreate`); cifra al importar
 - [ ] Export de entradas propias a CSV (⚠️ contraseñas en claro en el archivo → warning explícito)
@@ -395,7 +494,7 @@
 - [ ] Tests de parsers (cada formato + filas inválidas)
 - [ ] PR a `main`
 
-## 🟣 Sprint 17 — 2FA (TOTP) · `feature/2fa`
+## 🟣 Sprint 18 — 2FA (TOTP) · `feature/2fa`
 > `User.TwoFactorSecret` (nullable, null = desactivado) ya existe en el modelo.
 - [ ] Activar 2FA: generar secret TOTP + QR, verificar código antes de activar
 - [ ] Exigir código TOTP en login si está activado (segundo paso del flujo de auth)
@@ -403,8 +502,10 @@
 - [ ] Tests del flujo TOTP (validación de código, ventana de tiempo)
 - [ ] PR a `main`
 
-## 🟣 Sprint 18 — Cierre por inactividad · `feature/session-timeout`
-> Cliente: timeout configurable que cierra sesión y limpia el token de LocalStorage.
+## 🟣 Sprint 19 — Cierre por inactividad · `feature/session-timeout`
+> Cliente: timeout configurable que cierra sesión y limpia el token de LocalStorage. Si el
+> Sprint 16 (cookie httpOnly) ya se implementó para entonces, "limpiar el token" pasa a ser
+> `POST api/auth/logout` en vez de tocar LocalStorage.
 - [ ] Detectar inactividad (timers + eventos), auto-logout + redirect a login
 - [ ] Timeout configurable (constante o setting de usuario)
 - [ ] PR a `main`

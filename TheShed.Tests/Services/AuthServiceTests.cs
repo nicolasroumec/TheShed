@@ -38,7 +38,7 @@ namespace TheShed.Tests.Services
             Assert.True(result.Success);
             Assert.Equal(AuthError.None, result.Error);
             Assert.NotNull(result.Response);
-            Assert.False(string.IsNullOrEmpty(result.Response!.Token));
+            Assert.False(string.IsNullOrEmpty(result.Token));
 
             var user = await db.Users.SingleAsync();
             Assert.Equal("ana@test.com", user.Email);            // email normalizado a minúsculas
