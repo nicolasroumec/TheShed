@@ -487,11 +487,46 @@
   borrada, páginas protegidas redirigen a `/login`.
 
 ## 🔵 Sprint 17 — Importar / Exportar (CSV) · `feature/import-export`
-> CSV de LastPass / Bitwarden / 1Password (import) y export de entradas propias.
-- [ ] Parser CSV por formato (mapear columnas → `EntryCreate`); cifra al importar
-- [ ] Export de entradas propias a CSV (⚠️ contraseñas en claro en el archivo → warning explícito)
-- [ ] UI: subir CSV con preview/selección de vault destino; botón export
-- [ ] Tests de parsers (cada formato + filas inválidas)
+> CSV de LastPass / Bitwarden / 1Password (import) y export de entradas propias. Ningún
+> proyecto tiene hoy una lib de CSV — un parser a mano que solo hace `Split(',')` rompe con
+> comillas/comas/saltos de línea embebidos en `notes` o `password`, justo el campo más
+> sensible. Se suma `CsvHelper` (NuGet, la lib estándar de facto en .NET) en vez de
+> reinventar el parseo: es la excepción lazy correcta acá — un parser CSV RFC4180 a mano
+> es más código y más riesgo que una dependencia madura de un solo propósito.
+
+### Increment 1 — DTOs + dependencia
+- [ ] `PackageReference CsvHelper` en `TheShed.Server.csproj`
+- [ ] DTOs `ImportResult` (Imported/Skipped/Errors por fila) y `ExportEntryRow` (Name,
+      Username, Password, Url, Notes — mismas columnas que expone el export)
+
+### Increment 2 — Backend: import
+- [ ] `ICsvImportService`/`CsvImportService`: un mapper de columnas por formato (LastPass:
+      `url,username,password,extra,name,grouping,fav`; Bitwarden: `folder,favorite,type,name,
+      notes,fields,reprompt,login_uri,login_username,login_password,login_totp`; 1Password:
+      `Title,Website,Username,Password,Notes`) → `EntryCreateRequest`, reusa
+      `IVaultAccessService` (write al vault destino) + `IEncryptionService` (cifra cada fila
+      al crear, mismo camino que `PasswordEntryService.CreateAsync`)
+- [ ] Fila inválida (columnas faltantes, vacía) no aborta el import completo: se cuenta en
+      `ImportResult.Errors` con el número de fila, se sigue con las demás
+- [ ] `POST /api/import/csv?vaultId={id}&format={lastpass|bitwarden|1password}` (multipart
+      file upload), `[Authorize]`
+
+### Increment 3 — Backend: export
+- [ ] `CsvExportService`: entradas propias (vaults donde el usuario tiene acceso), descifra
+      y vuelca a CSV vía `CsvHelper`
+- [ ] `GET /api/export/csv?vaultId={id}` devuelve el archivo (`Content-Disposition:
+      attachment`) — contraseñas en claro en el archivo, advertencia va en la UI, no en la API
+
+### Increment 4 — UI
+- [ ] `ImportExportClient` + sección en `/vaults/{id}` (o página propia `/import-export`):
+      input de archivo + selector de formato, preview de `ImportResult` tras subir
+      (importadas/saltadas/errores por fila); botón "Export" con `confirm()` de aviso
+      ("el archivo tendrá las contraseñas en texto plano") antes de disparar la descarga
+
+### Increment 5 — Tests
+- [ ] Tests de `CsvImportService` (los 3 formatos, fila con columnas faltantes, fila vacía,
+      autorización de escritura al vault) + `CsvExportService` (roundtrip descifrado) +
+      controllers (upload/download)
 - [ ] PR a `main`
 
 ## 🟣 Sprint 18 — 2FA (TOTP) · `feature/2fa`
@@ -509,6 +544,87 @@
 - [ ] Detectar inactividad (timers + eventos), auto-logout + redirect a login
 - [ ] Timeout configurable (constante o setting de usuario)
 - [ ] PR a `main`
+
+## 🟣 Sprint 20 — Refactor de frontend: cerrar la identidad "Workshop" · `feature/frontend-refactor`
+> Al cierre de todos los sprints funcionales (post Sprint 19), no antes — evita rehacer UI
+> a mitad de camino. **No arranca de cero:** el Sprint 5 ya definió una identidad propia
+> (`docs/UI.md`, concepto "Workshop" — acento ámbar/cobre, sin gradientes/glass, mono para
+> secretos, vault card = cajón etiquetado) que es exactamente el punto medio buscado
+> (profesional + distintivo, sin literal wood-grain/pegboard). Este sprint es **cerrar los
+> ítems sin tildar de `UI.md` + auditar el drift** de los 11 sprints de features construidos
+> encima desde entonces (Sprints 6-16), no reinventar paleta ni tono.
+
+### Increment 1 — Auditoría (sin código)
+- [ ] Pasada página por página (Home, Login/Register, Vaults, VaultDetail —entries/notes/
+      tags/history/attachments—, Health, Trash) contra el checklist de `docs/UI.md`: ¿usa
+      los tokens (`--surface`/`--accent`/`--radius`/`--font-mono`) o se filtró un default de
+      Bootstrap sin pasar por ellos?
+- [ ] Confirmado ya: `NavMenu.razor` usa clases `bi-*-nav-menu` que **no existen en ningún
+      CSS del proyecto** (residuo del template default de Blazor WASM, de antes del rename
+      SwimAnalytics→TheShed) — hoy el nav no muestra ningún ícono, no es un tema de
+      "elegir mejor ícono"
+- [x] **Auditoría completa — confirmado el mismo patrón en todas las vistas de listado.**
+      Los overrides globales de `app.css` (`--bs-primary`→ámbar, headings uppercase, `.card`
+      recoloreado) sí llegan a todos lados porque son automáticos. Pero el contenido de cada
+      página nunca se conectó con las clases que Sprint 5 diseñó a propósito para él — de ahí
+      la sensación "IA + Bootstrap genérico": la pintura de fondo está, el resto no.
+      - `Vaults.razor` — `list-group-item` en vez de `.vault-card` (`app.css:208-209`, ya
+        definida: hover con borde ámbar + `surface-2`, el efecto "cajón etiquetado"); badges
+        de rol (Owner/Editor/Viewer) en `bg-secondary`/`bg-info`/`bg-light` stock
+      - `VaultDetail.razor` — mismo `list-group-item` para entries, notes **y** members;
+        badges de tags en `bg-secondary` stock; **`.secret` (mono para contraseñas, el otro
+        pilar de identidad de `UI.md`) no se usa en ningún lado del archivo** — la contraseña
+        revelada se muestra en la tipografía normal, no monoespaciada
+      - `Trash.razor` — `list-group-item` + badge de tipo en `bg-secondary` stock
+      - `Health.razor` — `list-group-item`; los badges de fuerza usan `bg-danger`/
+        `bg-warning`/`bg-success` de Bootstrap **sin remapear** (`app.css` solo redefine
+        `--bs-primary` y `--bs-secondary-color`, no `--bs-danger`/`--bs-warning`/
+        `--bs-success`) — el rojo/verde de Bootstrap, no el rust/success que `UI.md` define
+        como identidad (`--danger: #c4503a`, `--success: #6f9e4a`)
+      - `Login.razor`/`Register.razor` — **estas sí están bien conectadas**, usan `.auth-card`
+        correctamente. Sirven de referencia de "cómo se ve cuando el contenido sí usa el
+        sistema", contraste útil para el resto
+- [x] Conclusión: el problema no es visual (elegir mejores colores), es de **integración** —
+      re-conectar clases que ya existen y ya están bien diseñadas. El Increment 5
+      (consistencia) es en la práctica el core de este sprint, no un cleanup menor al final
+- [ ] Salida: punch list concreta, no un rediseño — este increment no toca código
+
+### Increment 2 — Nav: íconos reales
+- [ ] Reemplazar las clases muertas de `NavMenu.razor` por **Bootstrap Icons** (`bi bi-*`,
+      ya usado/documentado en `UI.md` §6, cero dependencia nueva) — 6 íconos (Home, Vaults,
+      Password health, Trash, Sign out, Sign in), elegidos por afinidad al vocabulario
+      workshop donde el nombre lo permita (ej. `bi-box-seam`/`bi-archive` para Vaults en vez
+      de un genérico "list")
+- [ ] Sin ícono custom dibujado a mano para esto: 6 glyphs de nav no justifican mantener un
+      icon font propio; Bootstrap Icons ya cubre el caso y es gratis (ya está en el proyecto)
+
+### Increment 3 — Empty states con voz "workshop"
+- [ ] Copy propio (no "No items found") en las listas vacías: Vaults, entradas/notas de un
+      vault recién creado, Trash sin nada borrado, Health sin vaults. `UI.md` ya da el tono
+      de ejemplo ("The shed's empty — hang your first vault.")
+- [ ] Sin ilustración custom todavía — texto + el ícono de la sección alcanza; una
+      ilustración dibujada es la primera candidata a cortar si el sprint se alarga
+
+### Increment 4 — Feedback y loading, una vez
+- [ ] Definir **un** patrón de alerta de éxito/error (hoy cada página arma su propio
+      `alert alert-danger` suelto) y **un** indicador de carga (spinner Bootstrap ya
+      alcanza) — implementarlo en un lugar y aplicarlo, no un componente nuevo por página
+- [ ] Cierra los dos ítems de `UI.md` §5 que quedaron sin decidir en Sprint 5
+
+### Increment 5 — Pasada de consistencia
+- [ ] Corregir el drift real que haya salido del Increment 1 (colores/radios/espaciados
+      que no pasan por los tokens) — alcance = lo que apareció en la auditoría, no una
+      reescritura general
+- [ ] Tipografía: solo si la auditoría encuentra algo roto — el scale de Bootstrap ya
+      está aceptado en `UI.md` ("keep Bootstrap's; only revisit if something looks off")
+
+### Increment 6 — PR
+- [ ] Verificación e2e en navegador de las páginas tocadas (mismo patrón que sprints
+      anteriores) + PR a `main`
+
+> **Evitar en todo el sprint:** texturas de madera, pegboard de fondo, nombres "cute" para
+> secciones, ilustraciones custom fuera de empty states — eso es lo que lo hace ver
+> amateur en vez de premium.
 
 ---
 

@@ -205,8 +205,18 @@ code {
 }
 
 /* Vault cards on the listing — clickable, like labeled drawers. */
-.vault-card { cursor: pointer; transition: border-color 0.1s ease, background-color 0.1s ease; }
-.vault-card:hover { border-color: var(--accent); background: var(--surface-2); }
+.vault-card {
+    display: block;
+    color: var(--text);
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.1s ease, background-color 0.1s ease;
+}
+.vault-card:hover { border-color: var(--accent); background: var(--surface-2); color: var(--text); }
+
+/* Neutral role tag (Owner/Editor/Viewer); accent reserved for the owner's own vaults. */
+.badge-role { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); font-weight: 500; }
+.badge-role.role-owner { color: var(--accent); border-color: var(--accent); }
 
 .auth-card h1 {
     font-size: 1.5rem;
