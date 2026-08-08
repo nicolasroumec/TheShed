@@ -48,7 +48,7 @@
 }
 else if (_vaults.Count == 0)
 {
-    <p class="text-muted">No vaults yet. Create your first one.</p>
+    <p class="text-muted"><span class="bi bi-archive me-2" aria-hidden="true"></span>The shed's empty — hang your first vault.</p>
 }
 else
 {
@@ -65,7 +65,7 @@ else
                                 <small class="text-muted">@vault.Description</small>
                             }
                         </div>
-                        <span class="badge badge-role @RoleBadgeClass(vault)">@RoleLabel(vault)</span>
+                        <span class="badge badge-chip @RoleBadgeClass(vault)">@RoleLabel(vault)</span>
                     </div>
                 </a>
             </div>

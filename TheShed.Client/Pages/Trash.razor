@@ -16,7 +16,7 @@
 }
 else if (_items.Count == 0)
 {
-    <p class="text-muted">Trash is empty.</p>
+    <p class="text-muted"><span class="bi bi-trash me-2" aria-hidden="true"></span>Nothing swept up yet — the bin's clean.</p>
 }
 else
 {
@@ -26,7 +26,7 @@ else
             <div class="list-group-item">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="badge bg-secondary me-2">@item.Type</span>
+                        <span class="badge badge-chip me-2">@item.Type</span>
                         <span class="fw-bold">@item.Name</span>
                         @if (item.VaultName is not null)
                         {

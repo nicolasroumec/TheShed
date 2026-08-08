@@ -36,6 +36,33 @@
     --bs-link-hover-color: var(--accent-hover);
     --bs-border-radius: var(--radius);
     --bs-secondary-color: var(--text-muted);
+
+    /* Bootstrap's dark theme paints its surfaces cold grey (#212529 / #343a40 / #6c757d).
+       Point its surface, border and semantic vars at the Workshop tokens so stock
+       components (list groups, badges, inputs, alerts) follow the palette on their own. */
+    --bs-body-bg: var(--bg);
+    --bs-body-color: var(--text);
+    --bs-emphasis-color: var(--text);
+    --bs-secondary-bg: var(--surface-2);
+    --bs-tertiary-bg: var(--surface-2);
+    --bs-border-color: var(--border);
+    --bs-code-color: var(--accent);
+    --bs-secondary: var(--surface-2);
+    --bs-secondary-rgb: 44, 37, 28;
+    --bs-danger: var(--danger);
+    --bs-danger-rgb: 196, 80, 58;
+    --bs-warning: var(--warning);
+    --bs-warning-rgb: 217, 164, 65;
+    --bs-success: var(--success);
+    --bs-success-rgb: 111, 158, 74;
+
+    /* Subtle variants back the .alert-* components. */
+    --bs-danger-text-emphasis: #e08a72;
+    --bs-danger-bg-subtle: #2a1411;
+    --bs-danger-border-subtle: #5e2a1e;
+    --bs-success-text-emphasis: #9dc47a;
+    --bs-success-bg-subtle: #16200d;
+    --bs-success-border-subtle: #3a5426;
 }
 
 html, body {
@@ -71,8 +98,56 @@ a, .btn-link {
     --bs-btn-active-color: var(--bg);
 }
 
+/* Bootstrap compiles literal hex into the .btn-* variants, so the token remap above does
+   not reach them — restate the three we use. Secondary = bordered ghost (UI.md §5). */
+.btn-outline-secondary {
+    --bs-btn-color: var(--text-muted);
+    --bs-btn-border-color: var(--border);
+    --bs-btn-hover-color: var(--text);
+    --bs-btn-hover-bg: var(--surface-2);
+    --bs-btn-hover-border-color: var(--accent);
+    --bs-btn-active-color: var(--text);
+    --bs-btn-active-bg: var(--surface-2);
+    --bs-btn-active-border-color: var(--accent);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--accent);
+    --bs-btn-border-color: var(--accent);
+    --bs-btn-hover-color: var(--bg);
+    --bs-btn-hover-bg: var(--accent);
+    --bs-btn-hover-border-color: var(--accent);
+    --bs-btn-active-color: var(--bg);
+    --bs-btn-active-bg: var(--accent-active);
+    --bs-btn-active-border-color: var(--accent-active);
+}
+
+.btn-outline-danger {
+    --bs-btn-color: var(--danger);
+    --bs-btn-border-color: var(--danger);
+    --bs-btn-hover-color: var(--text);
+    --bs-btn-hover-bg: var(--danger);
+    --bs-btn-hover-border-color: var(--danger);
+    --bs-btn-active-color: var(--text);
+    --bs-btn-active-bg: var(--danger);
+    --bs-btn-active-border-color: var(--danger);
+}
+
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
   box-shadow: 0 0 0 0.2rem rgba(224, 146, 47, 0.35);
+}
+
+/* Inputs sit on --surface, not on the page background (UI.md §5). */
+.form-control, .form-select {
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--surface);
+    border-color: var(--accent);
+    color: var(--text);
 }
 
 /* Secrets render as workshop labels. */
@@ -214,9 +289,12 @@ code {
 }
 .vault-card:hover { border-color: var(--accent); background: var(--surface-2); color: var(--text); }
 
-/* Neutral role tag (Owner/Editor/Viewer); accent reserved for the owner's own vaults. */
-.badge-role { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); font-weight: 500; }
-.badge-role.role-owner { color: var(--accent); border-color: var(--accent); }
+/* Neutral chip — roles, tags, trash types. Accent is reserved for the owner's own vaults. */
+.badge-chip { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); font-weight: 500; }
+.badge-chip.role-owner { color: var(--accent); border-color: var(--accent); }
+
+/* List rows are drawers too: they sit on --surface, above the page background. */
+.list-group { --bs-list-group-bg: var(--surface); }
 
 .auth-card h1 {
     font-size: 1.5rem;

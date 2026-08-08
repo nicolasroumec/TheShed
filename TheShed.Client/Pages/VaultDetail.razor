@@ -70,7 +70,7 @@ else
                     <div class="mb-3">
                         <label class="form-label" for="password">Password</label>
                         <div class="input-group">
-                            <InputText id="password" type="@(_showPassword ? "text" : "password")" class="form-control" @bind-Value="_form.Password" autocomplete="off" />
+                            <InputText id="password" type="@(_showPassword ? "text" : "password")" class="form-control secret" @bind-Value="_form.Password" autocomplete="off" />
                             <button type="button" class="btn btn-outline-secondary" @onclick="() => _showPassword = !_showPassword">
                                 @(_showPassword ? "Hide" : "Show")
                             </button>
@@ -170,7 +170,7 @@ else
     }
     else if (_entries.Count == 0)
     {
-        <p class="text-muted">@(_activeTagId is null && string.IsNullOrWhiteSpace(_search) ? "No entries in this vault yet." : "No entries match the current filter.")</p>
+        <p class="text-muted">@(_activeTagId is null && string.IsNullOrWhiteSpace(_search) ? "This drawer's empty — add your first entry." : "Nothing on this shelf matches the filter.")</p>
     }
     else
     {
@@ -188,7 +188,7 @@ else
                                 <div class="mt-1 d-flex flex-wrap gap-1">
                                     @foreach (var tag in entry.Tags)
                                     {
-                                        <span class="badge bg-secondary">@tag.Name</span>
+                                        <span class="badge badge-chip">@tag.Name</span>
                                     }
                                 </div>
                             }
@@ -354,7 +354,7 @@ else
     }
     else if (_notes.Count == 0)
     {
-        <p class="text-muted">No secure notes in this vault yet.</p>
+        <p class="text-muted">No notes pinned to this drawer yet.</p>
     }
     else
     {
