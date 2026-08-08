@@ -170,12 +170,26 @@ a, .btn-link {
     padding-top: 1.1rem;
 }
 
-/* App shell — the layout has no scoped CSS, so the chrome lives here. */
+/* App shell. The layout's scoped CSS (MainLayout/NavMenu .razor.css) was deleted: it still
+   carried the Blazor template's purple gradient sidebar and light top row, and scoped
+   selectors outrank these, so the chrome below never applied. One place only now. */
 .page { display: flex; min-height: 100vh; }
-.sidebar { width: 15rem; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); }
+.sidebar {
+    width: 15rem;
+    flex-shrink: 0;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+}
 main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .top-row {
     height: 3.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -183,8 +197,26 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     border-bottom: 1px solid var(--border);
 }
 
-/* NavMenu has no scoped CSS either: Bootstrap's .collapse hides the nav, so force it
-   open on desktop and hide the mobile toggler. ponytail: desktop-first, revisit if mobile matters. */
+.navbar-brand { font-size: 1.1rem; }
+
+.sidebar .nav-item { font-size: 0.9rem; padding-bottom: 0.5rem; }
+.sidebar .nav-item:first-of-type { padding-top: 1rem; }
+.sidebar .nav-item:last-of-type { padding-bottom: 1rem; }
+
+.sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    height: 2.75rem;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.sidebar .nav-link:hover { background: var(--surface-2); color: var(--text); }
+.sidebar .nav-link.active { background: var(--surface-2); color: var(--accent); }
+
+/* Bootstrap's .collapse hides the nav, so force it open on desktop and hide the mobile
+   toggler. ponytail: desktop-first, revisit if mobile matters. */
 @media (min-width: 641px) {
     .sidebar .nav-scrollable { display: block !important; }
     .sidebar .navbar-toggler { display: none; }
