@@ -8,13 +8,13 @@
 - [~] Fase 5 — UI Blazor (auth ✅, vaults+entradas ✅, generador ✅, compartir vaults ✅, notas seguras ✅, tags ✅, UX de entradas ✅, historial de versiones ✅, papelera ✅, adjuntos ✅, salud de contraseñas ✅) ← en curso
 
 ## Próximo paso
-Sprint 15 (`feature/password-health`) mergeado a `main` (PR #15). Sprint 16 (`feature/jwt-cookie`)
-implementado y verificado e2e (navegador + curl): el JWT pasó de `localStorage` a una cookie
-`HttpOnly`/`Secure`/`SameSite=Lax` (`AuthController` setea/borra la cookie, `GET /api/auth/me`
-reemplaza la lectura del token en el cliente, `JwtBearerEvents.OnMessageReceived` la lee en el
-server, se sacó el CORS `AllowAll`) — tests (176/176), decisión D6 documentada. Falta el PR a
-`main` (ver detalle en `SPRINTS.md`). Siguiente: Sprint 17 — Importar/Exportar CSV
-(`feature/import-export`).
+Sprint 16 (`feature/jwt-cookie`) mergeado a `main` (PR #16). Sprint 20 (`feature/frontend`) se
+adelantó al resto: increments 1-5 hechos — auditoría, íconos reales en el nav (Bootstrap Icons
+no estaba instalado pese a lo que decía `UI.md` §6), empty states con voz workshop, componente
+`Loading` único, y el remapeo de los `--bs-*` del tema oscuro de Bootstrap a los tokens Workshop
+(la causa raíz del look genérico: sus grises fríos ganaban aunque las páginas usaran las clases
+correctas). Falta el Increment 6: verificación e2e en navegador + PR a `main`. Después, volver
+al orden del roadmap: Sprint 17 — Importar/Exportar CSV (`feature/import-export`).
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra

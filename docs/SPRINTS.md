@@ -545,7 +545,7 @@
 - [ ] Timeout configurable (constante o setting de usuario)
 - [ ] PR a `main`
 
-## 🟣 Sprint 20 — Refactor de frontend: cerrar la identidad "Workshop" · `feature/frontend-refactor`
+## 🟣 Sprint 20 — Refactor de frontend: cerrar la identidad "Workshop" · `feature/frontend`
 > Al cierre de todos los sprints funcionales (post Sprint 19), no antes — evita rehacer UI
 > a mitad de camino. **No arranca de cero:** el Sprint 5 ya definió una identidad propia
 > (`docs/UI.md`, concepto "Workshop" — acento ámbar/cobre, sin gradientes/glass, mono para
@@ -587,36 +587,56 @@
 - [x] Conclusión: el problema no es visual (elegir mejores colores), es de **integración** —
       re-conectar clases que ya existen y ya están bien diseñadas. El Increment 5
       (consistencia) es en la práctica el core de este sprint, no un cleanup menor al final
-- [ ] Salida: punch list concreta, no un rediseño — este increment no toca código
+- [x] Salida: punch list concreta, no un rediseño — este increment no toca código
 
 ### Increment 2 — Nav: íconos reales
-- [ ] Reemplazar las clases muertas de `NavMenu.razor` por **Bootstrap Icons** (`bi bi-*`,
+- [x] Reemplazar las clases muertas de `NavMenu.razor` por **Bootstrap Icons** (`bi bi-*`,
       ya usado/documentado en `UI.md` §6, cero dependencia nueva) — 6 íconos (Home, Vaults,
       Password health, Trash, Sign out, Sign in), elegidos por afinidad al vocabulario
       workshop donde el nombre lo permita (ej. `bi-box-seam`/`bi-archive` para Vaults en vez
       de un genérico "list")
-- [ ] Sin ícono custom dibujado a mano para esto: 6 glyphs de nav no justifican mantener un
-      icon font propio; Bootstrap Icons ya cubre el caso y es gratis (ya está en el proyecto)
+- [x] Sin ícono custom dibujado a mano para esto: 6 glyphs de nav no justifican mantener un
+      icon font propio; Bootstrap Icons cubre el caso
+- [x] **Corrección al plan:** Bootstrap Icons **no estaba** en el proyecto (`UI.md` §6 lo daba
+      por tildado, pero `wwwroot/lib/` solo tenía el CSS/JS de Bootstrap y `index.html` no lo
+      linkeaba) — por eso el nav no mostraba nada. Se sumó por CDN de jsDelivr, una línea en
+      `index.html`; vendorizarlo queda como opción si el uso offline importa
 
 ### Increment 3 — Empty states con voz "workshop"
-- [ ] Copy propio (no "No items found") en las listas vacías: Vaults, entradas/notas de un
+- [x] Copy propio (no "No items found") en las listas vacías: Vaults, entradas/notas de un
       vault recién creado, Trash sin nada borrado, Health sin vaults. `UI.md` ya da el tono
       de ejemplo ("The shed's empty — hang your first vault.")
-- [ ] Sin ilustración custom todavía — texto + el ícono de la sección alcanza; una
+- [x] Sin ilustración custom todavía — texto + el ícono de la sección alcanza; una
       ilustración dibujada es la primera candidata a cortar si el sprint se alarga
 
 ### Increment 4 — Feedback y loading, una vez
-- [ ] Definir **un** patrón de alerta de éxito/error (hoy cada página arma su propio
+- [x] Definir **un** patrón de alerta de éxito/error (hoy cada página arma su propio
       `alert alert-danger` suelto) y **un** indicador de carga (spinner Bootstrap ya
       alcanza) — implementarlo en un lugar y aplicarlo, no un componente nuevo por página
-- [ ] Cierra los dos ítems de `UI.md` §5 que quedaron sin decidir en Sprint 5
+- [x] Carga: componente `Components/Loading.razor` aplicado en los 8 puntos de espera
+      (vaults, entradas, notas, historial, adjuntos). Feedback: el `alert alert-danger`
+      inline **ya era** el patrón repetido en 5 páginas y quedó themeado solo por el remapeo
+      de tokens — se documentó como decisión en vez de agregar un componente de toast sin
+      consumidor; el éxito usa la misma forma con `alert-success` cuando alguna pantalla
+      lo necesite
+- [x] Cierra los dos ítems de `UI.md` §5 que quedaron sin decidir en Sprint 5
 
 ### Increment 5 — Pasada de consistencia
-- [ ] Corregir el drift real que haya salido del Increment 1 (colores/radios/espaciados
+- [x] Corregir el drift real que haya salido del Increment 1 (colores/radios/espaciados
       que no pasan por los tokens) — alcance = lo que apareció en la auditoría, no una
       reescritura general
-- [ ] Tipografía: solo si la auditoría encuentra algo roto — el scale de Bootstrap ya
-      está aceptado en `UI.md` ("keep Bootstrap's; only revisit if something looks off")
+- [x] **La causa raíz no eran las páginas, era el tema oscuro de Bootstrap**: pinta sus
+      propias superficies/bordes/semánticos en grises fríos (`#212529`, `#343a40`, `#6c757d`),
+      así que `list-group`, inputs y badges ignoraban la paleta por más que el contenido usara
+      las clases correctas. Se remapearon los `--bs-*` a los tokens en `:root` una sola vez
+      (diff mucho menor que reescribir cada listado en cada razor). Excepción: los `.btn-*`
+      llevan hex literal compilado, así que `outline-secondary/primary/danger` y `warning`
+      (la estrella de favorito) se restatearon a mano
+- [x] `.badge-role` pasó a `.badge-chip` — roles, tags y tipos de la papelera comparten el
+      mismo chip neutro, y `.secret` (mono) se aplicó al campo de contraseña del formulario
+- [x] Tipografía: solo si la auditoría encuentra algo roto — el scale de Bootstrap ya
+      está aceptado en `UI.md` ("keep Bootstrap's; only revisit if something looks off").
+      No apareció nada roto, no se tocó
 
 ### Increment 6 — PR
 - [ ] Verificación e2e en navegador de las páginas tocadas (mismo patrón que sprints

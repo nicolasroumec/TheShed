@@ -47,12 +47,15 @@ so there is nothing extra to load.
 - [x] Buttons — primary = solid amber + dark text; secondary = bordered ghost; danger = rust. Square-ish.
 - [x] Inputs — surface bg, 1px border, focus = amber border + subtle glow
 - [x] Cards — vault card = labeled drawer; hover → surface-2 + amber border
-- [ ] Empty states — workshop voice (e.g. "The shed's empty — hang your first vault.")
-- [ ] Feedback — success / error toasts or alerts (decide when first needed)
-- [ ] Loading — spinner / skeleton (decide when first needed)
+- [x] Empty states — workshop voice ("The shed's empty — hang your first vault.")
+- [x] Feedback — inline `alert alert-danger` in the form or section that failed, no toasts;
+      success uses the same shape with `alert-success` when a screen first needs one. The
+      `--bs-*-bg-subtle` / `-text-emphasis` / `-border-subtle` tokens back both.
+- [x] Loading — one `<Loading />` component (Bootstrap `.spinner-border` + label). No skeletons.
 
 ## 6. Icons
-- [x] Bootstrap Icons (`bi-*`) — utilitarian line icons, fits the workshop look
+- [x] Bootstrap Icons (`bi-*`) — utilitarian line icons, fits the workshop look. Loaded from
+      the jsDelivr CDN in `index.html`; vendor it into `wwwroot/lib/` if offline use matters.
 
 ---
 
@@ -63,6 +66,11 @@ so there is nothing extra to load.
 - **Rust danger `#c4503a`** instead of generic red — oxidized iron, fits the workshop.
 - **Depth by color, not shadow** — `bg → surface → surface-2`; flat and solid.
 - **Single accent (amber)** — only actionable things get color.
+- **Bootstrap's own theme vars point at our tokens** — its dark theme ships cold greys
+  (`#212529` / `#343a40` / `#6c757d`), so `:root` in `app.css` remaps `--bs-body-bg`,
+  `--bs-border-color` and the semantic colors. Stock components follow the palette without
+  per-page CSS. The `.btn-*` variants are the exception: Bootstrap compiles literal hex into
+  them, so the ones we use are restated by hand.
 
 ## Token block (target `:root`)
 

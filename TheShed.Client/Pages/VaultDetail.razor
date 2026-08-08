@@ -25,7 +25,7 @@
 }
 else if (_vault is null)
 {
-    <p>Loading…</p>
+    <Loading />
 }
 else
 {
@@ -166,7 +166,7 @@ else
 
     @if (_entries is null)
     {
-        <p>Loading entries…</p>
+        <Loading Text="Loading entries…" />
     }
     else if (_entries.Count == 0)
     {
@@ -228,7 +228,7 @@ else
                         <div class="mt-2">
                             @if (!_history.TryGetValue(entry.Id, out var history))
                             {
-                                <p class="text-muted small mb-0">Loading history…</p>
+                                <Loading Text="Loading history…" Class="small mb-0" />
                             }
                             else if (history.Count == 0)
                             {
@@ -257,7 +257,7 @@ else
                         <div class="mt-2">
                             @if (!_attachments.TryGetValue(entry.Id, out var files))
                             {
-                                <p class="text-muted small mb-0">Loading files…</p>
+                                <Loading Text="Loading files…" Class="small mb-0" />
                             }
                             else
                             {
@@ -350,7 +350,7 @@ else
 
     @if (_notes is null)
     {
-        <p>Loading notes…</p>
+        <Loading Text="Loading notes…" />
     }
     else if (_notes.Count == 0)
     {

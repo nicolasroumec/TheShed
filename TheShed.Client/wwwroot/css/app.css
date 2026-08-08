@@ -122,6 +122,19 @@ a, .btn-link {
     --bs-btn-active-border-color: var(--accent-active);
 }
 
+/* Solid warning — the entry favorite toggle. */
+.btn-warning {
+    --bs-btn-bg: var(--warning);
+    --bs-btn-border-color: var(--warning);
+    --bs-btn-color: var(--bg);
+    --bs-btn-hover-bg: var(--accent-hover);
+    --bs-btn-hover-border-color: var(--accent-hover);
+    --bs-btn-hover-color: var(--bg);
+    --bs-btn-active-bg: var(--accent-active);
+    --bs-btn-active-border-color: var(--accent-active);
+    --bs-btn-active-color: var(--bg);
+}
+
 .btn-outline-danger {
     --bs-btn-color: var(--danger);
     --bs-btn-border-color: var(--danger);
