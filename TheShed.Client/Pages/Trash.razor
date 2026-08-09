@@ -10,6 +10,11 @@
 
 <h1 class="mb-4">Trash</h1>
 
+@if (!string.IsNullOrEmpty(_error))
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+
 @if (_items is null)
 {
     <Loading />
@@ -46,6 +51,7 @@ else
 
 @code {
     private IReadOnlyList<TrashItem>? _items;
+    private string? _error;
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
@@ -73,8 +79,16 @@ else
 
     private async Task RestoreAsync(TrashItem item)
     {
-        await TrashApi.RestoreAsync(item.Type, item.Id);
-        await LoadAsync();
+        _error = null;
+        try
+        {
+            await TrashApi.RestoreAsync(item.Type, item.Id);
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            _error = $"Could not restore \"{item.Name}\". Please try again.";
+        }
     }
 
     private async Task PurgeAsync(TrashItem item)
@@ -84,7 +98,15 @@ else
             return;
         }
 
-        await TrashApi.PurgeAsync(item.Type, item.Id);
-        await LoadAsync();
+        _error = null;
+        try
+        {
+            await TrashApi.PurgeAsync(item.Type, item.Id);
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            _error = $"Could not delete \"{item.Name}\". Please try again.";
+        }
     }
 }

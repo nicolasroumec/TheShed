@@ -15,6 +15,7 @@
 @inject TagClient TagApi
 @inject AttachmentClient AttachmentApi
 @inject IJSRuntime JS
+@implements IDisposable
 
 <PageTitle>@(_vault?.Name ?? "Vault") — The Shed</PageTitle>
 
@@ -43,6 +44,13 @@ else
             <button class="btn btn-primary" @onclick="StartCreate">New entry</button>
         }
     </div>
+
+    @* One banner for every list-level action (favorite, delete, share). The form errors
+       below have their own, because they belong to the form that is open. *@
+    @if (!string.IsNullOrEmpty(_actionError))
+    {
+        <div class="alert alert-danger" role="alert">@_actionError</div>
+    }
 
     @if (_form is not null)
     {
@@ -177,7 +185,8 @@ else
         <div class="list-group">
             @foreach (var entry in _entries)
             {
-                <div class="list-group-item">
+                @* Favorites reorder this list, so the rows need a stable identity. *@
+                <div class="list-group-item" @key="entry.Id">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="fw-bold">@entry.Name</div>
@@ -361,7 +370,7 @@ else
         <div class="list-group">
             @foreach (var note in _notes)
             {
-                <div class="list-group-item">
+                <div class="list-group-item" @key="note.Id">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="fw-bold">@note.Title</div>
                         <div class="btn-group">
@@ -396,7 +405,7 @@ else
                     <div class="list-group mb-3">
                         @foreach (var member in _members)
                         {
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div class="list-group-item d-flex justify-content-between align-items-center" @key="member.UserId">
                                 <div>
                                     <div class="fw-bold">@member.Username</div>
                                     <small class="text-muted">@member.Email</small>
@@ -446,7 +455,9 @@ else
     private VaultResponse? _vault;
     private IReadOnlyList<EntryListItem>? _entries;
     private readonly Dictionary<int, string> _revealed = new();
-    private int? _copiedId; // entry whose password was last copied, for the "Copied!" label
+    private int? _copiedId;         // drives the transient "Copied!" label; the password itself is never rendered
+    private string? _actionError;   // failures of list-level actions (favorite, delete, share)
+    private CancellationTokenSource? _searchCts;
     private readonly HashSet<int> _historyOpenIds = new();                                   // entry ids with the history panel open
     private readonly Dictionary<int, IReadOnlyList<EntryHistoryItem>> _history = new();       // entryId -> past passwords (metadata)
     private readonly Dictionary<int, string> _revealedHistory = new();                        // historyId -> decrypted old password
@@ -462,6 +473,9 @@ else
     private int? _editingId;             // null = creating, otherwise the entry being edited
     private bool _busy;
     private string? _error;
+
+    private static readonly TimeSpan SearchDebounce = TimeSpan.FromMilliseconds(300);
+    private static readonly TimeSpan CopiedLabelDuration = TimeSpan.FromSeconds(2);
 
     private bool _showPassword;        // toggles the form password field between text/password
     private int _genLength = 20;       // password generator options
@@ -554,8 +568,16 @@ else
             return;
         }
 
-        await VaultApi.RemoveMemberAsync(Id, member.UserId);
-        _members = await VaultApi.ListMembersAsync(Id);
+        _actionError = null;
+        try
+        {
+            await VaultApi.RemoveMemberAsync(Id, member.UserId);
+            _members = await VaultApi.ListMembersAsync(Id);
+        }
+        catch (Exception)
+        {
+            _actionError = $"Could not remove {member.Username}. Please try again.";
+        }
     }
 
     private async Task ToggleRevealAsync(int entryId)
@@ -581,7 +603,16 @@ else
         }
 
         await JS.InvokeVoidAsync("copyToClipboard", entry.Password);
-        _copiedId = entryId; // never shown on screen, only copied
+
+        // Flash "Copied!" and put the button back. StateHasChanged is needed here because the
+        // label has to update before the delay, not after the handler finally returns.
+        _copiedId = entryId;
+        StateHasChanged();
+        await Task.Delay(CopiedLabelDuration);
+        if (_copiedId == entryId)
+        {
+            _copiedId = null;
+        }
     }
 
     private static string DaysAgoText(DateTime changedAt)
@@ -679,8 +710,17 @@ else
             return;
         }
 
-        await AttachmentApi.DeleteAsync(entryId, attachmentId);
-        _attachments[entryId] = await AttachmentApi.ListAsync(entryId);
+        _attachmentError = null;
+        try
+        {
+            await AttachmentApi.DeleteAsync(entryId, attachmentId);
+            _attachments[entryId] = await AttachmentApi.ListAsync(entryId);
+        }
+        catch (Exception)
+        {
+            _attachmentError = "Could not delete the file. Please try again.";
+            _attachmentErrorEntryId = entryId;
+        }
     }
 
     private void StartCreate()
@@ -726,22 +766,49 @@ else
         _formTagIds.Clear();
     }
 
-    private async Task LoadEntriesAsync()
+    private async Task LoadEntriesAsync(CancellationToken cancellationToken = default)
     {
-        _entries = await EntryApi.ListAsync(Id, _activeTagId, _search);
+        _entries = await EntryApi.ListAsync(Id, _activeTagId, _search, cancellationToken);
     }
 
+    /// <summary>Search-as-you-type: waits out the typing, then loads. Cancelling the previous
+    /// token drops both the pending wait and any request already in flight, so a slow response
+    /// can never land after a newer one.</summary>
     private async Task SearchInputAsync(ChangeEventArgs e)
     {
         _search = (string?)e.Value ?? string.Empty;
-        await LoadEntriesAsync();
+
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        try
+        {
+            await Task.Delay(SearchDebounce, token);
+            await LoadEntriesAsync(token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Another keystroke arrived; that call owns the results now.
+        }
     }
 
     private async Task ToggleFavoriteAsync(EntryListItem entry)
     {
-        await EntryApi.SetFavoriteAsync(entry.Id, !entry.IsFavorite);
-        await LoadEntriesAsync();
+        _actionError = null;
+        try
+        {
+            await EntryApi.SetFavoriteAsync(entry.Id, !entry.IsFavorite);
+            await LoadEntriesAsync();
+        }
+        catch (Exception)
+        {
+            _actionError = "Could not update the favorite. Please try again.";
+        }
     }
+
+    public void Dispose() => _searchCts?.Dispose();
 
     // --- Tags ---
 
@@ -787,14 +854,22 @@ else
             return;
         }
 
-        await TagApi.DeleteAsync(tag.Id);
-        if (_activeTagId == tag.Id)
+        _tagError = null;
+        try
         {
-            _activeTagId = null; // the filtered-by tag is gone
+            await TagApi.DeleteAsync(tag.Id);
+            if (_activeTagId == tag.Id)
+            {
+                _activeTagId = null; // the filtered-by tag is gone
+            }
+            _formTagIds.Remove(tag.Id);
+            _tags = await TagApi.ListAsync();
+            await LoadEntriesAsync(); // badges/filter may have changed
         }
-        _formTagIds.Remove(tag.Id);
-        _tags = await TagApi.ListAsync();
-        await LoadEntriesAsync(); // badges/filter may have changed
+        catch (Exception)
+        {
+            _tagError = "Could not remove the tag. Please try again.";
+        }
     }
 
     private async Task ToggleEntryTagAsync(int tagId)
@@ -879,9 +954,17 @@ else
             return;
         }
 
-        await EntryApi.DeleteAsync(entryId);
-        _revealed.Remove(entryId);
-        await LoadEntriesAsync();
+        _actionError = null;
+        try
+        {
+            await EntryApi.DeleteAsync(entryId);
+            _revealed.Remove(entryId);
+            await LoadEntriesAsync();
+        }
+        catch (Exception)
+        {
+            _actionError = "Could not delete the entry. Please try again.";
+        }
     }
 
     // --- Secure notes ---
@@ -979,8 +1062,16 @@ else
             return;
         }
 
-        await NoteApi.DeleteAsync(noteId);
-        _revealedNotes.Remove(noteId);
-        _notes = await NoteApi.ListAsync(Id);
+        _actionError = null;
+        try
+        {
+            await NoteApi.DeleteAsync(noteId);
+            _revealedNotes.Remove(noteId);
+            _notes = await NoteApi.ListAsync(Id);
+        }
+        catch (Exception)
+        {
+            _actionError = "Could not delete the note. Please try again.";
+        }
     }
 }

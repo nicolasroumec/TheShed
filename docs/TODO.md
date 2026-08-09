@@ -13,8 +13,12 @@ adelantó al resto: increments 1-5 hechos — auditoría, íconos reales en el n
 no estaba instalado pese a lo que decía `UI.md` §6), empty states con voz workshop, componente
 `Loading` único, y el remapeo de los `--bs-*` del tema oscuro de Bootstrap a los tokens Workshop
 (la causa raíz del look genérico: sus grises fríos ganaban aunque las páginas usaran las clases
-correctas). Falta el Increment 6: verificación e2e en navegador + PR a `main`. Después, volver
-al orden del roadmap: Sprint 17 — Importar/Exportar CSV (`feature/import-export`).
+correctas). Cerrada la identidad visual, se auditó el cliente entero (Increment 6): 19 hallazgos,
+ninguno breaking hacia afuera, que quedaron como increments 7-11 en la misma rama — correcciones
+visibles (debounce de búsqueda, `ErrorBoundary`, `@key`), limpieza de código muerto, extracciones
+y partir `VaultDetail` (986 líneas, la mitad del frontend). **Decidir antes de arrancar:** el
+Sprint 17 suma UI a `VaultDetail`, así que o se parte antes o se parte a ~1.100 líneas. Después,
+volver al orden del roadmap: Sprint 17 — Importar/Exportar CSV (`feature/import-export`).
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra

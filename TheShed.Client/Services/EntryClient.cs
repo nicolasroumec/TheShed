@@ -11,7 +11,11 @@ namespace TheShed.Client.Services
 
         public EntryClient(HttpClient http) => _http = http;
 
-        public async Task<IReadOnlyList<EntryListItem>> ListAsync(int vaultId, int? tagId = null, string? search = null)
+        /// <summary>Lists a vault's entries. The token lets a search-as-you-type caller drop an
+        /// in-flight request when the next keystroke arrives, so a slow response cannot land
+        /// after a newer one.</summary>
+        public async Task<IReadOnlyList<EntryListItem>> ListAsync(
+            int vaultId, int? tagId = null, string? search = null, CancellationToken cancellationToken = default)
         {
             var url = $"api/entries?vaultId={vaultId}";
             if (tagId is not null)
@@ -22,7 +26,7 @@ namespace TheShed.Client.Services
             {
                 url += $"&search={Uri.EscapeDataString(search)}";
             }
-            return await _http.GetFromJsonAsync<List<EntryListItem>>(url) ?? [];
+            return await _http.GetFromJsonAsync<List<EntryListItem>>(url, cancellationToken) ?? [];
         }
 
         public Task<EntryResponse?> GetAsync(int entryId) =>
