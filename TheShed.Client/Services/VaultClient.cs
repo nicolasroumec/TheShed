@@ -3,8 +3,8 @@ using TheShed.Shared.Models.DTOs.Vaults;
 
 namespace TheShed.Client.Services
 {
-    /// <summary>Typed wrapper over the /api/vaults endpoints. The HttpClient already carries
-    /// the Bearer token (set by JwtAuthenticationStateProvider).</summary>
+    /// <summary>Typed wrapper over the /api/vaults endpoints. Requests authenticate through the
+    /// HttpOnly cookie the browser attaches on its own; no token is set here.</summary>
     public class VaultClient
     {
         private readonly HttpClient _http;

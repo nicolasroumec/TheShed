@@ -720,27 +720,43 @@
       pie del sprint
 
 ### Increment 8 — Limpieza: borrar, no agregar
-- [ ] Podar `wwwroot/lib/bootstrap/` a `bootstrap.min.css`: **el JS de Bootstrap nunca se
+- [x] Podar `wwwroot/lib/bootstrap/` a `bootstrap.min.css`: **el JS de Bootstrap nunca se
       carga** (`index.html` no lo linkea) y aun así se publican los 12 archivos de `dist/js/`,
       los `.map`, los RTL y los builds grid/reboot/utilities. Verificado que nada lo necesita:
       no hay modales/dropdowns/tooltips, el colapso del nav es C# + CSS y "Manage tags" usa
       `<details>` nativo. **Requiere verificación** antes de borrar: que ningún sprint futuro
       dependa del JS (los modales serían el candidato)
-- [ ] `.form-floating` (`app.css:309-317`) sin ningún `.razor` que lo use — residuo del
+- [x] Resultado medido: **8,5 MB → 236 KB, 44 archivos trackeados → 1**. El grueso eran los
+      `.map`, no el CSS. Riesgo asumido: el Sprint 19 (aviso de inactividad) es el candidato
+      más probable a querer un modal; si pasa, se re-agrega solo el bundle JS o se hace con
+      `<dialog>` nativo. Todo esto es un `git checkout` de distancia
+- [x] `.form-floating` (`app.css:309-317`) sin ningún `.razor` que lo use — residuo del
       template. Y `.blazor-error-boundary` (`:260-268`) solo aplica si existe un
       `<ErrorBoundary>`: si entra el Increment 7 pasa a estar viva, si no se borra. Decidir,
-      no dejarla en el limbo
-- [ ] `AuthResult.Response` (`IAuthService.cs:6`) no lo lee nadie — `AuthService:58`
+      no dejarla en el limbo → **borrada**: el Increment 7 le puso `ErrorContent` propio al
+      boundary, así que el default de Blazor no se renderiza nunca
+- [x] `AuthResult.Response` (`IAuthService.cs:6`) no lo lee nadie — `AuthService:58`
       deserializa el `AuthResponse` solo para descartarlo. Pasa a `record AuthResult(bool
       Success, string? Error)`; el estado del usuario ya viene por `AuthenticationStateProvider`,
       que es la fuente correcta. Único cambio de firma pública del sprint, sin consumidores
       fuera del proyecto
-- [ ] `wwwroot/icon-192.png` sin referencias (**requiere verificación**: es el tamaño típico
-      de manifest PWA y el proyecto no tiene manifest ni service worker)
-- [ ] Comentario XML mentiroso en `VaultClient.cs:6-7` — afirma que el `HttpClient` lleva el
+- [x] Con `Response` afuera, la deserialización quedó sin motivo y se borró entera: el único
+      chequeo que aportaba era "body no nulo", y quien confirma la sesión de verdad es
+      `RefreshAsync()` contra `/api/auth/me`. Se fue también el `AuthResult.Fail("Unexpected
+      response from the server.")`, que solo podía dispararse con un 2xx de body vacío
+- [x] `wwwroot/icon-192.png` sin referencias (**requiere verificación**: es el tamaño típico
+      de manifest PWA y el proyecto no tiene manifest ni service worker) → borrado; si más
+      adelante se quiere PWA, el icono se regenera
+- [x] Comentario XML mentiroso en `VaultClient.cs:6-7` — afirma que el `HttpClient` lleva el
       Bearer token, falso desde el Sprint 16 (cookie `HttpOnly`). Un comentario que miente
       sobre el modelo de auth es peor que ninguno. Más el BOM y el `@layout MainLayout`
       redundante de `NotFound.razor` (ya es el `DefaultLayout` de `App.razor:4`)
+- [x] **Fuera del plan original:** `type="email"` en los campos de email de `Login.razor:22` y
+      `Register.razor:28`, que eran `type="text"`. Salió de ver el gestor de contraseñas del
+      navegador autocompletando `user2user3` en el login y fallando la validación de
+      `[EmailAddress]`. No elimina el autofill —eso es una credencial guardada en el navegador,
+      no algo que la app controle— pero acota lo que el navegador ofrece y da el teclado
+      correcto en móvil
 
 ### Increment 9 — Extracciones (con la duplicación ya medida)
 - [ ] `Components/ErrorAlert.razor` (`Message` + `Class` para las variantes inline) y una

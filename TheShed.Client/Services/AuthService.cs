@@ -55,14 +55,10 @@ namespace TheShed.Client.Services
                 return AuthResult.Fail(await ReadErrorAsync(response, "Unexpected error. Please try again."));
             }
 
-            var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
-            if (auth is null)
-            {
-                return AuthResult.Fail("Unexpected response from the server.");
-            }
-
+            // The response body is not read: the session lives in the HttpOnly cookie the
+            // server just set, and RefreshAsync re-reads the user from /api/auth/me.
             await _stateProvider.RefreshAsync();
-            return AuthResult.Ok(auth);
+            return AuthResult.Ok();
         }
 
         private static async Task<string> ReadErrorAsync(HttpResponseMessage response, string fallback)
