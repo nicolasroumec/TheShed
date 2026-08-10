@@ -28,6 +28,8 @@
     /* Shape & type */
     --radius: 4px;
     --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+    --font-display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+    --font-sans: "Inter", 'Helvetica Neue', Helvetica, Arial, sans-serif;
 
     /* Map Bootstrap's primary/links to our accent so .btn-primary etc. follow the theme. */
     --bs-primary: var(--accent);
@@ -66,13 +68,14 @@
 }
 
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: var(--font-sans);
     background-color: var(--bg);
     color: var(--text);
 }
 
-/* "Stamped" headings — workshop label feel, no webfont needed. */
+/* "Stamped" headings — condensed industrial display face for the workshop-label feel. */
 h1, h2, .navbar-brand {
+    font-family: var(--font-display);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     font-weight: 700;

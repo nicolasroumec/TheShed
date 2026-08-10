@@ -803,6 +803,30 @@
 - [ ] Verificación e2e en navegador de las páginas tocadas (mismo patrón que sprints
       anteriores) + PR a `main`
 
+### Increment 12 — Responsive: shell mobile-first
+> Cierra el límite que dejó explícito el Increment 6: "el responsive abajo de 641px no
+> se evaluó — `app.css` ya declara desde el Sprint 5 que el shell es desktop-first".
+> `app.css` forzaba el sidebar siempre abierto con un comentario
+> `ponytail: desktop-first, revisit if mobile matters` — llegó el momento.
+- [x] Sidebar pasa a top bar sticky en mobile (marca + hamburguesa); `.nav-scrollable`
+      se despega del flujo y se muestra como dropdown superpuesto, con `.nav-backdrop`
+      oscureciendo el resto y cerrando el menú al tocar afuera. Desktop (≥641px) sigue
+      igual: columna fija de 15rem, nav siempre abierto
+      → commit `fix: make the app shell mobile-first with an off-canvas nav menu`
+- [x] Verificado en navegador a 390px (login/register, vaults, vault detail con
+      formulario abierto y con un entry creado) y sin regresión a 1536px (desktop)
+- [ ] **Encontrado al verificar, queda para el Increment 13:** la fila de un entry
+      (★ Reveal/Copy/History/Files/Edit/Delete) se desborda del card en mobile — el
+      `btn-group` no wrappea ni scrollea, se corta contra el borde
+
+### Increment 13 — Responsive: filas de entry y barra de filtros
+- [ ] Fila de entry (`VaultDetail.razor`): el `btn-group` de acciones no cabe en
+      mobile — wrap o scroll horizontal contenido, sin recortar contra el card
+- [ ] Barra de filtros (tags + buscador + "Manage tags"): revisar que el buscador de
+      ancho fijo (`14rem`) no rompa el wrap en pantallas angostas
+- [ ] Pasada rápida de Vaults/Login/Register/Health a 390px (ya usan grid de
+      Bootstrap, así que debería ser solo confirmar, no rehacer)
+
 > **Evitar en todo el sprint:** texturas de madera, pegboard de fondo, nombres "cute" para
 > secciones, ilustraciones custom fuera de empty states — eso es lo que lo hace ver
 > amateur en vez de premium.

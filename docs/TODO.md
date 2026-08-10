@@ -16,9 +16,13 @@ no estaba instalado pese a lo que decía `UI.md` §6), empty states con voz work
 correctas). Cerrada la identidad visual, se auditó el cliente entero (Increment 6): 19 hallazgos,
 ninguno breaking hacia afuera, que quedaron como increments 7-11 en la misma rama — correcciones
 visibles (debounce de búsqueda, `ErrorBoundary`, `@key`), limpieza de código muerto, extracciones
-y partir `VaultDetail` (986 líneas, la mitad del frontend). **Decidir antes de arrancar:** el
-Sprint 17 suma UI a `VaultDetail`, así que o se parte antes o se parte a ~1.100 líneas. Después,
-volver al orden del roadmap: Sprint 17 — Importar/Exportar CSV (`feature/import-export`).
+y partir `VaultDetail` (986 líneas, la mitad del frontend). Se coló un pedido nuevo del usuario
+(responsive mobile-first + navbar) que el propio Increment 6 ya había marcado como límite no
+evaluado: Increment 12 (shell mobile-first, top bar + menú off-canvas) cerrado y verificado en
+navegador. Increment 13 (filas de entry y barra de filtros de `VaultDetail` a 390px) es el
+próximo paso. **Decidir antes de arrancar el resto:** el Sprint 17 suma UI a `VaultDetail`, así
+que o se parte antes o se parte a ~1.100 líneas. Después, volver al orden del roadmap: Sprint 17
+— Importar/Exportar CSV (`feature/import-export`).
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra
