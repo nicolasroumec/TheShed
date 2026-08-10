@@ -819,13 +819,43 @@
       (★ Reveal/Copy/History/Files/Edit/Delete) se desborda del card en mobile — el
       `btn-group` no wrappea ni scrollea, se corta contra el borde
 
-### Increment 13 — Responsive: filas de entry y barra de filtros
-- [ ] Fila de entry (`VaultDetail.razor`): el `btn-group` de acciones no cabe en
-      mobile — wrap o scroll horizontal contenido, sin recortar contra el card
+### Increment 13 — Identidad tipográfica
+> Pedido del usuario a mitad del Increment 12: la paleta/tokens Workshop ya estaban
+> cerrados desde el Increment 5, pero body/headings seguían en
+> `'Helvetica Neue', Helvetica, Arial, sans-serif` — la pila más genérica posible, sin
+> relación con la identidad "Workshop". Vía Bunny Fonts (mismo mecanismo de CDN que
+> Bootstrap Icons desde el Increment 2; a diferencia de Google Fonts directo, no deja
+> cookies ni manda el IP del visitante a Google — más apropiado para un gestor de
+> contraseñas).
+- [x] `--font-display` (Big Shoulders Display, condensada industrial) aplicada a
+      `h1`/`h2`/`.navbar-brand` — refuerza el look "stamped label" que ya tenían por el
+      `uppercase`/`letter-spacing` del Increment 5. `--font-sans` (Inter) para el resto
+      del body. `--font-mono` (secretos) sin cambios
+      → commit `feat: give headings an industrial condensed identity (Big Shoulders Display + Inter)`
+- [x] Verificado en navegador (login/register): la mayúscula "stamped" pasó de
+      Helvetica genérica a algo con carácter real
+
+### Increment 14 — Responsive: VaultDetail y pasada de Health/Trash
+> El shell (Increment 12) quedó sólido, pero `VaultDetail.razor` repite el patrón
+> `d-flex justify-content-between` sin wrap en varias filas — solo se confirmó roto
+> una (fila de entry) mirando el navegador a 390px. Se divide en un commit chico por
+> sección en vez de uno solo grande, para poder revisar/mergear cada uno por separado.
+- [ ] Fila de entry: el `btn-group` de acciones (★ Reveal Copy History Files Edit
+      Delete) se corta contra el borde del card en mobile — **confirmado** con
+      screenshot a 390px. Wrap o scroll horizontal contenido, sin recortar
+- [ ] Panel de Members: fila de member (nombre/email + select de rol + Remove) y fila
+      de "agregar member" (email + select + Add) — mismo patrón `d-flex` sin wrap.
+      **Sin confirmar overflow real todavía** (el input de email se achica solo en la
+      captura que se vio, pero queda muy apretado)
+- [ ] Filas de historial de contraseña y de adjuntos (fecha/usuario o nombre de
+      archivo + botones) — mismo patrón, esos paneles no se abrieron en mobile todavía
 - [ ] Barra de filtros (tags + buscador + "Manage tags"): revisar que el buscador de
-      ancho fijo (`14rem`) no rompa el wrap en pantallas angostas
-- [ ] Pasada rápida de Vaults/Login/Register/Health a 390px (ya usan grid de
-      Bootstrap, así que debería ser solo confirmar, no rehacer)
+      ancho fijo (`14rem`) no rompa el wrap en pantallas angostas con varios tags
+- [ ] Pasada de Health/Trash a 390px — no se miraron todavía, sumar un commit solo si
+      aparece algo roto
+- [ ] Pasada rápida de Vaults/Login/Register a 390px para confirmar que la tipografía
+      nueva (Increment 13) no rompió el wrap en ningún lado (ya son grid de Bootstrap,
+      debería ser gratis)
 
 > **Evitar en todo el sprint:** texturas de madera, pegboard de fondo, nombres "cute" para
 > secciones, ilustraciones custom fuera de empty states — eso es lo que lo hace ver

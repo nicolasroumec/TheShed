@@ -344,6 +344,26 @@ code {
 /* List rows are drawers too: they sit on --surface, above the page background. */
 .list-group { --bs-list-group-bg: var(--surface); }
 
+/* Entry/note/trash rows on mobile: stack name above actions instead of squeezing a
+   joined .btn-group beside it, and let that group wrap onto its own lines with plain
+   rounded buttons instead of the cut-off single-row pill Bootstrap assumes. */
+@media (max-width: 640px) {
+    .list-group-item > .d-flex.justify-content-between {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.5rem;
+    }
+    .list-group-item .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    .list-group-item .btn-group > .btn {
+        border-radius: var(--radius) !important;
+        margin: 0 !important;
+    }
+}
+
 .auth-card h1 {
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
