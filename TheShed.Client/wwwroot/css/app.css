@@ -170,19 +170,16 @@ a, .btn-link {
     padding-top: 1.1rem;
 }
 
-/* App shell. The layout's scoped CSS (MainLayout/NavMenu .razor.css) was deleted: it still
-   carried the Blazor template's purple gradient sidebar and light top row, and scoped
-   selectors outrank these, so the chrome below never applied. One place only now. */
-.page { display: flex; min-height: 100vh; }
+.page { display: flex; flex-direction: column; min-height: 100vh; }
+
 .sidebar {
-    width: 15rem;
-    flex-shrink: 0;
-    height: 100vh;
+    width: 100%;
     position: sticky;
     top: 0;
-    overflow-y: auto;
+    z-index: 20;
+    overflow: visible;
     background: var(--surface);
-    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
 }
 main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .top-row {
@@ -215,11 +212,32 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .sidebar .nav-link:hover { background: var(--surface-2); color: var(--text); }
 .sidebar .nav-link.active { background: var(--surface-2); color: var(--accent); }
 
-/* Bootstrap's .collapse hides the nav, so force it open on desktop and hide the mobile
-   toggler. ponytail: desktop-first, revisit if mobile matters. */
+.sidebar .nav-scrollable {
+    position: absolute;
+    top: 3.5rem;
+    left: 0;
+    right: 0;
+    max-height: calc(100vh - 3.5rem);
+    overflow-y: auto;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+.nav-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 19; }
+
+/* Desktop: sidebar goes back to a persistent side column, nav always open. */
 @media (min-width: 641px) {
-    .sidebar .nav-scrollable { display: block !important; }
+    .page { flex-direction: row; }
+    .sidebar {
+        width: 15rem;
+        flex-shrink: 0;
+        height: 100vh;
+        overflow-y: auto;
+        border-bottom: none;
+        border-right: 1px solid var(--border);
+    }
+    .sidebar .nav-scrollable { display: block !important; position: static; max-height: none; overflow-y: visible; border-bottom: none; }
     .sidebar .navbar-toggler { display: none; }
+    .nav-backdrop { display: none; }
 }
 
 .card { background: var(--surface); border-color: var(--border); }

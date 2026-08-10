@@ -10,6 +10,11 @@
     </div>
 </div>
 
+@if (!collapseNavMenu)
+{
+    <div class="nav-backdrop" @onclick="ToggleNavMenu"></div>
+}
+
 <div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
     <nav class="nav flex-column">
         <AuthorizeView>
