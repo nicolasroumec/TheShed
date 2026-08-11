@@ -22,9 +22,19 @@ ya había marcado como límite no evaluado: Increment 12 (shell mobile-first, to
 off-canvas) e Increment 13 (tipografía — Big Shoulders Display + Inter vía Bunny Fonts, en vez
 de la pila Helvetica genérica) cerrados y verificados en navegador. Increment 14 (varios commits
 chicos: filas de entry/members/historial/adjuntos y barra de filtros de `VaultDetail` a 390px,
-más pasada de Health/Trash) es el próximo paso. **Decidir antes de arrancar el resto:** el Sprint 17 suma UI a `VaultDetail`, así
-que o se parte antes o se parte a ~1.100 líneas. Después, volver al orden del roadmap: Sprint 17
-— Importar/Exportar CSV (`feature/import-export`).
+más pasada de Health/Trash) es el próximo paso, pero se decidió partir `VaultDetail.razor`
+(1077 líneas, 6 responsabilidades sin relación) antes de seguir, para no hacer la pasada mobile
+sobre código a punto de reorganizarse. Plan aprobado y guardado en
+`C:\Users\Nicolas\.claude\plans\swift-wiggling-hollerith.md`: 5 componentes nuevos bajo
+`Components/Vault/` (`EntriesPanel`, `EntryRow`, `EntryHistoryPanel`, `EntryAttachmentsPanel`,
+`NotesPanel`, `MembersPanel`), sin precedente de split de página en este codebase (patrón
+"smart components" que inyectan sus propios servicios, `EventCallback` solo donde un hijo
+muta estado del padre). De paso elimina el banner compartido `_actionError` (cada panel tiene
+su error local) y corrige un bug: hoy fallar al sacar un miembro tira el error lejos del panel.
+5 increments separados (A: MembersPanel, B: NotesPanel, C: EntriesPanel contenedor, D: EntryRow,
+E: History/Attachments panels), parando para review/commit después de cada uno. Después de
+terminar el split, retomar el resto de Increment 14 (mobile) y volver al orden del roadmap:
+Sprint 17 — Importar/Exportar CSV (`feature/import-export`).
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra

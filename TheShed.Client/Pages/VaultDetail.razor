@@ -7,7 +7,6 @@
 @using TheShed.Shared.Models.DTOs.Notes
 @using TheShed.Shared.Models.DTOs.Tags
 @using TheShed.Shared.Models.DTOs.Vaults
-@using TheShed.Shared.Models.Enums
 @using TheShed.Shared.Helpers
 @inject VaultClient VaultApi
 @inject EntryClient EntryApi
@@ -395,57 +394,7 @@ else
 
     @if (_vault.IsOwner)
     {
-        <div class="card mt-5">
-            <div class="card-body">
-                <h5 class="card-title">Members</h5>
-                <p class="text-muted small">Share this vault with other users. Viewers can read entries; editors can also add and edit them.</p>
-
-                @if (_members is { Count: > 0 })
-                {
-                    <div class="list-group mb-3">
-                        @foreach (var member in _members)
-                        {
-                            <div class="list-group-item d-flex justify-content-between align-items-center" @key="member.UserId">
-                                <div>
-                                    <div class="fw-bold">@member.Username</div>
-                                    <small class="text-muted">@member.Email</small>
-                                </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <select class="form-select form-select-sm" style="width: 8rem"
-                                            value="@member.Role"
-                                            @onchange="e => ChangeRoleAsync(member, e)">
-                                        <option value="@VaultRole.Viewer">Viewer</option>
-                                        <option value="@VaultRole.Editor">Editor</option>
-                                    </select>
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveMemberAsync(member)">Remove</button>
-                                </div>
-                            </div>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <p class="text-muted">This vault is not shared with anyone yet.</p>
-                }
-
-                @if (!string.IsNullOrEmpty(_memberError))
-                {
-                    <div class="alert alert-danger" role="alert">@_memberError</div>
-                }
-
-                <div class="d-flex align-items-center gap-2">
-                    <input type="email" class="form-control" placeholder="user@example.com" style="max-width: 20rem"
-                           @bind="_memberEmail" />
-                    <select class="form-select" style="width: 8rem" @bind="_memberRole">
-                        <option value="@VaultRole.Viewer">Viewer</option>
-                        <option value="@VaultRole.Editor">Editor</option>
-                    </select>
-                    <button class="btn btn-primary" disabled="@_memberBusy" @onclick="AddMemberAsync">
-                        @(_memberBusy ? "Adding…" : "Add")
-                    </button>
-                </div>
-            </div>
-        </div>
+        <MembersPanel VaultId="Id" />
     }
 }
 
@@ -495,12 +444,6 @@ else
     private bool _noteBusy;
     private string? _noteError;
 
-    private IReadOnlyList<VaultMemberItem>? _members; // owner-only members panel
-    private string _memberEmail = string.Empty;
-    private VaultRole _memberRole = VaultRole.Viewer;
-    private bool _memberBusy;
-    private string? _memberError;
-
     protected override async Task OnInitializedAsync()
     {
         try
@@ -509,74 +452,11 @@ else
             await LoadEntriesAsync();
             _notes = await NoteApi.ListAsync(Id);
             _tags = await TagApi.ListAsync();
-            if (_vault?.IsOwner == true)
-            {
-                _members = await VaultApi.ListMembersAsync(Id);
-            }
         }
         catch (HttpRequestException)
         {
             // 404/403 from the API: vault missing or no access.
             _notFound = true;
-        }
-    }
-
-    private async Task AddMemberAsync()
-    {
-        _memberError = null;
-        if (string.IsNullOrWhiteSpace(_memberEmail))
-        {
-            return;
-        }
-
-        _memberBusy = true;
-        try
-        {
-            var error = await VaultApi.AddMemberAsync(Id, new VaultMemberAddRequest
-            {
-                Email = _memberEmail.Trim(),
-                Role = _memberRole
-            });
-
-            if (error is not null)
-            {
-                _memberError = error;
-                return;
-            }
-
-            _memberEmail = string.Empty;
-            _memberRole = VaultRole.Viewer;
-            _members = await VaultApi.ListMembersAsync(Id);
-        }
-        finally
-        {
-            _memberBusy = false;
-        }
-    }
-
-    private async Task ChangeRoleAsync(VaultMemberItem member, ChangeEventArgs e)
-    {
-        var role = Enum.Parse<VaultRole>((string)e.Value!);
-        await VaultApi.UpdateMemberRoleAsync(Id, member.UserId, new VaultMemberRoleUpdateRequest { Role = role });
-        _members = await VaultApi.ListMembersAsync(Id);
-    }
-
-    private async Task RemoveMemberAsync(VaultMemberItem member)
-    {
-        if (!await JS.InvokeAsync<bool>("confirm", $"Remove {member.Username}'s access to this vault?"))
-        {
-            return;
-        }
-
-        _actionError = null;
-        try
-        {
-            await VaultApi.RemoveMemberAsync(Id, member.UserId);
-            _members = await VaultApi.ListMembersAsync(Id);
-        }
-        catch (Exception)
-        {
-            _actionError = $"Could not remove {member.Username}. Please try again.";
         }
     }
 
