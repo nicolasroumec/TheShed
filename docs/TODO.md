@@ -47,7 +47,12 @@ en una pasada aparte cuando toque.
 - [x] Increment A — `MembersPanel` extraído (`Components/Vault/`), fix de errores de
       add/remove miembro unificados en `_memberError`
 - [x] Increment B — `NotesPanel` extraído, `_notesListError` separado del `_noteError` del form
-- [ ] Increment C — `EntriesPanel` contenedor (lista + filtro + tags + form, sin `EntryRow` todavía)
+- [x] Increment C — `EntriesPanel` contenedor (lista + filtro + tags + form, sin `EntryRow`
+      todavía). `VaultDetail` quedó en ~35 líneas de code-behind. Ajuste sobre el plan original:
+      `SubmitAsync` mantiene la limpieza de `_revealed`/`_history`/`_historyOpenIds` post-save
+      (el plan decía sacarla ya) porque esos diccionarios siguen indexados por `entryId` a nivel
+      de `EntriesPanel` hasta el Increment E — sacarla antes hubiera dejado una ventana de
+      regresión (password/historial viejo visible tras editar).
 - [ ] Increment D — `EntryRow` (contrato `EventCallback` hacia `EntriesPanel`)
 - [ ] Increment E — `EntryHistoryPanel` + `EntryAttachmentsPanel`
 
