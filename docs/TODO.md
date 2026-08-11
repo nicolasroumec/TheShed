@@ -32,9 +32,27 @@ sobre código a punto de reorganizarse. Plan aprobado y guardado en
 muta estado del padre). De paso elimina el banner compartido `_actionError` (cada panel tiene
 su error local) y corrige un bug: hoy fallar al sacar un miembro tira el error lejos del panel.
 5 increments separados (A: MembersPanel, B: NotesPanel, C: EntriesPanel contenedor, D: EntryRow,
-E: History/Attachments panels), parando para review/commit después de cada uno. Después de
-terminar el split, retomar el resto de Increment 14 (mobile) y volver al orden del roadmap:
-Sprint 17 — Importar/Exportar CSV (`feature/import-export`).
+E: History/Attachments panels), parando para review/commit después de cada uno.
+
+Nueva convención de código (decidida a mitad del Increment A, aplica a todo el proyecto en
+adelante): **todo `.razor` va con code-behind** — markup en `Foo.razor`, lógica (`@code`,
+`@inject` como `[Inject]`, `@implements` como interfaz de la partial class) en `Foo.razor.cs`.
+Ya no se permite `@code { }` inline. Anotado en `CLAUDE.md` §Code conventions. Aplicado a
+`Loading.razor` (único componente que ya existía) y a todo lo nuevo de este split. **Pendiente**:
+8 archivos con `@code` inline que quedaron sin tocar por no ser parte de este increment —
+`Vaults.razor`, `Trash.razor`, `Health.razor`, `Login.razor`, `Register.razor`,
+`Layout/MainLayout.razor`, `Layout/NavMenu.razor`, `Auth/RedirectToLogin.razor` — convertirlos
+en una pasada aparte cuando toque.
+
+- [x] Increment A — `MembersPanel` extraído (`Components/Vault/`), fix de errores de
+      add/remove miembro unificados en `_memberError`
+- [x] Increment B — `NotesPanel` extraído, `_notesListError` separado del `_noteError` del form
+- [ ] Increment C — `EntriesPanel` contenedor (lista + filtro + tags + form, sin `EntryRow` todavía)
+- [ ] Increment D — `EntryRow` (contrato `EventCallback` hacia `EntriesPanel`)
+- [ ] Increment E — `EntryHistoryPanel` + `EntryAttachmentsPanel`
+
+Después de terminar el split, retomar el resto de Increment 14 (mobile) y volver al orden del
+roadmap: Sprint 17 — Importar/Exportar CSV (`feature/import-export`).
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra

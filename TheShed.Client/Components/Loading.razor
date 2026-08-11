@@ -3,10 +3,3 @@
 <p class="text-muted @Class">
     <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>@Text
 </p>
-
-@code {
-    [Parameter] public string Text { get; set; } = "Loading…";
-
-    /// <summary>Extra classes for inline use, e.g. "small mb-0" inside a panel.</summary>
-    [Parameter] public string? Class { get; set; }
-}
