@@ -58,12 +58,22 @@ en una pasada aparte cuando toque.
       (no podían quedar separados) como estado local por instancia, y ya quedó implementado el
       diffing por `PasswordChangedAt` en `OnParametersSet` que invalida reveal/historial cuando
       el padre recarga la lista tras un edit — así no queda ventana de regresión hasta el E.
-- [ ] Increment E — separar historial/adjuntos de `EntryRow` a sus propios componentes
-      (`EntryHistoryPanel`, `EntryAttachmentsPanel`); es un mover mecánico, la invalidación ya
-      está resuelta
+- [x] Increment E — `EntryHistoryPanel`/`EntryAttachmentsPanel` separados de `EntryRow`. Mover
+      mecánico como estaba previsto (la invalidación ya se había resuelto en el D); cada uno
+      hace fetch lazy en `OnParametersSetAsync` (`if (IsOpen && _history is null)`) en vez del
+      toggle síncrono que tenían en `EntryRow`.
 
-Después de terminar el split, retomar el resto de Increment 14 (mobile) y volver al orden del
-roadmap: Sprint 17 — Importar/Exportar CSV (`feature/import-export`).
+**Split completo.** `VaultDetail` quedó en 70 líneas totales (razor+cs, era 1077 en un solo
+archivo). Archivos finales bajo `Components/Vault/`: `EntriesPanel` (146+286 líneas — el más
+grande, por el acoplamiento tags/filtro/form), `EntryRow` (52+93), `EntryHistoryPanel` (29+49),
+`EntryAttachmentsPanel` (46+82), `NotesPanel` (85+134), `MembersPanel` (53+85). Build limpio en
+cada increment. **Falta**: verificación manual en navegador (crear/editar/eliminar entrada,
+reveal/copy, historial y adjuntos —cerrar/reabrir sin refetch de más—, notas, miembros) antes
+de dar el split por probado end-to-end — no se hizo por pedido explícito del usuario de no
+levantar el navegador en este tramo.
+
+Después de esto, retomar el resto de Increment 14 (mobile) y volver al orden del roadmap:
+Sprint 17 — Importar/Exportar CSV (`feature/import-export`).
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra

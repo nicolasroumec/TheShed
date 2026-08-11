@@ -1,0 +1,29 @@
+@if (IsOpen)
+{
+    <div class="mt-2">
+        @if (_history is null)
+        {
+            <Loading Text="Loading history…" Class="small mb-0" />
+        }
+        else if (_history.Count == 0)
+        {
+            <p class="text-muted small mb-0">No previous passwords.</p>
+        }
+        else
+        {
+            @foreach (var h in _history)
+            {
+                <div class="d-flex justify-content-between align-items-center small border-top py-1">
+                    <span class="text-muted">@h.CreatedAt.ToLocalTime().ToString("g") · changed by @h.ChangedByUsername</span>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleHistoryRevealAsync(h.Id)">
+                        @(_revealedHistory.ContainsKey(h.Id) ? "Hide" : "Reveal")
+                    </button>
+                </div>
+                @if (_revealedHistory.TryGetValue(h.Id, out var oldPassword))
+                {
+                    <div class="mb-1"><code>@oldPassword</code></div>
+                }
+            }
+        }
+    </div>
+}

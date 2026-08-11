@@ -1,0 +1,46 @@
+@if (IsOpen)
+{
+    <div class="mt-2">
+        @if (_attachments is null)
+        {
+            <Loading Text="Loading files…" Class="small mb-0" />
+        }
+        else
+        {
+            @if (_attachments.Count == 0)
+            {
+                <p class="text-muted small mb-0">No files attached.</p>
+            }
+            else
+            {
+                @foreach (var file in _attachments)
+                {
+                    <div class="d-flex justify-content-between align-items-center small border-top py-1">
+                        <span>@file.FileName <span class="text-muted">(@FileSizeText(file.FileSizeBytes))</span></span>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => DownloadAttachmentAsync(file)">Download</button>
+                            @if (CanWrite)
+                            {
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAttachmentAsync(file.Id)">Delete</button>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+            @if (CanWrite)
+            {
+                <div class="mt-2">
+                    <InputFile OnChange="UploadAttachmentAsync" />
+                    @if (_busy)
+                    {
+                        <span class="text-muted small ms-2">Uploading…</span>
+                    }
+                </div>
+            }
+            @if (_error is not null)
+            {
+                <div class="alert alert-danger small mb-0 mt-2 px-2 py-1" role="alert">@_error</div>
+            }
+        }
+    </div>
+}

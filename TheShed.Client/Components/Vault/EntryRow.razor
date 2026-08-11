@@ -27,10 +27,10 @@
         <button class="btn btn-sm btn-outline-secondary" @onclick="CopyPasswordAsync">
             @(_copied ? "Copied!" : "Copy")
         </button>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleHistoryAsync">
+        <button class="btn btn-sm btn-outline-secondary" @onclick="() => _historyOpen = !_historyOpen">
             @(_historyOpen ? "Hide history" : "History")
         </button>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleAttachmentsAsync">
+        <button class="btn btn-sm btn-outline-secondary" @onclick="() => _attachmentsOpen = !_attachmentsOpen">
             @(_attachmentsOpen ? "Hide files" : "Files")
         </button>
         @if (CanWrite)
@@ -44,79 +44,9 @@
 {
     <div class="mt-2"><code>@_revealedPassword</code></div>
 }
-@if (_historyOpen)
-{
-    <div class="mt-2">
-        @if (_history is null)
-        {
-            <Loading Text="Loading history…" Class="small mb-0" />
-        }
-        else if (_history.Count == 0)
-        {
-            <p class="text-muted small mb-0">No previous passwords.</p>
-        }
-        else
-        {
-            @foreach (var h in _history)
-            {
-                <div class="d-flex justify-content-between align-items-center small border-top py-1">
-                    <span class="text-muted">@h.CreatedAt.ToLocalTime().ToString("g") · changed by @h.ChangedByUsername</span>
-                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleHistoryRevealAsync(h.Id)">
-                        @(_revealedHistory.ContainsKey(h.Id) ? "Hide" : "Reveal")
-                    </button>
-                </div>
-                @if (_revealedHistory.TryGetValue(h.Id, out var oldPassword))
-                {
-                    <div class="mb-1"><code>@oldPassword</code></div>
-                }
-            }
-        }
-    </div>
-}
-@if (_attachmentsOpen)
-{
-    <div class="mt-2">
-        @if (_attachments is null)
-        {
-            <Loading Text="Loading files…" Class="small mb-0" />
-        }
-        else
-        {
-            @if (_attachments.Count == 0)
-            {
-                <p class="text-muted small mb-0">No files attached.</p>
-            }
-            else
-            {
-                @foreach (var file in _attachments)
-                {
-                    <div class="d-flex justify-content-between align-items-center small border-top py-1">
-                        <span>@file.FileName <span class="text-muted">(@FileSizeText(file.FileSizeBytes))</span></span>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => DownloadAttachmentAsync(file)">Download</button>
-                            @if (CanWrite)
-                            {
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAttachmentAsync(file.Id)">Delete</button>
-                            }
-                        </div>
-                    </div>
-                }
-            }
-            @if (CanWrite)
-            {
-                <div class="mt-2">
-                    <InputFile OnChange="UploadAttachmentAsync" />
-                    @if (_attachmentBusy)
-                    {
-                        <span class="text-muted small ms-2">Uploading…</span>
-                    }
-                </div>
-            }
-            @if (_attachmentError is not null)
-            {
-                <div class="alert alert-danger small mb-0 mt-2 px-2 py-1" role="alert">@_attachmentError</div>
-            }
-        }
-    </div>
-}
+@* Mounted unconditionally: an EntryHistoryPanel/EntryAttachmentsPanel instance keeps its
+   fetched cache across the toggle above, so reopening never refetches unless the password
+   changed under it (see each panel's own OnParametersSetAsync). *@
+<EntryHistoryPanel EntryId="Entry.Id" PasswordChangedAt="Entry.PasswordChangedAt" IsOpen="_historyOpen" />
+<EntryAttachmentsPanel EntryId="Entry.Id" CanWrite="CanWrite" IsOpen="_attachmentsOpen" />
 </div>
