@@ -1,10 +1,8 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using TheShed.Client.Services;
 using TheShed.Shared.Helpers;
-using TheShed.Shared.Models.DTOs.Attachments;
 using TheShed.Shared.Models.DTOs.Entries;
 using TheShed.Shared.Models.DTOs.Tags;
 
@@ -17,23 +15,11 @@ public partial class EntriesPanel : IDisposable
 
     [Inject] private EntryClient EntryApi { get; set; } = default!;
     [Inject] private TagClient TagApi { get; set; } = default!;
-    [Inject] private AttachmentClient AttachmentApi { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
 
     private IReadOnlyList<EntryListItem>? _entries;
-    private readonly Dictionary<int, string> _revealed = new();
-    private int? _copiedId;         // drives the transient "Copied!" label; the password itself is never rendered
     private string? _listError;     // failures of list-level actions (favorite, delete)
     private CancellationTokenSource? _searchCts;
-    private readonly HashSet<int> _historyOpenIds = new();                                   // entry ids with the history panel open
-    private readonly Dictionary<int, IReadOnlyList<EntryHistoryItem>> _history = new();       // entryId -> past passwords (metadata)
-    private readonly Dictionary<int, string> _revealedHistory = new();                        // historyId -> decrypted old password
-
-    private readonly HashSet<int> _attachmentsOpenIds = new();                                // entry ids with the files panel open
-    private readonly Dictionary<int, IReadOnlyList<AttachmentResponse>> _attachments = new();  // entryId -> attachments
-    private int? _attachmentBusyId;     // entry id currently uploading, for the "Uploading…" label
-    private string? _attachmentError;
-    private int? _attachmentErrorEntryId;
 
     private EntryCreateRequest? _form;   // non-null while the create/edit form is open
     private int? _editingId;             // null = creating, otherwise the entry being edited
@@ -41,7 +27,6 @@ public partial class EntriesPanel : IDisposable
     private string? _error;
 
     private static readonly TimeSpan SearchDebounce = TimeSpan.FromMilliseconds(300);
-    private static readonly TimeSpan CopiedLabelDuration = TimeSpan.FromSeconds(2);
 
     private bool _showPassword;        // toggles the form password field between text/password
     private int _genLength = 20;       // password generator options
@@ -65,149 +50,6 @@ public partial class EntriesPanel : IDisposable
         _editingId = null;
         _error = null;
         _form = new EntryCreateRequest { VaultId = VaultId };
-    }
-
-    private async Task ToggleRevealAsync(int entryId)
-    {
-        if (_revealed.Remove(entryId))
-        {
-            return; // was shown, now hidden
-        }
-
-        var entry = await EntryApi.GetAsync(entryId);
-        if (entry is not null)
-        {
-            _revealed[entryId] = entry.Password;
-        }
-    }
-
-    private async Task CopyPasswordAsync(int entryId)
-    {
-        var entry = await EntryApi.GetAsync(entryId);
-        if (entry is null)
-        {
-            return;
-        }
-
-        await JS.InvokeVoidAsync("copyToClipboard", entry.Password);
-
-        // Flash "Copied!" and put the button back. StateHasChanged is needed here because the
-        // label has to update before the delay, not after the handler finally returns.
-        _copiedId = entryId;
-        StateHasChanged();
-        await Task.Delay(CopiedLabelDuration);
-        if (_copiedId == entryId)
-        {
-            _copiedId = null;
-        }
-    }
-
-    private static string DaysAgoText(DateTime changedAt)
-    {
-        var days = (int)(DateTime.UtcNow - changedAt).TotalDays;
-        return days switch
-        {
-            0 => "today",
-            1 => "1 day ago",
-            _ => $"{days} days ago"
-        };
-    }
-
-    private async Task ToggleHistoryAsync(int entryId)
-    {
-        if (!_historyOpenIds.Add(entryId))
-        {
-            _historyOpenIds.Remove(entryId); // was open, now closed
-            return;
-        }
-
-        if (!_history.ContainsKey(entryId))
-        {
-            _history[entryId] = await EntryApi.GetHistoryAsync(entryId);
-        }
-    }
-
-    private async Task ToggleHistoryRevealAsync(int entryId, int historyId)
-    {
-        if (_revealedHistory.Remove(historyId))
-        {
-            return; // was shown, now hidden
-        }
-
-        var detail = await EntryApi.GetHistoryEntryAsync(entryId, historyId);
-        if (detail is not null)
-        {
-            _revealedHistory[historyId] = detail.Password;
-        }
-    }
-
-    // --- Attachments ---
-
-    private async Task ToggleAttachmentsAsync(int entryId)
-    {
-        if (!_attachmentsOpenIds.Add(entryId))
-        {
-            _attachmentsOpenIds.Remove(entryId); // was open, now closed
-            return;
-        }
-
-        _attachments[entryId] = await AttachmentApi.ListAsync(entryId);
-    }
-
-    private static string FileSizeText(long bytes) => bytes < 1024 * 1024
-        ? $"{bytes / 1024.0:0.#} KB"
-        : $"{bytes / 1024.0 / 1024.0:0.#} MB";
-
-    private async Task UploadAttachmentAsync(int entryId, InputFileChangeEventArgs e)
-    {
-        _attachmentError = null;
-        _attachmentBusyId = entryId;
-        try
-        {
-            var response = await AttachmentApi.UploadAsync(entryId, e.File);
-            if (!response.IsSuccessStatusCode)
-            {
-                _attachmentError = "Could not upload the file. Check the size (max 5 MB) and type (.pdf, .jpg, .jpeg, .png, .txt).";
-                _attachmentErrorEntryId = entryId;
-                return;
-            }
-            _attachments[entryId] = await AttachmentApi.ListAsync(entryId);
-        }
-        catch (Exception)
-        {
-            _attachmentError = "Could not upload the file. Please try again.";
-            _attachmentErrorEntryId = entryId;
-        }
-        finally
-        {
-            _attachmentBusyId = null;
-        }
-    }
-
-    private async Task DownloadAttachmentAsync(int entryId, AttachmentResponse file)
-    {
-        var (fileName, content) = await AttachmentApi.DownloadAsync(entryId, file.Id);
-        await JS.InvokeVoidAsync("downloadFile", fileName, content);
-    }
-
-    private async Task DeleteAttachmentAsync(int entryId, int attachmentId)
-    {
-        if (!await JS.InvokeAsync<bool>("confirm", "Delete this file? This cannot be undone."))
-        {
-            return;
-        }
-
-        _attachmentError = null;
-        try
-        {
-            await AttachmentApi.DeleteAsync(entryId, attachmentId);
-            _attachments[entryId] = await AttachmentApi.ListAsync(entryId);
-        }
-        catch (Exception)
-        {
-            _attachmentError = "Could not delete the file. Please try again.";
-            _attachmentErrorEntryId = entryId;
-        }
     }
 
     private async Task StartEditAsync(int entryId)
@@ -409,9 +251,8 @@ public partial class EntriesPanel : IDisposable
                     Notes = _form.Notes,
                     IsFavorite = _form.IsFavorite
                 });
-                _revealed.Remove(_editingId.Value); // stale password if it was shown
-                _history.Remove(_editingId.Value);  // stale: the update may have added a new version
-                _historyOpenIds.Remove(_editingId.Value);
+                // Stale reveal/history caches are now handled by EntryRow, which invalidates
+                // them when the entry's PasswordChangedAt changes under it (see OnParametersSet).
             }
 
             CancelForm();
@@ -427,18 +268,14 @@ public partial class EntriesPanel : IDisposable
         }
     }
 
+    /// <summary>Bound to EntryRow's OnDeleteRequested — the row already confirmed with the user
+    /// before invoking this, so it isn't repeated here.</summary>
     private async Task DeleteAsync(int entryId)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "Delete this entry? This cannot be undone."))
-        {
-            return;
-        }
-
         _listError = null;
         try
         {
             await EntryApi.DeleteAsync(entryId);
-            _revealed.Remove(entryId);
             await LoadEntriesAsync();
         }
         catch (Exception)

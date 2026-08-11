@@ -53,8 +53,14 @@ en una pasada aparte cuando toque.
       (el plan decía sacarla ya) porque esos diccionarios siguen indexados por `entryId` a nivel
       de `EntriesPanel` hasta el Increment E — sacarla antes hubiera dejado una ventana de
       regresión (password/historial viejo visible tras editar).
-- [ ] Increment D — `EntryRow` (contrato `EventCallback` hacia `EntriesPanel`)
-- [ ] Increment E — `EntryHistoryPanel` + `EntryAttachmentsPanel`
+- [x] Increment D — `EntryRow` extraído con contrato `EventCallback` hacia `EntriesPanel`
+      (favorite/delete/edit). Ajuste sobre el plan: historial y adjuntos se mudaron con la fila
+      (no podían quedar separados) como estado local por instancia, y ya quedó implementado el
+      diffing por `PasswordChangedAt` en `OnParametersSet` que invalida reveal/historial cuando
+      el padre recarga la lista tras un edit — así no queda ventana de regresión hasta el E.
+- [ ] Increment E — separar historial/adjuntos de `EntryRow` a sus propios componentes
+      (`EntryHistoryPanel`, `EntryAttachmentsPanel`); es un mover mecánico, la invalidación ya
+      está resuelta
 
 Después de terminar el split, retomar el resto de Increment 14 (mobile) y volver al orden del
 roadmap: Sprint 17 — Importar/Exportar CSV (`feature/import-export`).
