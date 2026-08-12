@@ -50,6 +50,7 @@ public partial class EntriesPanel : IDisposable
         _editingId = null;
         _error = null;
         _form = new EntryCreateRequest { VaultId = VaultId };
+        StateHasChanged(); // called externally via @ref, so no automatic re-render follows
     }
 
     private async Task StartEditAsync(int entryId)

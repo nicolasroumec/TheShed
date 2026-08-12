@@ -99,6 +99,9 @@ a, .btn-link {
     --bs-btn-color: var(--bg);
     --bs-btn-hover-color: var(--bg);
     --bs-btn-active-color: var(--bg);
+    --bs-btn-disabled-bg: var(--accent);
+    --bs-btn-disabled-border-color: var(--accent);
+    --bs-btn-disabled-color: var(--bg);
 }
 
 /* Bootstrap compiles literal hex into the .btn-* variants, so the token remap above does
@@ -346,9 +349,11 @@ code {
 
 /* Entry/note/trash rows on mobile: stack name above actions instead of squeezing a
    joined .btn-group beside it, and let that group wrap onto its own lines with plain
-   rounded buttons instead of the cut-off single-row pill Bootstrap assumes. */
+   rounded buttons instead of the cut-off single-row pill Bootstrap assumes. Descendant
+   (not child) selector so it also reaches the history/attachments rows nested a level
+   deeper inside EntryRow's own .list-group-item. */
 @media (max-width: 640px) {
-    .list-group-item > .d-flex.justify-content-between {
+    .list-group-item .d-flex.justify-content-between {
         flex-direction: column;
         align-items: stretch !important;
         gap: 0.5rem;

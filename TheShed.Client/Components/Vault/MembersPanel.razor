@@ -10,19 +10,21 @@
             <div class="list-group mb-3">
                 @foreach (var member in _members)
                 {
-                    <div class="list-group-item d-flex justify-content-between align-items-center" @key="member.UserId">
-                        <div>
-                            <div class="fw-bold">@member.Username</div>
-                            <small class="text-muted">@member.Email</small>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <select class="form-select form-select-sm" style="width: 8rem"
-                                    value="@member.Role"
-                                    @onchange="e => ChangeRoleAsync(member, e)">
-                                <option value="@VaultRole.Viewer">Viewer</option>
-                                <option value="@VaultRole.Editor">Editor</option>
-                            </select>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveMemberAsync(member)">Remove</button>
+                    <div class="list-group-item" @key="member.UserId">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold">@member.Username</div>
+                                <small class="text-muted">@member.Email</small>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <select class="form-select form-select-sm" style="width: 8rem"
+                                        value="@member.Role"
+                                        @onchange="e => ChangeRoleAsync(member, e)">
+                                    <option value="@VaultRole.Viewer">Viewer</option>
+                                    <option value="@VaultRole.Editor">Editor</option>
+                                </select>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveMemberAsync(member)">Remove</button>
+                            </div>
                         </div>
                     </div>
                 }
