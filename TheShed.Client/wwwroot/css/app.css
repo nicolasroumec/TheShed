@@ -2,6 +2,7 @@
 :root {
     /* Surfaces */
     --bg: #16130f;
+    --bg-rgb: 22, 19, 15;
     --surface: #211c16;
     --surface-2: #2c251c;
     --border: #3a3128;
@@ -152,8 +153,8 @@ a, .btn-link {
     --bs-btn-active-border-color: var(--danger);
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.2rem rgba(224, 146, 47, 0.35);
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus, .navbar-toggler:focus {
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.35);
 }
 
 /* Inputs sit on --surface, not on the page background (UI.md §5). */
@@ -192,7 +193,7 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     height: 3.5rem;
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 21;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -201,6 +202,13 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 }
 
 .navbar-brand { font-size: 1.1rem; }
+
+/* .navbar-dark hardcodes the toggler's border to a whitish rgba that Bootstrap compiles
+   as a literal, so the theme remap above never reaches it — restate it. Focus ring is
+   covered by the shared .navbar-toggler:focus rule below. */
+.navbar-toggler {
+    --bs-navbar-toggler-border-color: var(--border);
+}
 
 .sidebar .nav-item { font-size: 0.9rem; padding-bottom: 0.5rem; }
 .sidebar .nav-item:first-of-type { padding-top: 1rem; }
@@ -223,12 +231,17 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     top: 3.5rem;
     left: 0;
     right: 0;
+    z-index: 21;
     max-height: calc(100vh - 3.5rem);
     overflow-y: auto;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
 }
-.nav-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 19; }
+/* z-index:19 is deliberate: below .top-row/.nav-scrollable (21) so the backdrop dims
+   only the page content behind the drawer, not the drawer itself — z-index:auto on those
+   two would otherwise lose to this explicit value and render washed out under the dim.
+   Warm-toned (--bg, not neutral black) so it doesn't desaturate the theme to gray either. */
+.nav-backdrop { position: fixed; inset: 0; background: rgba(var(--bg-rgb), 0.7); z-index: 19; }
 
 /* Desktop: sidebar goes back to a persistent side column, nav always open. */
 @media (min-width: 641px) {

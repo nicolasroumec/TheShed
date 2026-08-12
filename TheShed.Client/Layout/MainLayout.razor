@@ -5,12 +5,6 @@
     </div>
 
     <main>
-        <div class="top-row px-4">
-            <AuthorizeView>
-                <span class="text-muted">@context.User.FindFirst("username")?.Value</span>
-            </AuthorizeView>
-        </div>
-
         <article class="content px-4">
             <ErrorBoundary @ref="_errorBoundary">
                 <ChildContent>@Body</ChildContent>
