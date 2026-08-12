@@ -367,6 +367,10 @@ code {
         border-radius: var(--radius) !important;
         margin: 0 !important;
     }
+
+    .ms-auto {
+        margin-left: 0 !important;
+    }
 }
 
 .auth-card h1 {
