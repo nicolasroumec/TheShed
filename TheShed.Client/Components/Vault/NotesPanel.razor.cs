@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.JSInterop;
 using TheShed.Client.Services;
 using TheShed.Shared.Models.DTOs.Notes;
 
@@ -11,7 +10,7 @@ public partial class NotesPanel
     [Parameter] public bool CanWrite { get; set; }
 
     [Inject] private NoteClient NoteApi { get; set; } = default!;
-    [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private IModalService Modal { get; set; } = default!;
 
     private IReadOnlyList<NoteListItem>? _notes;
     private readonly Dictionary<int, string> _revealedNotes = new();
@@ -114,7 +113,7 @@ public partial class NotesPanel
 
     private async Task DeleteNoteAsync(int noteId)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "Delete this note? This cannot be undone."))
+        if (!await Modal.ConfirmAsync("Delete this note? This cannot be undone.", title: "Delete note", confirmText: "Delete"))
         {
             return;
         }

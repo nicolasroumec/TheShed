@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.JSInterop;
 using TheShed.Client.Services;
 using TheShed.Shared.Helpers;
 using TheShed.Shared.Models.DTOs.Entries;
@@ -15,7 +14,7 @@ public partial class EntriesPanel : IDisposable
 
     [Inject] private EntryClient EntryApi { get; set; } = default!;
     [Inject] private TagClient TagApi { get; set; } = default!;
-    [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private IModalService Modal { get; set; } = default!;
 
     private IReadOnlyList<EntryListItem>? _entries;
     private string? _listError;     // failures of list-level actions (favorite, delete)
@@ -172,7 +171,7 @@ public partial class EntriesPanel : IDisposable
 
     private async Task DeleteTagAsync(TagResponse tag)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", $"Remove the tag \"{tag.Name}\"? It will be removed from all entries."))
+        if (!await Modal.ConfirmAsync($"Remove the tag \"{tag.Name}\"? It will be removed from all entries.", title: "Remove tag", confirmText: "Remove"))
         {
             return;
         }

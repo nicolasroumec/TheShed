@@ -14,6 +14,7 @@ public partial class EntryAttachmentsPanel
 
     [Inject] private AttachmentClient AttachmentApi { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private IModalService Modal { get; set; } = default!;
 
     private IReadOnlyList<AttachmentResponse>? _attachments;
     private bool _busy;
@@ -63,7 +64,7 @@ public partial class EntryAttachmentsPanel
 
     private async Task DeleteAttachmentAsync(int attachmentId)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "Delete this file? This cannot be undone."))
+        if (!await Modal.ConfirmAsync("Delete this file? This cannot be undone.", title: "Delete file", confirmText: "Delete"))
         {
             return;
         }

@@ -4,7 +4,7 @@
 @using TheShed.Shared.Models.DTOs.Trash
 @using TheShed.Shared.Models.Enums
 @inject TrashClient TrashApi
-@inject IJSRuntime JS
+@inject IModalService Modal
 
 <PageTitle>Trash — The Shed</PageTitle>
 
@@ -93,7 +93,7 @@ else
 
     private async Task PurgeAsync(TrashItem item)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", $"Permanently delete \"{item.Name}\"? This cannot be undone."))
+        if (!await Modal.ConfirmAsync($"Permanently delete \"{item.Name}\"? This cannot be undone.", title: "Delete forever", confirmText: "Delete forever"))
         {
             return;
         }

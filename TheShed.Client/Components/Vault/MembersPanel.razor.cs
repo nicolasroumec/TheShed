@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.JSInterop;
 using TheShed.Client.Services;
 using TheShed.Shared.Models.DTOs.Vaults;
 using TheShed.Shared.Models.Enums;
@@ -11,7 +10,7 @@ public partial class MembersPanel
     [Parameter] public int VaultId { get; set; }
 
     [Inject] private VaultClient VaultApi { get; set; } = default!;
-    [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private IModalService Modal { get; set; } = default!;
 
     private IReadOnlyList<VaultMemberItem>? _members;
     private string _memberEmail = string.Empty;
@@ -66,7 +65,7 @@ public partial class MembersPanel
 
     private async Task RemoveMemberAsync(VaultMemberItem member)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", $"Remove {member.Username}'s access to this vault?"))
+        if (!await Modal.ConfirmAsync($"Remove {member.Username}'s access to this vault?", title: "Remove member", confirmText: "Remove"))
         {
             return;
         }
