@@ -153,9 +153,26 @@ a, .btn-link {
     --bs-btn-active-border-color: var(--danger);
 }
 
+/* Solid danger — the confirm modal's destructive action button. */
+.btn-danger {
+    --bs-btn-bg: var(--danger);
+    --bs-btn-border-color: var(--danger);
+    --bs-btn-color: var(--text);
+    --bs-btn-hover-bg: var(--danger);
+    --bs-btn-hover-border-color: var(--danger);
+    --bs-btn-active-bg: var(--danger);
+    --bs-btn-active-border-color: var(--danger);
+}
+
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus, .navbar-toggler:focus {
   box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.35);
 }
+
+/* Bootstrap's modal itself follows the theme via --bs-modal-bg (chains to --bs-body-bg,
+   already remapped above) — only its backdrop and close icon hardcode literals that the
+   remap doesn't reach. */
+.modal-backdrop { --bs-backdrop-bg: var(--bg); }
+.btn-close { filter: var(--bs-btn-close-white-filter); }
 
 /* Inputs sit on --surface, not on the page background (UI.md §5). */
 .form-control, .form-select {

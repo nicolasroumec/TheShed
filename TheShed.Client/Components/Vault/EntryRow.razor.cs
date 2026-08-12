@@ -15,6 +15,7 @@ public partial class EntryRow
 
     [Inject] private EntryClient EntryApi { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private IModalService Modal { get; set; } = default!;
 
     private static readonly TimeSpan CopiedLabelDuration = TimeSpan.FromSeconds(2);
 
@@ -83,7 +84,7 @@ public partial class EntryRow
 
     private async Task DeleteAsync()
     {
-        if (!await JS.InvokeAsync<bool>("confirm", "Delete this entry? This cannot be undone."))
+        if (!await Modal.ConfirmAsync("Delete this entry? This cannot be undone.", title: "Delete entry", confirmText: "Delete"))
         {
             return;
         }

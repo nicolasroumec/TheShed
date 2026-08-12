@@ -1,0 +1,23 @@
+@* The app's single modal, driven by ModalService — mounted once in MainLayout. *@
+
+@if (_request is not null)
+{
+    <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="modal-host-title">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-host-title">@_request.Title</h5>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="Cancel"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">@_request.Message</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-link" @onclick="Cancel">Cancel</button>
+                    <button type="button" class="btn btn-@_request.ConfirmVariant" @onclick="Confirm">@_request.ConfirmText</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop show"></div>
+}

@@ -17,6 +17,8 @@ builder.Services.AddScoped<AuthenticationStateProvider>(
 builder.Services.AddAuthorizationCore();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ModalService>();
+builder.Services.AddScoped<IModalService>(sp => sp.GetRequiredService<ModalService>());
 builder.Services.AddScoped<VaultClient>();
 builder.Services.AddScoped<EntryClient>();
 builder.Services.AddScoped<NoteClient>();

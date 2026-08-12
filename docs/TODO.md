@@ -72,8 +72,62 @@ reveal/copy, historial y adjuntos —cerrar/reabrir sin refetch de más—, nota
 de dar el split por probado end-to-end — no se hizo por pedido explícito del usuario de no
 levantar el navegador en este tramo.
 
-Después de esto, retomar el resto de Increment 14 (mobile) y volver al orden del roadmap:
-Sprint 17 — Importar/Exportar CSV (`feature/import-export`).
+**Increment 14 completo** (3 commits, sin pausar entre ellos a pedido del usuario — "modifica
+todo junto, luego probamos"). `EntryRow` ya estaba bien a 390px gracias a la regla mobile
+genérica de `list-group-item`/`btn-group` (commit previo al split). Lo que faltaba:
+- `MembersPanel` y `Health.razor` tenían las clases flex puestas directo en `.list-group-item`
+  en vez de en un div hijo (a diferencia de `EntryRow`/`Trash`/`NotesPanel`) — restructurados
+  al mismo patrón para reusar la regla existente en vez de CSS nueva.
+- La regla de stacking usaba selector de hijo directo (`>`), que no llegaba a las filas de
+  `EntryHistoryPanel`/`EntryAttachmentsPanel` (anidadas un nivel más adentro dentro del
+  `.list-group-item` de `EntryRow`) — cambiado a descendiente.
+- Barra de filtros de `EntriesPanel`: "Manage tags" usa `ms-auto` para pegarse a la derecha en
+  desktop; al envolver a su propia línea en mobile quedaba flotando a la derecha de una línea
+  vacía — reseteado en el breakpoint.
+
+De paso aparecieron 3 bugs sin relación con mobile, corregidos en el mismo tramo:
+- **"New entry" no abría el formulario** — `VaultDetail.razor` llama `_entriesPanel.StartCreate()`
+  directo por `@ref`; el método mutaba estado sin `StateHasChanged()`, y como el evento pertenece
+  al padre, Blazor nunca re-renderizaba `EntriesPanel`.
+- **Botón `.btn-primary` disabled se veía azul** (Bootstrap default) en vez del acento del tema —
+  el remap de tokens no restablecía `--bs-btn-disabled-*`.
+- **Menú mobile se veía "gris" al desplegarse** — dos causas: (1) `.navbar-toggler` nunca se
+  retematizó (Bootstrap hardcodea su borde/foco a un rgba blancuzco vía `.navbar-dark`, mismo
+  patrón que el bug del botón disabled); (2) `.nav-backdrop` tiene `z-index` explícito pero
+  `.top-row`/`.nav-scrollable` no, así que el backdrop pintaba *encima* de todo el menú en vez
+  de solo detrás — el menú entero se veía lavado a través del dim. Se sumó `--bg-rgb` como token
+  (mismo patrón que `--bs-primary-rgb`) para que el backdrop derive del tema en vez de un rgba
+  hardcodeado. También se sacó la barra de `MainLayout` que solo mostraba el username (pedido
+  del usuario, quedaba como una tira vacía redundante en mobile bajo la barra del nav).
+
+Evaluada la idea de un bottom tab bar para mobile en vez del off-canvas actual — descartada por
+ahora, se mantiene el menú desplegable.
+
+**Próximo paso — reemplazar `window.confirm` por un modal propio.** 6 call-sites usan
+`JS.InvokeAsync<bool>("confirm", ...)` (Trash, `EntriesPanel` borrar tag, `EntryRow` borrar
+entrada, `EntryAttachmentsPanel` borrar archivo, `MembersPanel` sacar miembro, `NotesPanel`
+borrar nota) — diálogo nativo del navegador, rompe el tema oscuro. Servicio genérico en
+nombre y parámetros, no en contenido: se evaluó un modal con `RenderFragment` arbitrario
+(formularios, etc.) pero eso solo se arma limpio desde markup `.razor`, y los 6 call-sites
+actuales llaman desde `.razor.cs` puro (sin markup) — se agrega soporte a contenido arbitrario
+el día que haya un caso concreto que lo pida, no antes. Planificado en 2 commits:
+- [ ] Increment 1 — infraestructura + primer uso real: `Services/ModalService.cs` (scoped,
+      `Task<bool> ConfirmAsync(string message, string title = "Confirm", string confirmText = "Confirm", string confirmVariant = "danger")`
+      con `TaskCompletionSource`, async en vez del bloqueo de `window.confirm`; nombre e
+      interfaz genéricos para poder sumar `AlertAsync(...)` u otros al lado con la misma
+      cañería el día que haga falta). `Components/ModalHost.razor`+`.razor.cs` (modal
+      Bootstrap, ya hereda el tema vía el remap de `--bs-body-bg` etc. que ya existe en
+      `app.css`); registro en `Program.cs` + un solo `<ModalHost />` montado en
+      `MainLayout.razor`; convertir `EntryRow` (delete entry) en el mismo incremento para
+      probar el mecanismo con un uso real.
+- [ ] Increment 2 — resto de call-sites (mecánico, mismo patrón que el 1): `NotesPanel`,
+      `MembersPanel`, `EntryAttachmentsPanel`, `EntriesPanel` (delete tag), `Trash`. Sacar
+      `IJSRuntime JS` donde ya no queda usándose para nada más (Trash, `EntriesPanel`,
+      `MembersPanel`, `NotesPanel` — lo inyectaban solo para el `confirm`); se mantiene en
+      `EntryAttachmentsPanel` (downloadFile) y `EntryRow` (copyToClipboard).
+
+Después de esto, volver al orden del roadmap: Sprint 17 — Importar/Exportar CSV
+(`feature/import-export`).
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra
