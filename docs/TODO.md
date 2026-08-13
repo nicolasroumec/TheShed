@@ -39,10 +39,11 @@ adelante): **todo `.razor` va con code-behind** — markup en `Foo.razor`, lógi
 `@inject` como `[Inject]`, `@implements` como interfaz de la partial class) en `Foo.razor.cs`.
 Ya no se permite `@code { }` inline. Anotado en `CLAUDE.md` §Code conventions. Aplicado a
 `Loading.razor` (único componente que ya existía) y a todo lo nuevo de este split. **Pendiente**:
-8 archivos con `@code` inline que quedaron sin tocar por no ser parte de este increment —
-`Vaults.razor`, `Trash.razor`, `Health.razor`, `Login.razor`, `Register.razor`,
+7 archivos con `@code` inline que quedaron sin tocar por no ser parte de este increment —
+`Trash.razor`, `Health.razor`, `Login.razor`, `Register.razor`,
 `Layout/MainLayout.razor`, `Layout/NavMenu.razor`, `Auth/RedirectToLogin.razor` — convertirlos
-en una pasada aparte cuando toque.
+en una pasada aparte cuando toque. (`Vaults.razor` ya se convirtió, en el Increment 3 del
+refactor visual — ver `docs/UI-REFACTOR.md`.)
 
 - [x] Increment A — `MembersPanel` extraído (`Components/Vault/`), fix de errores de
       add/remove miembro unificados en `_memberError`

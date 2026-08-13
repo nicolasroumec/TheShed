@@ -140,15 +140,19 @@ code {
     text-align: center;
 }
 
-/* Vault cards on the listing — clickable, like labeled drawers. */
-.vault-card {
+/* Vault tiles on the listing — clickable, like labeled drawers. Owner's own vaults get the
+   accent border always; everyone else's lights up on hover, same as .row-item. */
+.vault-tile {
     display: block;
+    border-left: 3px solid var(--border);
+    background: var(--surface);
+    padding: 1rem;
     color: var(--text);
     text-decoration: none;
-    cursor: pointer;
     transition: border-color 0.1s ease, background-color 0.1s ease;
 }
-.vault-card:hover { border-color: var(--accent); background: var(--surface-2); color: var(--text); }
+.vault-tile:hover { border-left-color: var(--accent); background: var(--surface-2); color: var(--text); }
+.vault-tile.role-owner { border-left-color: var(--accent); }
 
 /* Neutral chip — roles, tags, trash types. Accent is reserved for the owner's own vaults. */
 .badge-chip { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); font-weight: 500; }

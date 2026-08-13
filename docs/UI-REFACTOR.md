@@ -142,7 +142,7 @@ review/commit.
       most and decides whether the rest follows the same pattern.
 - [x] ~~**2 — `EntriesPanel.razor`**~~ — wrapping list, tag filter to
       `.filter-tab`, create/edit form to `.job-form`.
-- [ ] **3 — `Vaults.razor`** — tiles to `.vault-tile`, create form to
+- [x] ~~**3 — `Vaults.razor`**~~ — tiles to `.vault-tile`, create form to
       `.job-form`, split to code-behind (`Vaults.razor.cs` — already on the
       pending list in `docs/TODO.md`).
 - [ ] **4 — `NotesPanel.razor` + `MembersPanel.razor`** — rows to
