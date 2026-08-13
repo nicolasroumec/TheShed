@@ -156,7 +156,7 @@ review/commit.
       `.icon-btn` pattern (Trash: only 2 actions, stay as direct
       icon-buttons, no overflow menu). Split to code-behind (both pending
       in TODO).
-- [ ] **7 — `ModalHost.razor`** — `.confirm-panel` with a top stripe per
+- [x] ~~**7 — `ModalHost.razor`**~~ — `.confirm-panel` with a top stripe per
       variant (accent/danger). Low risk, high impact — used across the
       whole app.
 - [ ] **8 — `NavMenu.razor` + `MainLayout.razor`** — accent bar + labels in

@@ -4,7 +4,7 @@
 {
     <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="modal-host-title">
         <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content">
+            <div class="modal-content confirm-panel @(_request.ConfirmVariant == "danger" ? "danger" : "")">
                 <div class="modal-header">
                     <h5 class="modal-title" id="modal-host-title">@_request.Title</h5>
                     <button type="button" class="btn-close" aria-label="Close" @onclick="Cancel"></button>

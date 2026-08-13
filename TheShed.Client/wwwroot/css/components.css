@@ -284,6 +284,12 @@ code {
 .chip.strength-strong { color: var(--pw-strong); border-color: var(--pw-strong); }
 .chip.reused { color: var(--warning); border-color: var(--warning); }
 
+/* Confirm modal — same accent-bar motif as .row-item/.job-form/.vault-tile, horizontal
+   instead of left-edge. Bootstrap's .modal-content border shorthand is overridden by this
+   longhand since components.css loads after bootstrap.min.css. */
+.confirm-panel { border-top: 3px solid var(--accent); }
+.confirm-panel.danger { border-top-color: var(--danger); }
+
 /* Wraps a list of .row-item rows — a top edge to match each row's own bottom border,
    nothing else (the boxed-list look came from .list-group-item, not the wrapper). */
 .row-list { border-top: 1px solid var(--border); }
