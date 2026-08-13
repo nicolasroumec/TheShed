@@ -122,7 +122,7 @@ Same granularity as the `VaultDetail` split (5 increments) and the
 `window.confirm` replacement (2 increments): stop after each one for
 review/commit.
 
-- [x] **0 — Split `app.css`** — `app.css` is 411 lines and about to grow by
+- [x] ~~**0 — Split `app.css`**~~ — `app.css` is 411 lines and about to grow by
       7-8 new component classes; split before adding them instead of after.
       Plain file split, no build tool (none exists in this project):
       `theme.css` (`:root` tokens + the `--bs-*` remap), `layout.css`
@@ -134,7 +134,7 @@ review/commit.
       via `<link>` tags in `index.html`, in that order (cascade matters:
       theme → layout → components → app overrides). Pure move, no visual
       changes — verify by diffing rendered output, not by eye.
-- [ ] **1 — Foundations + `EntryRow`** (most visible case, validates the
+- [x] ~~**1 — Foundations + `EntryRow`**~~ (most visible case, validates the
       direction before it spreads) — `components.css` (new classes),
       `EntryRow.razor` (restructure actions into icon-btn + overflow menu),
       `docs/UI.md` (new "Component vocabulary" section + decisions log).

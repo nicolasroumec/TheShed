@@ -182,3 +182,88 @@ code {
         margin-left: 0 !important;
     }
 }
+
+/* --- Row/action vocabulary (replaces .list-group-item + .btn-group, one surface at a
+   time — see docs/UI-REFACTOR.md for the increment sequence). --- */
+
+/* Rows sit flush against the page background instead of boxed: a left accent bar on
+   hover/focus is the only depth cue, same motif as .job-form/.vault-tile/.confirm-panel. */
+.row-item {
+    border-bottom: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    padding: .75rem 1rem .75rem .75rem;
+}
+.row-item:hover, .row-item:focus-within {
+    border-left-color: var(--accent);
+    background: var(--surface-2);
+}
+.row-item:last-child { border-bottom: none; }
+
+/* Ghost icon button — the frequent, always-visible row actions (favorite/reveal/copy). */
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    padding: 0;
+}
+.icon-btn:hover { background: var(--surface); color: var(--text); }
+.icon-btn.active { color: var(--accent); }
+
+/* Rarer row actions (history/files/edit/delete) live behind a native <details> menu
+   instead of stretching the row into a wide button group. */
+.entry-actions { position: relative; }
+
+.overflow-menu > summary {
+    list-style: none;
+    cursor: pointer;
+}
+.overflow-menu > summary::-webkit-details-marker { display: none; }
+
+.overflow-menu-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + .25rem);
+    z-index: 5;
+    min-width: 10rem;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+.overflow-menu-panel button {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    width: 100%;
+    padding: .5rem .75rem;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    font-size: .875rem;
+}
+.overflow-menu-panel button:hover { background: var(--surface); }
+.overflow-menu-panel button.danger { color: var(--danger); border-top: 1px solid var(--border); }
+
+/* Label-maker tag — monospace/uppercase, sharper corner than the general --radius so it
+   reads as a printed tag rather than a rounded UI badge. Replaces .badge-chip surface by
+   surface as each one is touched (see docs/UI-REFACTOR.md). */
+.chip {
+    display: inline-block;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    font-size: .7rem;
+    letter-spacing: .03em;
+    padding: .15rem .4rem;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-muted);
+}

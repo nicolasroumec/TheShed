@@ -4,7 +4,10 @@ Checklist for the design decisions. Bootstrap 5.3 already provides the spacing
 scale, typography scale, breakpoints and components — we only define what is
 **specific to The Shed**. Tick items off as we decide them.
 
-Tokens live in one place: `TheShed.Client/wwwroot/css/app.css` (`:root`).
+Tokens live in one place: `TheShed.Client/wwwroot/css/theme.css` (`:root`).
+Page shell (sidebar/top bar) is in `layout.css`; reusable component classes are in
+`components.css`; `app.css` is just the document base (reset, headings, Blazor's own
+bootstrap/error UI).
 
 ---
 
@@ -53,6 +56,34 @@ so there is nothing extra to load.
       `--bs-*-bg-subtle` / `-text-emphasis` / `-border-subtle` tokens back both.
 - [x] Loading — one `<Loading />` component (Bootstrap `.spinner-border` + label). No skeletons.
 
+## 5b. Component vocabulary (mid-refactor — see `docs/UI-REFACTOR.md`)
+
+Bootstrap's own component classes (`.card`, `.list-group-item`, `.btn-group`,
+`.badge`, `.modal-content`) read as generic once recolored — a "reskinned admin
+panel" look. Being replaced, one surface at a time, by a small set of custom
+classes in `components.css` built around **one repeated motif**: a 3px accent
+bar (left edge on vertical elements, top edge on the modal) instead of a
+uniform border + solid hover fill.
+
+- `.row-item` — replaces `.list-group-item`. Flush against the page, left
+  accent bar + `surface-2` fill on hover/focus.
+- `.icon-btn` — ghost icon button for the frequent, always-visible row
+  actions (favorite/reveal/copy), instead of a `.btn-group` of identical
+  outline buttons.
+- `.overflow-menu` (native `<details>`) + `.overflow-menu-panel` — the rarer
+  row actions (history/files/edit/delete) live behind a menu instead of
+  widening the row; destructive actions get a `border-top` + `--danger`.
+- `.chip` — replaces `.badge-chip`. Monospace, uppercase, `border-radius: 2px`
+  (sharper than the general `--radius: 4px`) — a printed label, not a rounded
+  UI badge.
+- `.job-form`, `.vault-tile`, `.confirm-panel`, `.filter-tab` — same accent-bar
+  motif, land as their respective pages/components are refactored.
+
+First surface converted: `EntryRow` (Increment 1 of `docs/UI-REFACTOR.md`).
+Everything else still uses the Bootstrap classes above until its own
+increment lands — both patterns will coexist in the codebase for a while,
+that's expected.
+
 ## 6. Icons
 - [x] Bootstrap Icons (`bi-*`) — utilitarian line icons, fits the workshop look. Loaded from
       the jsDelivr CDN in `index.html`; vendor it into `wwwroot/lib/` if offline use matters.
@@ -67,10 +98,17 @@ so there is nothing extra to load.
 - **Depth by color, not shadow** — `bg → surface → surface-2`; flat and solid.
 - **Single accent (amber)** — only actionable things get color.
 - **Bootstrap's own theme vars point at our tokens** — its dark theme ships cold greys
-  (`#212529` / `#343a40` / `#6c757d`), so `:root` in `app.css` remaps `--bs-body-bg`,
+  (`#212529` / `#343a40` / `#6c757d`), so `:root` in `theme.css` remaps `--bs-body-bg`,
   `--bs-border-color` and the semantic colors. Stock components follow the palette without
   per-page CSS. The `.btn-*` variants are the exception: Bootstrap compiles literal hex into
   them, so the ones we use are restated by hand.
+- **Webfont added after all** — Big Shoulders Display (headings) + Inter (body), via Bunny
+  Fonts, loaded in `index.html`. Supersedes the original "no webfont" decision above; kept
+  for the record since it explains why treatment alone was the starting point.
+- **One repeated accent-bar motif, not per-component tweaks** — replacing Bootstrap's
+  component classes surface by surface (§5b) with a single recurring shape (3px accent bar)
+  so the pieces read as one family instead of six unrelated redesigns. See
+  `docs/UI-REFACTOR.md` for the full rationale and increment plan.
 
 ## Token block (target `:root`)
 
