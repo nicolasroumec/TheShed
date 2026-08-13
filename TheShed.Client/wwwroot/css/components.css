@@ -267,3 +267,35 @@ code {
     border-radius: 2px;
     color: var(--text-muted);
 }
+
+/* Wraps a list of .row-item rows — a top edge to match each row's own bottom border,
+   nothing else (the boxed-list look came from .list-group-item, not the wrapper). */
+.row-list { border-top: 1px solid var(--border); }
+
+/* Inline create/edit form — replaces .card for "New entry"/"New note"/etc. Same accent-bar
+   motif as .row-item, unboxed. */
+.job-form {
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    padding: 1rem 1.25rem;
+}
+.job-form-title {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-size: .95rem;
+    color: var(--text-muted);
+    margin-bottom: .75rem;
+}
+
+/* Tag/category filter — an underline tab strip instead of a row of solid toggle buttons. */
+.filter-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: .25rem .1rem;
+    color: var(--text-muted);
+    font-size: .875rem;
+}
+.filter-tab:hover { color: var(--text); }
+.filter-tab.active { color: var(--accent); border-bottom-color: var(--accent); }

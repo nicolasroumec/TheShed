@@ -140,7 +140,7 @@ review/commit.
       `docs/UI.md` (new "Component vocabulary" section + decisions log).
       **Stop here before continuing** — this is the piece that changes the
       most and decides whether the rest follows the same pattern.
-- [ ] **2 — `EntriesPanel.razor`** — wrapping list, tag filter to
+- [x] ~~**2 — `EntriesPanel.razor`**~~ — wrapping list, tag filter to
       `.filter-tab`, create/edit form to `.job-form`.
 - [ ] **3 — `Vaults.razor`** — tiles to `.vault-tile`, create form to
       `.job-form`, split to code-behind (`Vaults.razor.cs` — already on the

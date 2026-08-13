@@ -5,10 +5,9 @@
 
 @if (_form is not null)
 {
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title">@(_editingId is null ? "New entry" : "Edit entry")</h5>
-            <EditForm Model="@_form" OnValidSubmit="SubmitAsync">
+    <div class="job-form mb-4">
+        <div class="job-form-title">@(_editingId is null ? "New entry" : "Edit entry")</div>
+        <EditForm Model="@_form" OnValidSubmit="SubmitAsync">
                 <DataAnnotationsValidator />
 
                 @if (!string.IsNullOrEmpty(_error))
@@ -82,18 +81,17 @@
                     @(_busy ? "Saving…" : "Save")
                 </button>
                 <button type="button" class="btn btn-link" @onclick="CancelForm">Cancel</button>
-            </EditForm>
-        </div>
+        </EditForm>
     </div>
 }
 
 <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
     <span class="text-muted small">Filter:</span>
-    <button class="btn btn-sm @(_activeTagId is null ? "btn-primary" : "btn-outline-secondary")"
+    <button type="button" class="filter-tab @(_activeTagId is null ? "active" : "")"
             @onclick="() => FilterByTagAsync(null)">All</button>
     @foreach (var tag in _tags)
     {
-        <button class="btn btn-sm @(_activeTagId == tag.Id ? "btn-primary" : "btn-outline-secondary")"
+        <button type="button" class="filter-tab @(_activeTagId == tag.Id ? "active" : "")"
                 @onclick="() => FilterByTagAsync(tag.Id)">@tag.Name</button>
     }
     <input class="form-control form-control-sm" style="max-width: 14rem" placeholder="Search entries…"
@@ -133,7 +131,7 @@ else if (_entries.Count == 0)
 }
 else
 {
-    <div class="list-group">
+    <div class="row-list">
         @foreach (var entry in _entries)
         {
             @* Favorites reorder this list, so the rows need a stable identity. *@
