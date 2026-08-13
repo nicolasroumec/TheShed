@@ -277,6 +277,13 @@ code {
     color: var(--text-muted);
 }
 
+/* Password health chips — wires up the --pw-* aliases (already defined in theme.css,
+   previously unused) instead of Health.razor's own bg-danger/bg-warning/bg-success. */
+.chip.strength-weak { color: var(--pw-weak); border-color: var(--pw-weak); }
+.chip.strength-medium { color: var(--pw-medium); border-color: var(--pw-medium); }
+.chip.strength-strong { color: var(--pw-strong); border-color: var(--pw-strong); }
+.chip.reused { color: var(--warning); border-color: var(--warning); }
+
 /* Wraps a list of .row-item rows — a top edge to match each row's own bottom border,
    nothing else (the boxed-list look came from .list-group-item, not the wrapper). */
 .row-list { border-top: 1px solid var(--border); }

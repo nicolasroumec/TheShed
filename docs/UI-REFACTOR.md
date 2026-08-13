@@ -152,7 +152,7 @@ review/commit.
 - [x] ~~**5 — `EntryHistoryPanel.razor` + `EntryAttachmentsPanel.razor`**~~ —
       align buttons to `.icon-btn` (already don't use `.list-group-item`,
       low risk).
-- [ ] **6 — `Health.razor` + `Trash.razor`** — same `.row-item`/`.chip`/
+- [x] ~~**6 — `Health.razor` + `Trash.razor`**~~ — same `.row-item`/`.chip`/
       `.icon-btn` pattern (Trash: only 2 actions, stay as direct
       icon-buttons, no overflow menu). Split to code-behind (both pending
       in TODO).

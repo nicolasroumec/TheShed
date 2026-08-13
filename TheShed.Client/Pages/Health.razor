@@ -3,7 +3,6 @@
 @using TheShed.Client.Services
 @using TheShed.Shared.Helpers
 @using TheShed.Shared.Models.DTOs.Health
-@inject HealthClient HealthApi
 
 <PageTitle>Password health — The Shed</PageTitle>
 
@@ -19,39 +18,21 @@ else if (_items.Count == 0)
 }
 else
 {
-    <div class="list-group">
+    <div class="row-list">
         @foreach (var item in _items)
         {
-            <div class="list-group-item">
+            <div class="row-item">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <a href="@($"vaults/{item.VaultId}")">@item.EntryName</a>
-                    </div>
-                    <div>
-                        <span class="badge @StrengthBadgeClass(item.Strength) me-2">@item.Strength</span>
+                    <a href="@($"vaults/{item.VaultId}")">@item.EntryName</a>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="chip @StrengthChipClass(item.Strength)">@item.Strength</span>
                         @if (item.IsReused)
                         {
-                            <span class="badge bg-warning text-dark">Reused</span>
+                            <span class="chip reused">Reused</span>
                         }
                     </div>
                 </div>
             </div>
         }
     </div>
-}
-
-@code {
-    private IReadOnlyList<PasswordHealthItem>? _items;
-
-    protected override async Task OnInitializedAsync()
-    {
-        _items = await HealthApi.GetPasswordReportAsync();
-    }
-
-    private static string StrengthBadgeClass(PasswordStrength strength) => strength switch
-    {
-        PasswordStrength.Weak => "bg-danger",
-        PasswordStrength.Medium => "bg-warning text-dark",
-        _ => "bg-success"
-    };
 }

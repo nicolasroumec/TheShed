@@ -3,8 +3,6 @@
 @using TheShed.Client.Services
 @using TheShed.Shared.Models.DTOs.Trash
 @using TheShed.Shared.Models.Enums
-@inject TrashClient TrashApi
-@inject IModalService Modal
 
 <PageTitle>Trash — The Shed</PageTitle>
 
@@ -25,13 +23,13 @@ else if (_items.Count == 0)
 }
 else
 {
-    <div class="list-group">
+    <div class="row-list">
         @foreach (var item in _items)
         {
-            <div class="list-group-item">
+            <div class="row-item">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="badge badge-chip me-2">@item.Type</span>
+                        <span class="chip me-2">@item.Type</span>
                         <span class="fw-bold">@item.Name</span>
                         @if (item.VaultName is not null)
                         {
@@ -39,74 +37,16 @@ else
                         }
                         <small class="text-muted d-block">Deleted @DaysAgoText(item.DeletedAt) · @ExpiresText(item.ExpiresAt)</small>
                     </div>
-                    <div class="btn-group">
-                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => RestoreAsync(item)">Restore</button>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => PurgeAsync(item)">Delete forever</button>
+                    <div class="d-flex align-items-center gap-1">
+                        <button type="button" class="icon-btn" title="Restore" aria-label="Restore" @onclick="() => RestoreAsync(item)">
+                            <span class="bi bi-arrow-counterclockwise" aria-hidden="true"></span>
+                        </button>
+                        <button type="button" class="icon-btn danger" title="Delete forever" aria-label="Delete forever" @onclick="() => PurgeAsync(item)">
+                            <span class="bi bi-trash" aria-hidden="true"></span>
+                        </button>
                     </div>
                 </div>
             </div>
         }
     </div>
-}
-
-@code {
-    private IReadOnlyList<TrashItem>? _items;
-    private string? _error;
-
-    protected override Task OnInitializedAsync() => LoadAsync();
-
-    private async Task LoadAsync()
-    {
-        _items = await TrashApi.ListAsync();
-    }
-
-    private static string DaysAgoText(DateTime deletedAt)
-    {
-        var days = (int)(DateTime.UtcNow - deletedAt).TotalDays;
-        return days switch
-        {
-            0 => "today",
-            1 => "1 day ago",
-            _ => $"{days} days ago"
-        };
-    }
-
-    private static string ExpiresText(DateTime expiresAt)
-    {
-        var days = (int)(expiresAt - DateTime.UtcNow).TotalDays;
-        return days <= 0 ? "expires today" : $"expires in {days} day{(days == 1 ? "" : "s")}";
-    }
-
-    private async Task RestoreAsync(TrashItem item)
-    {
-        _error = null;
-        try
-        {
-            await TrashApi.RestoreAsync(item.Type, item.Id);
-            await LoadAsync();
-        }
-        catch (Exception)
-        {
-            _error = $"Could not restore \"{item.Name}\". Please try again.";
-        }
-    }
-
-    private async Task PurgeAsync(TrashItem item)
-    {
-        if (!await Modal.ConfirmAsync($"Permanently delete \"{item.Name}\"? This cannot be undone.", title: "Delete forever", confirmText: "Delete forever"))
-        {
-            return;
-        }
-
-        _error = null;
-        try
-        {
-            await TrashApi.PurgeAsync(item.Type, item.Id);
-            await LoadAsync();
-        }
-        catch (Exception)
-        {
-            _error = $"Could not delete \"{item.Name}\". Please try again.";
-        }
-    }
 }
