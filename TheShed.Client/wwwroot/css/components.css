@@ -1,0 +1,184 @@
+/* Component vocabulary — buttons, inputs, cards, lists, chips. See docs/UI.md. */
+
+a, .btn-link {
+    color: var(--accent);
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--accent);
+    --bs-btn-border-color: var(--accent);
+    --bs-btn-hover-bg: var(--accent-hover);
+    --bs-btn-hover-border-color: var(--accent-hover);
+    --bs-btn-active-bg: var(--accent-active);
+    --bs-btn-active-border-color: var(--accent-active);
+    --bs-btn-color: var(--bg);
+    --bs-btn-hover-color: var(--bg);
+    --bs-btn-active-color: var(--bg);
+    --bs-btn-disabled-bg: var(--accent);
+    --bs-btn-disabled-border-color: var(--accent);
+    --bs-btn-disabled-color: var(--bg);
+}
+
+/* Bootstrap compiles literal hex into the .btn-* variants, so the token remap in
+   theme.css does not reach them — restate the three we use. Secondary = bordered
+   ghost (UI.md §5). */
+.btn-outline-secondary {
+    --bs-btn-color: var(--text-muted);
+    --bs-btn-border-color: var(--border);
+    --bs-btn-hover-color: var(--text);
+    --bs-btn-hover-bg: var(--surface-2);
+    --bs-btn-hover-border-color: var(--accent);
+    --bs-btn-active-color: var(--text);
+    --bs-btn-active-bg: var(--surface-2);
+    --bs-btn-active-border-color: var(--accent);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--accent);
+    --bs-btn-border-color: var(--accent);
+    --bs-btn-hover-color: var(--bg);
+    --bs-btn-hover-bg: var(--accent);
+    --bs-btn-hover-border-color: var(--accent);
+    --bs-btn-active-color: var(--bg);
+    --bs-btn-active-bg: var(--accent-active);
+    --bs-btn-active-border-color: var(--accent-active);
+}
+
+/* Solid warning — the entry favorite toggle. */
+.btn-warning {
+    --bs-btn-bg: var(--warning);
+    --bs-btn-border-color: var(--warning);
+    --bs-btn-color: var(--bg);
+    --bs-btn-hover-bg: var(--accent-hover);
+    --bs-btn-hover-border-color: var(--accent-hover);
+    --bs-btn-hover-color: var(--bg);
+    --bs-btn-active-bg: var(--accent-active);
+    --bs-btn-active-border-color: var(--accent-active);
+    --bs-btn-active-color: var(--bg);
+}
+
+.btn-outline-danger {
+    --bs-btn-color: var(--danger);
+    --bs-btn-border-color: var(--danger);
+    --bs-btn-hover-color: var(--text);
+    --bs-btn-hover-bg: var(--danger);
+    --bs-btn-hover-border-color: var(--danger);
+    --bs-btn-active-color: var(--text);
+    --bs-btn-active-bg: var(--danger);
+    --bs-btn-active-border-color: var(--danger);
+}
+
+/* Solid danger — the confirm modal's destructive action button. */
+.btn-danger {
+    --bs-btn-bg: var(--danger);
+    --bs-btn-border-color: var(--danger);
+    --bs-btn-color: var(--text);
+    --bs-btn-hover-bg: var(--danger);
+    --bs-btn-hover-border-color: var(--danger);
+    --bs-btn-active-bg: var(--danger);
+    --bs-btn-active-border-color: var(--danger);
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus, .navbar-toggler:focus {
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.35);
+}
+
+/* Bootstrap's modal itself follows the theme via --bs-modal-bg (chains to --bs-body-bg,
+   already remapped in theme.css) — only its backdrop and close icon hardcode literals
+   that the remap doesn't reach. */
+.modal-backdrop { --bs-backdrop-bg: var(--bg); }
+.btn-close { filter: var(--bs-btn-close-white-filter); }
+
+/* Inputs sit on --surface, not on the page background (UI.md §5). */
+.form-control, .form-select {
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--surface);
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+/* Secrets render as workshop labels. */
+.secret { font-family: var(--font-mono); }
+
+.card { background: var(--surface); border-color: var(--border); }
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid var(--success);
+}
+
+.invalid {
+    outline: 1px solid var(--danger);
+}
+
+.validation-message {
+    color: var(--danger);
+}
+
+code {
+    color: var(--accent);
+    font-family: var(--font-mono);
+}
+
+/* Auth pages (login / register) */
+.auth-card {
+    max-width: 24rem;
+    margin: 3rem auto;
+    padding: 2rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.auth-card h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+/* Vault cards on the listing — clickable, like labeled drawers. */
+.vault-card {
+    display: block;
+    color: var(--text);
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.1s ease, background-color 0.1s ease;
+}
+.vault-card:hover { border-color: var(--accent); background: var(--surface-2); color: var(--text); }
+
+/* Neutral chip — roles, tags, trash types. Accent is reserved for the owner's own vaults. */
+.badge-chip { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); font-weight: 500; }
+.badge-chip.role-owner { color: var(--accent); border-color: var(--accent); }
+
+/* List rows are drawers too: they sit on --surface, above the page background. */
+.list-group { --bs-list-group-bg: var(--surface); }
+
+/* Entry/note/trash rows on mobile: stack name above actions instead of squeezing a
+   joined .btn-group beside it, and let that group wrap onto its own lines with plain
+   rounded buttons instead of the cut-off single-row pill Bootstrap assumes. Descendant
+   (not child) selector so it also reaches the history/attachments rows nested a level
+   deeper inside EntryRow's own .list-group-item. */
+@media (max-width: 640px) {
+    .list-group-item .d-flex.justify-content-between {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.5rem;
+    }
+    .list-group-item .btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    .list-group-item .btn-group > .btn {
+        border-radius: var(--radius) !important;
+        margin: 0 !important;
+    }
+
+    .ms-auto {
+        margin-left: 0 !important;
+    }
+}
