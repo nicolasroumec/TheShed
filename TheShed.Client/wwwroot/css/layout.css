@@ -37,21 +37,29 @@ main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     --bs-navbar-toggler-border-color: var(--border);
 }
 
-.sidebar .nav-item { font-size: 0.9rem; padding-bottom: 0.5rem; }
+.sidebar .nav-item { padding-bottom: 0.5rem; }
 .sidebar .nav-item:first-of-type { padding-top: 1rem; }
 .sidebar .nav-item:last-of-type { padding-bottom: 1rem; }
 
+/* Same accent-bar motif as .row-item/.job-form/.vault-tile, instead of a solid fill —
+   labels match the "stamped" treatment already used for h1/h2/.navbar-brand (app.css). */
 .sidebar .nav-link {
     display: flex;
     align-items: center;
     height: 2.75rem;
-    border-radius: var(--radius);
+    padding-left: .75rem;
+    border-left: 3px solid transparent;
     color: var(--text-muted);
     text-decoration: none;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-size: .8rem;
+    font-weight: 600;
 }
 
-.sidebar .nav-link:hover { background: var(--surface-2); color: var(--text); }
-.sidebar .nav-link.active { background: var(--surface-2); color: var(--accent); }
+.sidebar .nav-link:hover { border-left-color: var(--accent); background: var(--surface-2); color: var(--text); }
+.sidebar .nav-link.active { border-left-color: var(--accent); color: var(--accent); }
 
 .sidebar .nav-scrollable {
     position: absolute;

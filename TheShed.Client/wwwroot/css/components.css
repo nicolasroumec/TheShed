@@ -105,8 +105,6 @@ a, .btn-link {
 /* Secrets render as workshop labels. */
 .secret { font-family: var(--font-mono); }
 
-.card { background: var(--surface); border-color: var(--border); }
-
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid var(--success);
 }
@@ -154,32 +152,14 @@ code {
 .vault-tile:hover { border-left-color: var(--accent); background: var(--surface-2); color: var(--text); }
 .vault-tile.role-owner { border-left-color: var(--accent); }
 
-/* Neutral chip — roles, tags, trash types. Accent is reserved for the owner's own vaults. */
-.badge-chip { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); font-weight: 500; }
-.badge-chip.role-owner { color: var(--accent); border-color: var(--accent); }
-
-/* List rows are drawers too: they sit on --surface, above the page background. */
-.list-group { --bs-list-group-bg: var(--surface); }
-
-/* Entry/note/trash rows on mobile: stack name above actions instead of squeezing a
-   joined .btn-group beside it, and let that group wrap onto its own lines with plain
-   rounded buttons instead of the cut-off single-row pill Bootstrap assumes. Descendant
-   (not child) selector so it also reaches the history/attachments rows nested a level
-   deeper inside EntryRow's own .list-group-item. */
+/* Entry/note/trash rows on mobile: stack name above actions instead of squeezing a wide
+   action row beside it, and let that group wrap onto its own lines. Descendant selector so
+   it also reaches rows nested a level deeper (e.g. EntryRow's history/attachments). */
 @media (max-width: 640px) {
-    .list-group-item .d-flex.justify-content-between {
+    .row-item .d-flex.justify-content-between {
         flex-direction: column;
         align-items: stretch !important;
         gap: 0.5rem;
-    }
-    .list-group-item .btn-group {
-        display: flex;
-        flex-wrap: wrap;
-        width: 100%;
-    }
-    .list-group-item .btn-group > .btn {
-        border-radius: var(--radius) !important;
-        margin: 0 !important;
     }
 
     .ms-auto {
@@ -187,8 +167,7 @@ code {
     }
 }
 
-/* --- Row/action vocabulary (replaces .list-group-item + .btn-group, one surface at a
-   time — see docs/UI-REFACTOR.md for the increment sequence). --- */
+/* --- Row/action vocabulary (replaces .list-group-item + .btn-group). --- */
 
 /* Rows sit flush against the page background instead of boxed: a left accent bar on
    hover/focus is the only depth cue, same motif as .job-form/.vault-tile/.confirm-panel. */
@@ -263,8 +242,8 @@ code {
 .overflow-menu-panel button.danger { color: var(--danger); border-top: 1px solid var(--border); }
 
 /* Label-maker tag — monospace/uppercase, sharper corner than the general --radius so it
-   reads as a printed tag rather than a rounded UI badge. Replaces .badge-chip surface by
-   surface as each one is touched (see docs/UI-REFACTOR.md). */
+   reads as a printed tag rather than a rounded UI badge. Replaced .badge-chip everywhere
+   (see docs/UI-REFACTOR.md). */
 .chip {
     display: inline-block;
     font-family: var(--font-mono);

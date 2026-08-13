@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 <div class="page">
     <div class="sidebar">
         <NavMenu />
@@ -20,15 +20,3 @@
 </div>
 
 <ModalHost />
-
-@code {
-    private ErrorBoundary? _errorBoundary;
-
-    [Inject] private NavigationManager Navigation { get; set; } = default!;
-
-    // Body changes on every navigation, so this clears a previous page's error instead of
-    // leaving the boundary stuck showing it forever.
-    protected override void OnParametersSet() => _errorBoundary?.Recover();
-
-    private void Reload() => Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
-}

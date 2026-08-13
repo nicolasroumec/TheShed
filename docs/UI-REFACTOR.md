@@ -159,14 +159,17 @@ review/commit.
 - [x] ~~**7 — `ModalHost.razor`**~~ — `.confirm-panel` with a top stripe per
       variant (accent/danger). Low risk, high impact — used across the
       whole app.
-- [ ] **8 — `NavMenu.razor` + `MainLayout.razor`** — accent bar + labels in
+- [x] ~~**8 — `NavMenu.razor` + `MainLayout.razor`**~~ — accent bar + labels in
       `--font-display` uppercase; split both to code-behind (pending in
       TODO).
-- [ ] **9 — Final sweep** (optional) — remove dead rules in `app.css`
-      (`.badge-chip`, `.vault-card`, mobile overrides for
-      `.list-group-item .btn-group` if no longer applicable), polish
-      `docs/UI.md` (§5 checklist, and fix the "no webfont" line, which went
-      stale once Big Shoulders Display/Inter were added).
+- [x] ~~**9 — Final sweep**~~ — removed dead rules from `components.css`
+      (`.card`, `.badge-chip`, `.list-group`, the `.btn-group` mobile
+      overrides — nothing in the codebase referenced them anymore, confirmed
+      by grep before deleting), simplified the mobile row-stacking rule to
+      target `.row-item` directly. Polished `docs/UI.md` (§5 folded the
+      finished component vocabulary in as checked-off items, fixed the
+      stale "no webfont"/vault-card-as-.card lines, updated the Concept
+      intro).
 
 ## Verification
 
