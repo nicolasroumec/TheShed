@@ -13,10 +13,9 @@
 
 @if (_noteForm is not null)
 {
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title">@(_editingNoteId is null ? "New note" : "Edit note")</h5>
-            <EditForm Model="@_noteForm" OnValidSubmit="SubmitNoteAsync">
+    <div class="job-form mb-4">
+        <div class="job-form-title">@(_editingNoteId is null ? "New note" : "Edit note")</div>
+        <EditForm Model="@_noteForm" OnValidSubmit="SubmitNoteAsync">
                 <DataAnnotationsValidator />
 
                 @if (!string.IsNullOrEmpty(_noteError))
@@ -43,8 +42,7 @@
                     @(_noteBusy ? "Saving…" : "Save")
                 </button>
                 <button type="button" class="btn btn-link" @onclick="CancelNoteForm">Cancel</button>
-            </EditForm>
-        </div>
+        </EditForm>
     </div>
 }
 
@@ -58,20 +56,26 @@ else if (_notes.Count == 0)
 }
 else
 {
-    <div class="list-group">
+    <div class="row-list">
         @foreach (var note in _notes)
         {
-            <div class="list-group-item" @key="note.Id">
+            <div class="row-item" @key="note.Id">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="fw-bold">@note.Title</div>
-                    <div class="btn-group">
-                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleRevealNoteAsync(note.Id)">
-                            @(_revealedNotes.ContainsKey(note.Id) ? "Hide" : "Reveal")
+                    <div class="d-flex align-items-center gap-1">
+                        <button type="button" class="icon-btn" title="@(_revealedNotes.ContainsKey(note.Id) ? "Hide" : "Reveal")"
+                                aria-label="@(_revealedNotes.ContainsKey(note.Id) ? "Hide note" : "Reveal note")"
+                                @onclick="() => ToggleRevealNoteAsync(note.Id)">
+                            <span class="bi @(_revealedNotes.ContainsKey(note.Id) ? "bi-eye-slash" : "bi-eye")" aria-hidden="true"></span>
                         </button>
                         @if (CanWrite)
                         {
-                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartEditNoteAsync(note.Id)">Edit</button>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteNoteAsync(note.Id)">Delete</button>
+                            <button type="button" class="icon-btn" title="Edit" aria-label="Edit note" @onclick="() => StartEditNoteAsync(note.Id)">
+                                <span class="bi bi-pencil" aria-hidden="true"></span>
+                            </button>
+                            <button type="button" class="icon-btn danger" title="Delete" aria-label="Delete note" @onclick="() => DeleteNoteAsync(note.Id)">
+                                <span class="bi bi-trash" aria-hidden="true"></span>
+                            </button>
                         }
                     </div>
                 </div>

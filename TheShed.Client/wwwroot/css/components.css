@@ -219,6 +219,11 @@ code {
 .icon-btn:hover { background: var(--surface); color: var(--text); }
 .icon-btn.active { color: var(--accent); }
 
+/* Standalone destructive icon action (outside the overflow menu — e.g. remove member,
+   delete note) — stays tinted rust instead of the neutral muted default. */
+.icon-btn.danger { color: var(--danger); }
+.icon-btn.danger:hover { background: var(--surface); color: var(--danger); }
+
 /* Rarer row actions (history/files/edit/delete) live behind a native <details> menu
    instead of stretching the row into a wide button group. */
 .entry-actions { position: relative; }

@@ -145,7 +145,7 @@ review/commit.
 - [x] ~~**3 — `Vaults.razor`**~~ — tiles to `.vault-tile`, create form to
       `.job-form`, split to code-behind (`Vaults.razor.cs` — already on the
       pending list in `docs/TODO.md`).
-- [ ] **4 — `NotesPanel.razor` + `MembersPanel.razor`** — rows to
+- [x] ~~**4 — `NotesPanel.razor` + `MembersPanel.razor`**~~ — rows to
       `.row-item`, actions to `.icon-btn`, forms (note and add-member) to
       `.job-form`; the `.card`/`.card-body` currently wrapping all of
       `MembersPanel` also gets uncapped (title + loose text, no box).
