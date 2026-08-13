@@ -149,7 +149,7 @@ review/commit.
       `.row-item`, actions to `.icon-btn`, forms (note and add-member) to
       `.job-form`; the `.card`/`.card-body` currently wrapping all of
       `MembersPanel` also gets uncapped (title + loose text, no box).
-- [ ] **5 — `EntryHistoryPanel.razor` + `EntryAttachmentsPanel.razor`** —
+- [x] ~~**5 — `EntryHistoryPanel.razor` + `EntryAttachmentsPanel.razor`**~~ —
       align buttons to `.icon-btn` (already don't use `.list-group-item`,
       low risk).
 - [ ] **6 — `Health.razor` + `Trash.razor`** — same `.row-item`/`.chip`/

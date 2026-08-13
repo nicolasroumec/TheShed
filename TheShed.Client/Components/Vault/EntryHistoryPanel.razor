@@ -15,8 +15,10 @@
             {
                 <div class="d-flex justify-content-between align-items-center small border-top py-1">
                     <span class="text-muted">@h.CreatedAt.ToLocalTime().ToString("g") · changed by @h.ChangedByUsername</span>
-                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleHistoryRevealAsync(h.Id)">
-                        @(_revealedHistory.ContainsKey(h.Id) ? "Hide" : "Reveal")
+                    <button type="button" class="icon-btn" title="@(_revealedHistory.ContainsKey(h.Id) ? "Hide" : "Reveal")"
+                            aria-label="@(_revealedHistory.ContainsKey(h.Id) ? "Hide password" : "Reveal password")"
+                            @onclick="() => ToggleHistoryRevealAsync(h.Id)">
+                        <span class="bi @(_revealedHistory.ContainsKey(h.Id) ? "bi-eye-slash" : "bi-eye")" aria-hidden="true"></span>
                     </button>
                 </div>
                 @if (_revealedHistory.TryGetValue(h.Id, out var oldPassword))

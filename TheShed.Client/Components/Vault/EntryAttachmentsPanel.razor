@@ -17,11 +17,17 @@
                 {
                     <div class="d-flex justify-content-between align-items-center small border-top py-1">
                         <span>@file.FileName <span class="text-muted">(@FileSizeText(file.FileSizeBytes))</span></span>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => DownloadAttachmentAsync(file)">Download</button>
+                        <div class="d-flex align-items-center gap-1">
+                            <button type="button" class="icon-btn" title="Download" aria-label="Download file"
+                                    @onclick="() => DownloadAttachmentAsync(file)">
+                                <span class="bi bi-download" aria-hidden="true"></span>
+                            </button>
                             @if (CanWrite)
                             {
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAttachmentAsync(file.Id)">Delete</button>
+                                <button type="button" class="icon-btn danger" title="Delete" aria-label="Delete file"
+                                        @onclick="() => DeleteAttachmentAsync(file.Id)">
+                                    <span class="bi bi-trash" aria-hidden="true"></span>
+                                </button>
                             }
                         </div>
                     </div>
