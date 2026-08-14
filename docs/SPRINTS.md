@@ -486,6 +486,92 @@
   sigue mostrando el nombre (el claim `"username"` sigue llegando). Logout → cookie
   borrada, páginas protegidas redirigen a `/login`.
 
+## ✅ Decisión tomada (2026-08-14) — Zero-knowledge real, ver D7
+> `docs/AUDITORIA.md` C1/M1 + `DECISIONS.md` D7. El modelo de amenaza incluye al operador
+> del servidor (The Shed puede correr para terceros no relacionados con quien lo hostea),
+> así que "self-hosted, confío en mi servidor" no alcanza. Se migra a cifrado
+> client-side (WASM) con clave derivada de la master password; D3 queda superseded.
+>
+> **Prioridad real, no solo de lectura:** estos 4 sprints (25-28) tocan la base de
+> cifrado que usan Sprint 17 (import/export), 21 (login hardening no se pisa, pero
+> comparte el modelo de auth) y 23 (adjuntos huérfanos — la limpieza en disco sigue
+> aplicando igual, no cambia con esto). Conviene resolverlos **antes** de sumar más
+> superficie sobre entradas/adjuntos/sharing — mismo motivo por el que Sprint 20 se
+> adelantó al resto en su momento. Orden de ejecución real: decisión del usuario al
+> crear las ramas, esto es la nota, no un bloqueo automático.
+
+## 🟣 Sprint 25 — Zero-knowledge: derivación de clave y keypair por usuario · `feature/e2e-key-derivation`
+> Base de todo lo que sigue: nada de esto cambia D1 (Argon2 sigue siendo el hash de
+> auth) — es una derivación **independiente** del mismo master password, que el
+> servidor nunca ve.
+
+- [ ] KDF client-side: `Rfc2898DeriveBytes` (PBKDF2-SHA256, managed, corre en WASM sin
+      interop) deriva una "stretched master key" (256 bits) del master password + un
+      salt del usuario. **Nota ponytail:** no Argon2 client-side por ahora —
+      `Isopoh.Cryptography.Argon2` es nativo (P/Invoke), no corre en WASM sin research
+      aparte; PBKDF2 con ≥600k iteraciones (guía OWASP 2023) es aceptable como punto de
+      partida, upgrade a Argon2id-WASM si aparece una lib que lo soporte
+- [ ] Keypair por usuario al registrar: `RSA` (`System.Security.Cryptography.RSA`, ya
+      disponible en WASM) generado en el cliente. La clave privada se cifra con la
+      stretched master key (AES-GCM, mismo formato que D3) antes de subir. El servidor
+      guarda `PublicKey` (texto) y `EncryptedPrivateKey` (blob opaco) — nunca ve la
+      privada en claro
+- [ ] Migración de esquema: `User.PublicKey`/`User.EncryptedPrivateKey` nullable —
+      usuarios existentes quedan sin keypair hasta que logueen post-Sprint 28 y se les
+      genere retroactivamente
+- [ ] Tests: derivación determinística (mismo password + salt → misma key), roundtrip
+      de keypair, inspección del payload de red del registro para confirmar que la
+      privada nunca viaja en claro
+
+## 🟣 Sprint 26 — Zero-knowledge: vault key y cifrado de entradas/notas · `feature/e2e-vault-encryption`
+- [ ] Vault key: al crear un vault, el cliente genera una clave AES-256 aleatoria
+      ("vault key"), la cifra con la stretched master key del dueño y la sube como blob
+      opaco (`VaultKeyWrap` por `vaultId`+`userId`, arranca con una fila: el dueño)
+- [ ] `PasswordEntry`/`SecureNote`: el cifrado se mueve al cliente con la vault key
+      (reusa el mismo formato `nonce||ciphertext||tag` de `AesEncryptionService`, corriendo
+      del lado `Client` en vez de `Server` — mismo código de `Shared`, distinto lugar de
+      ejecución). El servidor deja de descifrar: `PasswordEntryService.ToResponse` y
+      equivalentes pasan a devolver el blob tal cual
+- [ ] Listado y búsqueda: hoy `PasswordEntryService` filtra server-side por
+      nombre/usuario/URL. Pasa a traer todos los items del vault de una vez (blobs),
+      descifrar en memoria del cliente y filtrar ahí — mismo patrón que Bitwarden/
+      1Password. Válido a la escala de un vault personal (cientos de items, no miles)
+- [ ] Tests: roundtrip end-to-end simulado desde el cliente; confirmar que con lo que
+      el servidor tiene guardado **no** puede reconstruir el plaintext
+
+## 🟣 Sprint 27 — Zero-knowledge: compartir vaults (key wrapping) · `feature/e2e-vault-sharing`
+- [ ] Al agregar un `VaultMember`: el dueño pide la public key del nuevo miembro
+      (`GET /api/users/{id}/public-key`), envuelve la vault key con ella (RSA-OAEP) y
+      sube un nuevo `VaultKeyWrap` para ese `userId`. El miembro, al loguear, desenvuelve
+      su privada con su stretched master key y con eso desenvuelve la vault key
+- [ ] Remover un miembro: **no rota la vault key** en este increment — limitación
+      conocida y documentada (D7, riesgo aceptado), no fingir que remover es
+      retroactivamente seguro sin rotación (M1)
+- [ ] Historial y adjuntos: mismo patrón que entradas/notas (Sprint 26) — cifrados con
+      la vault key, cifrado/descifrado movido al cliente
+- [ ] `PasswordHealthService` pasa a `PasswordHealthChecker` (ya vive en `Shared`)
+      corriendo client-side sobre el vault ya descifrado en memoria — el endpoint deja
+      de necesitar descifrar todo server-side para armar el reporte
+- [ ] Tests + PR a `main`
+
+## 🟣 Sprint 28 — Zero-knowledge: migración de datos existentes · `feature/e2e-migration`
+> El sprint que hace real todo lo anterior para los vaults que ya existen — sin esto,
+> Sprint 25-27 solo aplican a cuentas nuevas.
+- [ ] Endpoint de migración: con la clave global vieja de D3 (que se mantiene viva
+      **solo** para esto), el servidor descifra una última vez el contenido de un vault
+      y lo expone por HTTPS a una llamada autenticada del propio dueño; el cliente lo
+      vuelve a cifrar con la vault key nueva y sube los blobs nuevos; el servidor no
+      persiste el valor descifrado en ningún punto intermedio
+- [ ] Bandera de estado por vault (`EncryptionVersion` o similar) para distinguir
+      "todavía con clave de servidor" de "ya migrado" mientras conviven ambos modelos
+- [ ] Una vez confirmado el 100% de los vaults migrados (medido, no asumido): apagar
+      `Encryption:Key`/`EncryptionSettings` y borrar `AesEncryptionService` del lado
+      `Server`
+- [ ] Increment opcional, a decidir si el producto lo pide: recovery key — generarla y
+      mostrarla una única vez al usuario (para guardar offline) como mitigación del
+      costo de UX aceptado en D7 (olvidar la master password = pérdida total sin esto)
+- [ ] PR a `main`
+
 ## 🔵 Sprint 17 — Importar / Exportar (CSV) · `feature/import-export`
 > CSV de LastPass / Bitwarden / 1Password (import) y export de entradas propias. Ningún
 > proyecto tiene hoy una lib de CSV — un parser a mano que solo hace `Split(',')` rompe con
@@ -537,12 +623,19 @@
 - [ ] Tests del flujo TOTP (validación de código, ventana de tiempo)
 - [ ] PR a `main`
 
-## 🟣 Sprint 19 — Cierre por inactividad · `feature/session-timeout`
+## 🟣 Sprint 19 — Cierre por inactividad y reautenticación · `feature/session-timeout`
 > Cliente: timeout configurable que cierra sesión y limpia el token de LocalStorage. Si el
 > Sprint 16 (cookie httpOnly) ya se implementó para entonces, "limpiar el token" pasa a ser
 > `POST api/auth/logout` en vez de tocar LocalStorage.
+> **Alcance ampliado por `docs/AUDITORIA.md` (A1, A2):** al auto-logout ya planeado (A2)
+> se suma reautenticación para acciones sensibles (A1) — hoy alcanza con que la cookie JWT
+> siga vigente (60 min, `Jwt:ExpiryMinutes`) para revelar/copiar una contraseña o abrir una
+> versión del historial, sin volver a pedir la master password.
 - [ ] Detectar inactividad (timers + eventos), auto-logout + redirect a login
 - [ ] Timeout configurable (constante o setting de usuario)
+- [ ] Reautenticación (A1): pedir de nuevo la master password (o un PIN corto derivado de
+      ella) antes de Reveal/Copy de una contraseña o de abrir una versión del historial;
+      ventana corta de "desbloqueado" tras verificar (ej. 5 min) para no pedirla en cada click
 - [ ] PR a `main`
 
 ## 🟣 Sprint 20 — Refactor de frontend: cerrar la identidad "Workshop" · `feature/frontend`
@@ -868,6 +961,56 @@
 > desde el Sprint 5 que el shell es desktop-first. Tampoco se corrió un `publish`, así que el
 > impacto de podar `lib/` está en archivos y no en KB. Dado que la auditoría del Increment 1
 > falló justamente por leer archivos sin abrir la app, este límite pesa.
+
+---
+
+## 🟣 Sprint 21 — Login hardening: rate limiting + antiforgery · `feature/login-hardening`
+> `docs/AUDITORIA.md` A3, A4, B2. Prioridad alta en la auditoría: "la pieza más barata de
+> las de severidad alta, cierra una superficie de ataque real hoy mismo".
+
+- [ ] Rate limiting en `POST /api/auth/login` y `/api/auth/register` —
+      `Microsoft.AspNetCore.RateLimiting` (built-in desde .NET 7, sin dependencia nueva),
+      ventana fija/deslizante por IP (+ por email en login, para no dejar fuerza bruta
+      distribuida entre IPs). 429 tras N intentos en la ventana
+- [ ] Antiforgery token (`AddAntiforgery()`) como capa adicional a `SameSite=Lax` (D6) en
+      los endpoints que mutan estado vía cookie — defensa en profundidad, no reemplaza
+      SameSite, que sigue siendo la primera línea
+- [ ] `[MaxLength(128)]` en `RegisterRequest.Password` (B2) — oportunista, un atributo
+- [ ] Tests (rate limit dispara 429, antiforgery rechaza request sin token) + PR a `main`
+
+## 🟣 Sprint 22 — Headers de seguridad HTTP · `feature/security-headers`
+> `docs/AUDITORIA.md` M5. Bajo costo, buena defensa en profundidad — hoy no hay
+> `UseHsts()` ni `Content-Security-Policy` configurados en `Program.cs`.
+
+- [ ] `UseHsts()` + middleware de headers: `Content-Security-Policy`,
+      `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+      `Referrer-Policy: no-referrer`
+- [ ] Verificación manual (DevTools ▸ Network ▸ Response headers) + PR a `main`
+
+## 🟣 Sprint 23 — Hardening menor: adjuntos huérfanos + generador · `feature/minor-hardening`
+> `docs/AUDITORIA.md` M2, M3, B1.
+
+- [ ] `TrashService` (purga en cascada) llama `IAttachmentStorage.DeleteAsync` por cada
+      `Attachment` de la entry purgada — cierra el `// ponytail:` ya marcado en
+      `TrashService.cs:172-174` (adjuntos huérfanos en disco, no fuga de datos pero
+      acumulación sin límite)
+- [ ] `PasswordGenerator`: opción de excluir caracteres ambiguos (`l/1/I/O/0`) + toggle en
+      la UI del generador
+- [ ] B1 (asimetría: login oculta existencia de email, registro la confirma con
+      `Conflict`) — trade-off de UX aceptado, no un fix; si se quiere dejar constancia,
+      documentarlo en `DECISIONS.md`, si no, cerrar el hallazgo sin tocar código
+- [ ] Tests + PR a `main`
+
+## 🟣 Sprint 24 — TOTP en entradas guardadas + alertas de brechas (baja prioridad) · `feature/breach-alerts`
+> `docs/AUDITORIA.md`, tabla "Features faltantes" — ambas Media prioridad, ninguna
+> bloqueante. **No confundir con el Sprint 18** (2FA de la propia app): esto es TOTP
+> *para las cuentas guardadas* (generador/lector estilo Bitwarden/1Password Authenticator)
+> y alertas Have I Been Pwned (k-anonimato — solo se manda un prefijo del hash, nunca la
+> contraseña ni el hash completo). M4 (`PasswordHealthChecker` heurístico, no
+> dictionary-aware — limitación ya documentada en el propio código) es candidato a
+> resolver en el mismo sprint si se vuelve a tocar el generador/health.
+- [ ] Sin increments todavía — placeholder de roadmap, evaluar recién si la lista de
+      arriba se vacía.
 
 ---
 

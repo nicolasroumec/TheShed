@@ -130,6 +130,22 @@ el día que haya un caso concreto que lo pida, no antes. Planificado en 2 commit
 Después de esto, volver al orden del roadmap: Sprint 17 — Importar/Exportar CSV
 (`feature/import-export`).
 
+**Auditoría de seguridad (2026-08-13, `docs/AUDITORIA.md`):** base criptográfica sólida
+(Argon2, AES-256-GCM, JWT en cookie `HttpOnly`, control de acceso centralizado), pero un
+hallazgo crítico arquitectónico — el cifrado corría en el servidor con clave única para
+todos los usuarios, **no era zero-knowledge** (C1). **Decisión tomada el 2026-08-14
+(D7 en `DECISIONS.md`): migrar a zero-knowledge real.** El motivo que destrabó la
+decisión de D3 ("evolución futura", sin fecha): The Shed puede terminar corriendo para
+terceros no relacionados con quien lo hostea, y ahí el operador del servidor sí es parte
+del modelo de amenaza — "self-hosted, confío en mi servidor" no alcanzaba. Scopeado como
+4 sprints nuevos en `SPRINTS.md` (25-28: derivación de clave + keypair, vault key +
+cifrado de entradas/notas, compartir vía key-wrapping asimétrico, migración de datos
+existentes) — **prioridad real por delante de Sprint 17**, tocan la base de cifrado que
+import/export y el resto van a usar. El resto de los hallazgos ya está incorporado al
+roadmap: Sprint 19 se amplió (A1, reautenticación para revelar/copiar contraseñas) y se
+sumaron los Sprints 21-24 (rate limiting + antiforgery, headers HTTP, adjuntos huérfanos
++ generador, TOTP en entradas guardadas + alertas HIBP a baja prioridad).
+
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra
 - [x] AES-256-GCM para cifrado de entradas (servicio + tests)

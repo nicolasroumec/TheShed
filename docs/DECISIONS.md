@@ -28,6 +28,9 @@ Implica que el servidor puede descifrar; aceptable en esta etapa.
 vault para vaults compartidos.
 **Implementación:** `TheShed.Server/Security/{IEncryptionService,AesEncryptionService,EncryptionSettings}.cs`;
 nonce aleatorio por operación; tests en `TheShed.Tests/Security/AesEncryptionServiceTests.cs`.
+**Superseded por D7** (2026-08-14): la "evolución futura" de este párrafo pasó a ser la
+decisión tomada. Esta entrada queda como registro histórico de por qué el modelo empezó
+así, no como el diseño vigente.
 
 ## D4 — Vaults compartidos: dueño por `OwnerId`, miembros por `VaultMember` + rol
 **Decisión:** el dueño de un vault se rastrea con `Vault.OwnerId` y **no** se crea un
@@ -79,3 +82,34 @@ transporte.
 **Implementación:** `AuthController` (`Cookies.Append`/`Delete`, `GET /me`), `JwtBearerEvents.OnMessageReceived`
 en `Program.cs` (cae a la cookie si no vino header `Authorization`), `JwtAuthenticationStateProvider`
 + `AuthService` (Client, sin `ILocalStorageService`/`JwtParser`).
+
+## D7 — Cifrado zero-knowledge: adoptar, no quedarse en "self-hosted, confío en mi servidor"
+**Decisión:** migrar del modelo de D3 (clave de servidor, única para todos los usuarios)
+a **zero-knowledge real**: derivación de clave del master password en el cliente
+(Blazor WASM), el servidor pasa a almacenar y servir blobs opacos que nunca puede
+descifrar.
+**Contexto:** disparado por el hallazgo C1 de `docs/AUDITORIA.md` (2026-08-13), que
+señaló que D3 dejaba esto como "evolución futura" sin fecha ni criterio de cuándo
+resolverlo. El criterio que faltaba era el modelo de amenaza real: **¿quién opera el
+servidor?** Si es siempre el mismo usuario/alguien de confianza, el modelo actual es un
+trade-off aceptable (auditoría, "Oportunidades para destacar #1"). Se confirmó
+(2026-08-14) que The Shed puede terminar corriendo para terceros no relacionados con
+quien lo hostea — ahí el operador del servidor **sí** es parte del modelo de amenaza,
+el mismo problema que resuelven Bitwarden/1Password/Proton Pass. Con eso en la mesa, el
+modelo actual no alcanza.
+**Se mantiene sin cambios:** D1 (Argon2 sigue siendo el hash de autenticación — es un
+derivado distinto del master password, no la clave de cifrado) y D2 (JWT en cookie
+httpOnly).
+**Reemplaza:** D3 queda **superseded** — ver nota en esa entrada. La clave de servidor
+sigue viva únicamente durante la migración (Sprint 28), para descifrar por última vez
+los datos existentes.
+**Riesgo aceptado explícitamente (no resuelto en este alcance):** remover un miembro de
+un vault compartido no rota la vault key (Sprint 27, increment 2) — un ex-miembro que
+guardó una copia del key-wrap podría en teoría seguir descifrando datos posteriores a su
+remoción hasta que exista rotación de clave (ver M1 en `AUDITORIA.md`).
+**Costo de UX aceptado:** sin una recovery key (increment opcional en Sprint 28), olvidar
+la master password implica pérdida total e irrecuperable de los datos — igual que el
+modelo real de Bitwarden/1Password, no un descuido de este proyecto.
+**Alcance:** no es una tarea suelta, son 4 sprints — ver `SPRINTS.md` 25-28 (derivación
+de clave + keypair por usuario, vault key por vault, compartir vía key-wrapping
+asimétrico, migración de datos existentes).
