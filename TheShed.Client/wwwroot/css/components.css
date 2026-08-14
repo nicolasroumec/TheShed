@@ -1,0 +1,302 @@
+/* Component vocabulary — buttons, inputs, cards, lists, chips. See docs/UI.md. */
+
+a, .btn-link {
+    color: var(--accent);
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--accent);
+    --bs-btn-border-color: var(--accent);
+    --bs-btn-hover-bg: var(--accent-hover);
+    --bs-btn-hover-border-color: var(--accent-hover);
+    --bs-btn-active-bg: var(--accent-active);
+    --bs-btn-active-border-color: var(--accent-active);
+    --bs-btn-color: var(--bg);
+    --bs-btn-hover-color: var(--bg);
+    --bs-btn-active-color: var(--bg);
+    --bs-btn-disabled-bg: var(--accent);
+    --bs-btn-disabled-border-color: var(--accent);
+    --bs-btn-disabled-color: var(--bg);
+}
+
+/* Bootstrap compiles literal hex into the .btn-* variants, so the token remap in
+   theme.css does not reach them — restate the three we use. Secondary = bordered
+   ghost (UI.md §5). */
+.btn-outline-secondary {
+    --bs-btn-color: var(--text-muted);
+    --bs-btn-border-color: var(--border);
+    --bs-btn-hover-color: var(--text);
+    --bs-btn-hover-bg: var(--surface-2);
+    --bs-btn-hover-border-color: var(--accent);
+    --bs-btn-active-color: var(--text);
+    --bs-btn-active-bg: var(--surface-2);
+    --bs-btn-active-border-color: var(--accent);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--accent);
+    --bs-btn-border-color: var(--accent);
+    --bs-btn-hover-color: var(--bg);
+    --bs-btn-hover-bg: var(--accent);
+    --bs-btn-hover-border-color: var(--accent);
+    --bs-btn-active-color: var(--bg);
+    --bs-btn-active-bg: var(--accent-active);
+    --bs-btn-active-border-color: var(--accent-active);
+}
+
+/* Solid warning — the entry favorite toggle. */
+.btn-warning {
+    --bs-btn-bg: var(--warning);
+    --bs-btn-border-color: var(--warning);
+    --bs-btn-color: var(--bg);
+    --bs-btn-hover-bg: var(--accent-hover);
+    --bs-btn-hover-border-color: var(--accent-hover);
+    --bs-btn-hover-color: var(--bg);
+    --bs-btn-active-bg: var(--accent-active);
+    --bs-btn-active-border-color: var(--accent-active);
+    --bs-btn-active-color: var(--bg);
+}
+
+.btn-outline-danger {
+    --bs-btn-color: var(--danger);
+    --bs-btn-border-color: var(--danger);
+    --bs-btn-hover-color: var(--text);
+    --bs-btn-hover-bg: var(--danger);
+    --bs-btn-hover-border-color: var(--danger);
+    --bs-btn-active-color: var(--text);
+    --bs-btn-active-bg: var(--danger);
+    --bs-btn-active-border-color: var(--danger);
+}
+
+/* Solid danger — the confirm modal's destructive action button. */
+.btn-danger {
+    --bs-btn-bg: var(--danger);
+    --bs-btn-border-color: var(--danger);
+    --bs-btn-color: var(--text);
+    --bs-btn-hover-bg: var(--danger);
+    --bs-btn-hover-border-color: var(--danger);
+    --bs-btn-active-bg: var(--danger);
+    --bs-btn-active-border-color: var(--danger);
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus, .navbar-toggler:focus {
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.35);
+}
+
+/* Bootstrap's modal itself follows the theme via --bs-modal-bg (chains to --bs-body-bg,
+   already remapped in theme.css) — only its backdrop and close icon hardcode literals
+   that the remap doesn't reach. */
+.modal-backdrop { --bs-backdrop-bg: var(--bg); }
+.btn-close { filter: var(--bs-btn-close-white-filter); }
+
+/* Inputs sit on --surface, not on the page background (UI.md §5). */
+.form-control, .form-select {
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--surface);
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+/* Secrets render as workshop labels. */
+.secret { font-family: var(--font-mono); }
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid var(--success);
+}
+
+.invalid {
+    outline: 1px solid var(--danger);
+}
+
+.validation-message {
+    color: var(--danger);
+}
+
+code {
+    color: var(--accent);
+    font-family: var(--font-mono);
+}
+
+/* Auth pages (login / register) */
+.auth-card {
+    max-width: 24rem;
+    margin: 3rem auto;
+    padding: 2rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.auth-card h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+/* Vault tiles on the listing — clickable, like labeled drawers. Owner's own vaults get the
+   accent border always; everyone else's lights up on hover, same as .row-item. */
+.vault-tile {
+    display: block;
+    border-left: 3px solid var(--border);
+    background: var(--surface);
+    padding: 1rem;
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.1s ease, background-color 0.1s ease;
+}
+.vault-tile:hover { border-left-color: var(--accent); background: var(--surface-2); color: var(--text); }
+.vault-tile.role-owner { border-left-color: var(--accent); }
+
+/* Entry/note/trash rows on mobile: stack name above actions instead of squeezing a wide
+   action row beside it, and let that group wrap onto its own lines. Descendant selector so
+   it also reaches rows nested a level deeper (e.g. EntryRow's history/attachments). */
+@media (max-width: 640px) {
+    .row-item .d-flex.justify-content-between {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.5rem;
+    }
+
+    .ms-auto {
+        margin-left: 0 !important;
+    }
+}
+
+/* --- Row/action vocabulary (replaces .list-group-item + .btn-group). --- */
+
+/* Rows sit flush against the page background instead of boxed: a left accent bar on
+   hover/focus is the only depth cue, same motif as .job-form/.vault-tile/.confirm-panel. */
+.row-item {
+    border-bottom: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    padding: .75rem 1rem .75rem .75rem;
+}
+.row-item:hover, .row-item:focus-within {
+    border-left-color: var(--accent);
+    background: var(--surface-2);
+}
+.row-item:last-child { border-bottom: none; }
+
+/* Ghost icon button — the frequent, always-visible row actions (favorite/reveal/copy). */
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    padding: 0;
+}
+.icon-btn:hover { background: var(--surface); color: var(--text); }
+.icon-btn.active { color: var(--accent); }
+
+/* Standalone destructive icon action (outside the overflow menu — e.g. remove member,
+   delete note) — stays tinted rust instead of the neutral muted default. */
+.icon-btn.danger { color: var(--danger); }
+.icon-btn.danger:hover { background: var(--surface); color: var(--danger); }
+
+/* Rarer row actions (history/files/edit/delete) live behind a native <details> menu
+   instead of stretching the row into a wide button group. */
+.entry-actions { position: relative; }
+
+.overflow-menu > summary {
+    list-style: none;
+    cursor: pointer;
+}
+.overflow-menu > summary::-webkit-details-marker { display: none; }
+
+.overflow-menu-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + .25rem);
+    z-index: 5;
+    min-width: 10rem;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+.overflow-menu-panel button {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    width: 100%;
+    padding: .5rem .75rem;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    font-size: .875rem;
+}
+.overflow-menu-panel button:hover { background: var(--surface); }
+.overflow-menu-panel button.danger { color: var(--danger); border-top: 1px solid var(--border); }
+
+/* Label-maker tag — monospace/uppercase, sharper corner than the general --radius so it
+   reads as a printed tag rather than a rounded UI badge. Replaced .badge-chip everywhere
+   (see docs/UI-REFACTOR.md). */
+.chip {
+    display: inline-block;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    font-size: .7rem;
+    letter-spacing: .03em;
+    padding: .15rem .4rem;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-muted);
+}
+
+/* Password health chips — wires up the --pw-* aliases (already defined in theme.css,
+   previously unused) instead of Health.razor's own bg-danger/bg-warning/bg-success. */
+.chip.strength-weak { color: var(--pw-weak); border-color: var(--pw-weak); }
+.chip.strength-medium { color: var(--pw-medium); border-color: var(--pw-medium); }
+.chip.strength-strong { color: var(--pw-strong); border-color: var(--pw-strong); }
+.chip.reused { color: var(--warning); border-color: var(--warning); }
+
+/* Confirm modal — same accent-bar motif as .row-item/.job-form/.vault-tile, horizontal
+   instead of left-edge. Bootstrap's .modal-content border shorthand is overridden by this
+   longhand since components.css loads after bootstrap.min.css. */
+.confirm-panel { border-top: 3px solid var(--accent); }
+.confirm-panel.danger { border-top-color: var(--danger); }
+
+/* Wraps a list of .row-item rows — a top edge to match each row's own bottom border,
+   nothing else (the boxed-list look came from .list-group-item, not the wrapper). */
+.row-list { border-top: 1px solid var(--border); }
+
+/* Inline create/edit form — replaces .card for "New entry"/"New note"/etc. Same accent-bar
+   motif as .row-item, unboxed. */
+.job-form {
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    padding: 1rem 1.25rem;
+}
+.job-form-title {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-size: .95rem;
+    color: var(--text-muted);
+    margin-bottom: .75rem;
+}
+
+/* Tag/category filter — an underline tab strip instead of a row of solid toggle buttons. */
+.filter-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: .25rem .1rem;
+    color: var(--text-muted);
+    font-size: .875rem;
+}
+.filter-tab:hover { color: var(--text); }
+.filter-tab.active { color: var(--accent); border-bottom-color: var(--accent); }

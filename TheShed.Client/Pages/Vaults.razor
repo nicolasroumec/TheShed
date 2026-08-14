@@ -2,8 +2,6 @@
 @attribute [Authorize]
 @using TheShed.Client.Services
 @using TheShed.Shared.Models.DTOs.Vaults
-@inject VaultClient VaultApi
-@inject NavigationManager Navigation
 
 <PageTitle>Vaults — The Shed</PageTitle>
 
@@ -14,114 +12,55 @@
 
 @if (_showCreate)
 {
-    <div class="card mb-4">
-        <div class="card-body">
-            <EditForm Model="@_newVault" OnValidSubmit="CreateAsync">
-                <DataAnnotationsValidator />
+    <div class="job-form mb-4">
+        <EditForm Model="@_newVault" OnValidSubmit="CreateAsync">
+            <DataAnnotationsValidator />
 
-                @if (!string.IsNullOrEmpty(_error))
-                {
-                    <div class="alert alert-danger" role="alert">@_error</div>
-                }
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="alert alert-danger" role="alert">@_error</div>
+            }
 
-                <div class="mb-3">
-                    <label class="form-label" for="name">Name</label>
-                    <InputText id="name" class="form-control" @bind-Value="_newVault.Name" />
-                    <ValidationMessage For="@(() => _newVault.Name)" />
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="description">Description (optional)</label>
-                    <InputText id="description" class="form-control" @bind-Value="_newVault.Description" />
-                    <ValidationMessage For="@(() => _newVault.Description)" />
-                </div>
-                <button type="submit" class="btn btn-primary" disabled="@_busy">
-                    @(_busy ? "Creating…" : "Create vault")
-                </button>
-            </EditForm>
-        </div>
+            <div class="mb-3">
+                <label class="form-label" for="name">Name</label>
+                <InputText id="name" class="form-control" @bind-Value="_newVault.Name" />
+                <ValidationMessage For="@(() => _newVault.Name)" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="description">Description (optional)</label>
+                <InputText id="description" class="form-control" @bind-Value="_newVault.Description" />
+                <ValidationMessage For="@(() => _newVault.Description)" />
+            </div>
+            <button type="submit" class="btn btn-primary" disabled="@_busy">
+                @(_busy ? "Creating…" : "Create vault")
+            </button>
+        </EditForm>
     </div>
 }
 
 @if (_vaults is null)
 {
-    <p>Loading…</p>
+    <Loading />
 }
 else if (_vaults.Count == 0)
 {
-    <p class="text-muted">No vaults yet. Create your first one.</p>
+    <p class="text-muted"><span class="bi bi-archive me-2" aria-hidden="true"></span>The shed's empty — hang your first vault.</p>
 }
 else
 {
-    <div class="list-group">
+    <div class="row g-3">
         @foreach (var vault in _vaults)
         {
-            <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-               href="@($"vaults/{vault.Id}")">
-                <div>
+            <div class="col-12 col-sm-6 col-lg-4">
+                <a class="vault-tile h-100 @(vault.IsOwner ? "role-owner" : "")" href="@($"vaults/{vault.Id}")">
                     <div class="fw-bold">@vault.Name</div>
                     @if (!string.IsNullOrWhiteSpace(vault.Description))
                     {
-                        <small class="text-muted">@vault.Description</small>
+                        <small class="text-muted d-block">@vault.Description</small>
                     }
-                </div>
-                <div>
-                    @if (vault.IsOwner)
-                    {
-                        <span class="badge bg-secondary">Owner</span>
-                    }
-                    else if (vault.CanWrite)
-                    {
-                        <span class="badge bg-info">Editor</span>
-                    }
-                    else
-                    {
-                        <span class="badge bg-light text-dark">Viewer</span>
-                    }
-                </div>
-            </a>
+                    <span class="chip mt-2">@RoleLabel(vault)</span>
+                </a>
+            </div>
         }
     </div>
-}
-
-@code {
-    private IReadOnlyList<VaultListItem>? _vaults;
-    private readonly VaultCreateRequest _newVault = new();
-    private bool _showCreate;
-    private bool _busy;
-    private string? _error;
-
-    protected override Task OnInitializedAsync() => LoadAsync();
-
-    private async Task LoadAsync()
-    {
-        _vaults = await VaultApi.ListAsync();
-    }
-
-    private void ToggleCreate()
-    {
-        _showCreate = !_showCreate;
-        _error = null;
-    }
-
-    private async Task CreateAsync()
-    {
-        _busy = true;
-        _error = null;
-        try
-        {
-            await VaultApi.CreateAsync(_newVault);
-            _newVault.Name = string.Empty;
-            _newVault.Description = null;
-            _showCreate = false;
-            await LoadAsync();
-        }
-        catch (Exception)
-        {
-            _error = "Could not create the vault. Please try again.";
-        }
-        finally
-        {
-            _busy = false;
-        }
-    }
 }

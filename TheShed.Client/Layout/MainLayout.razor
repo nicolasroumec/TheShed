@@ -1,16 +1,22 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 <div class="page">
     <div class="sidebar">
         <NavMenu />
     </div>
 
     <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
         <article class="content px-4">
-            @Body
+            <ErrorBoundary @ref="_errorBoundary">
+                <ChildContent>@Body</ChildContent>
+                <ErrorContent>
+                    <div class="alert alert-danger" role="alert">
+                        Something broke on this page. Your data is safe — reload to try again.
+                    </div>
+                    <a class="btn btn-primary" href="" @onclick:preventDefault @onclick="Reload">Reload</a>
+                </ErrorContent>
+            </ErrorBoundary>
         </article>
     </main>
 </div>
+
+<ModalHost />

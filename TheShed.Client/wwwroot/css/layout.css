@@ -1,0 +1,95 @@
+/* Page shell — sidebar, top bar, mobile nav drawer. See docs/UI.md. */
+
+.content {
+    padding-top: 1.1rem;
+}
+
+.page { display: flex; flex-direction: column; min-height: 100vh; }
+
+.sidebar {
+    width: 100%;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    overflow: visible;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.top-row {
+    height: 3.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 21;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.navbar-brand { font-size: 1.1rem; }
+
+/* .navbar-dark hardcodes the toggler's border to a whitish rgba that Bootstrap compiles
+   as a literal, so the theme remap in theme.css never reaches it — restate it. Focus ring
+   is covered by the shared .navbar-toggler:focus rule in components.css. */
+.navbar-toggler {
+    --bs-navbar-toggler-border-color: var(--border);
+}
+
+.sidebar .nav-item { padding-bottom: 0.5rem; }
+.sidebar .nav-item:first-of-type { padding-top: 1rem; }
+.sidebar .nav-item:last-of-type { padding-bottom: 1rem; }
+
+/* Same accent-bar motif as .row-item/.job-form/.vault-tile, instead of a solid fill —
+   labels match the "stamped" treatment already used for h1/h2/.navbar-brand (app.css). */
+.sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    height: 2.75rem;
+    padding-left: .75rem;
+    border-left: 3px solid transparent;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-size: .8rem;
+    font-weight: 600;
+}
+
+.sidebar .nav-link:hover { border-left-color: var(--accent); background: var(--surface-2); color: var(--text); }
+.sidebar .nav-link.active { border-left-color: var(--accent); color: var(--accent); }
+
+.sidebar .nav-scrollable {
+    position: absolute;
+    top: 3.5rem;
+    left: 0;
+    right: 0;
+    z-index: 21;
+    max-height: calc(100vh - 3.5rem);
+    overflow-y: auto;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+/* z-index:19 is deliberate: below .top-row/.nav-scrollable (21) so the backdrop dims
+   only the page content behind the drawer, not the drawer itself — z-index:auto on those
+   two would otherwise lose to this explicit value and render washed out under the dim.
+   Warm-toned (--bg, not neutral black) so it doesn't desaturate the theme to gray either. */
+.nav-backdrop { position: fixed; inset: 0; background: rgba(var(--bg-rgb), 0.7); z-index: 19; }
+
+/* Desktop: sidebar goes back to a persistent side column, nav always open. */
+@media (min-width: 641px) {
+    .page { flex-direction: row; }
+    .sidebar {
+        width: 15rem;
+        flex-shrink: 0;
+        height: 100vh;
+        overflow-y: auto;
+        border-bottom: none;
+        border-right: 1px solid var(--border);
+    }
+    .sidebar .nav-scrollable { display: block !important; position: static; max-height: none; overflow-y: visible; border-bottom: none; }
+    .sidebar .navbar-toggler { display: none; }
+    .nav-backdrop { display: none; }
+}

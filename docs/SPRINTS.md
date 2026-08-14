@@ -487,11 +487,46 @@
   borrada, páginas protegidas redirigen a `/login`.
 
 ## 🔵 Sprint 17 — Importar / Exportar (CSV) · `feature/import-export`
-> CSV de LastPass / Bitwarden / 1Password (import) y export de entradas propias.
-- [ ] Parser CSV por formato (mapear columnas → `EntryCreate`); cifra al importar
-- [ ] Export de entradas propias a CSV (⚠️ contraseñas en claro en el archivo → warning explícito)
-- [ ] UI: subir CSV con preview/selección de vault destino; botón export
-- [ ] Tests de parsers (cada formato + filas inválidas)
+> CSV de LastPass / Bitwarden / 1Password (import) y export de entradas propias. Ningún
+> proyecto tiene hoy una lib de CSV — un parser a mano que solo hace `Split(',')` rompe con
+> comillas/comas/saltos de línea embebidos en `notes` o `password`, justo el campo más
+> sensible. Se suma `CsvHelper` (NuGet, la lib estándar de facto en .NET) en vez de
+> reinventar el parseo: es la excepción lazy correcta acá — un parser CSV RFC4180 a mano
+> es más código y más riesgo que una dependencia madura de un solo propósito.
+
+### Increment 1 — DTOs + dependencia
+- [ ] `PackageReference CsvHelper` en `TheShed.Server.csproj`
+- [ ] DTOs `ImportResult` (Imported/Skipped/Errors por fila) y `ExportEntryRow` (Name,
+      Username, Password, Url, Notes — mismas columnas que expone el export)
+
+### Increment 2 — Backend: import
+- [ ] `ICsvImportService`/`CsvImportService`: un mapper de columnas por formato (LastPass:
+      `url,username,password,extra,name,grouping,fav`; Bitwarden: `folder,favorite,type,name,
+      notes,fields,reprompt,login_uri,login_username,login_password,login_totp`; 1Password:
+      `Title,Website,Username,Password,Notes`) → `EntryCreateRequest`, reusa
+      `IVaultAccessService` (write al vault destino) + `IEncryptionService` (cifra cada fila
+      al crear, mismo camino que `PasswordEntryService.CreateAsync`)
+- [ ] Fila inválida (columnas faltantes, vacía) no aborta el import completo: se cuenta en
+      `ImportResult.Errors` con el número de fila, se sigue con las demás
+- [ ] `POST /api/import/csv?vaultId={id}&format={lastpass|bitwarden|1password}` (multipart
+      file upload), `[Authorize]`
+
+### Increment 3 — Backend: export
+- [ ] `CsvExportService`: entradas propias (vaults donde el usuario tiene acceso), descifra
+      y vuelca a CSV vía `CsvHelper`
+- [ ] `GET /api/export/csv?vaultId={id}` devuelve el archivo (`Content-Disposition:
+      attachment`) — contraseñas en claro en el archivo, advertencia va en la UI, no en la API
+
+### Increment 4 — UI
+- [ ] `ImportExportClient` + sección en `/vaults/{id}` (o página propia `/import-export`):
+      input de archivo + selector de formato, preview de `ImportResult` tras subir
+      (importadas/saltadas/errores por fila); botón "Export" con `confirm()` de aviso
+      ("el archivo tendrá las contraseñas en texto plano") antes de disparar la descarga
+
+### Increment 5 — Tests
+- [ ] Tests de `CsvImportService` (los 3 formatos, fila con columnas faltantes, fila vacía,
+      autorización de escritura al vault) + `CsvExportService` (roundtrip descifrado) +
+      controllers (upload/download)
 - [ ] PR a `main`
 
 ## 🟣 Sprint 18 — 2FA (TOTP) · `feature/2fa`
@@ -509,6 +544,330 @@
 - [ ] Detectar inactividad (timers + eventos), auto-logout + redirect a login
 - [ ] Timeout configurable (constante o setting de usuario)
 - [ ] PR a `main`
+
+## 🟣 Sprint 20 — Refactor de frontend: cerrar la identidad "Workshop" · `feature/frontend`
+> Al cierre de todos los sprints funcionales (post Sprint 19), no antes — evita rehacer UI
+> a mitad de camino. **No arranca de cero:** el Sprint 5 ya definió una identidad propia
+> (`docs/UI.md`, concepto "Workshop" — acento ámbar/cobre, sin gradientes/glass, mono para
+> secretos, vault card = cajón etiquetado) que es exactamente el punto medio buscado
+> (profesional + distintivo, sin literal wood-grain/pegboard). Este sprint es **cerrar los
+> ítems sin tildar de `UI.md` + auditar el drift** de los 11 sprints de features construidos
+> encima desde entonces (Sprints 6-16), no reinventar paleta ni tono.
+>
+> **Creció sobre la marcha:** los increments 1-5 cerraron la identidad visual; cerrado eso se
+> auditó el cliente entero (Increment 6) y los increments 7-11 son la deuda técnica de frontend
+> que salió de ahí. Sigue todo en `feature/frontend`, un solo PR al final.
+
+### Increment 1 — Auditoría (sin código)
+- [x] Pasada página por página (Home, Login/Register, Vaults, VaultDetail —entries/notes/
+      tags/history/attachments—, Health, Trash) contra el checklist de `docs/UI.md`: ¿usa
+      los tokens (`--surface`/`--accent`/`--radius`/`--font-mono`) o se filtró un default de
+      Bootstrap sin pasar por ellos?
+- [x] ~~Confirmado ya: `NavMenu.razor` usa clases `bi-*-nav-menu` que **no existen en ningún
+      CSS del proyecto** (residuo del template default de Blazor WASM, de antes del rename
+      SwimAnalytics→TheShed) — hoy el nav no muestra ningún ícono, no es un tema de
+      "elegir mejor ícono"~~
+- [x] ⚠️ **Corrección: la auditoría se equivocó en dos puntos, ambos por no haber abierto los
+      `.razor.css` scoped.** Solo miró `app.css` y el markup de las páginas.
+      1. Las clases `bi-*-nav-menu` **sí existían**, en `NavMenu.razor.css:24-42`, con los SVG
+         embebidos en `fill='white'`. El nav no mostraba íconos por otra razón: el `.bi` de esas
+         reglas es un `background-image` de 1.25rem, no la fuente Bootstrap Icons — que nunca
+         estuvo instalada (ver Increment 2)
+      2. **Se le pasó el problema visual más grande del proyecto**: `MainLayout.razor.css:12`
+         tenía el degradado violeta del template de Blazor
+         (`linear-gradient(180deg, rgb(5,39,103) 0%, #3a0647 70%)`) en `.sidebar`, más un
+         `.top-row` gris claro `#f7f7f7` y un sidebar de 250px. Apareció recién al mirar la app
+         en el navegador, después de dar los increments por cerrados
+      **Lección para la próxima auditoría de UI: el CSS scoped no es opcional de revisar.** Compila
+      a `.sidebar[b-xxx]`, le gana en especificidad a `app.css`, y por eso todo el shell definido
+      en el Sprint 5 (sidebar sobre `--surface`, top-row con borde `--border`, ancho 15rem) nunca
+      se aplicó — estaba escrito y era invisible. Y auditar leyendo archivos no reemplaza abrir la
+      app: los dos errores se veían a simple vista en pantalla
+- [x] **Auditoría completa — confirmado el mismo patrón en todas las vistas de listado.**
+      Los overrides globales de `app.css` (`--bs-primary`→ámbar, headings uppercase, `.card`
+      recoloreado) sí llegan a todos lados porque son automáticos. Pero el contenido de cada
+      página nunca se conectó con las clases que Sprint 5 diseñó a propósito para él — de ahí
+      la sensación "IA + Bootstrap genérico": la pintura de fondo está, el resto no.
+      - `Vaults.razor` — `list-group-item` en vez de `.vault-card` (`app.css:208-209`, ya
+        definida: hover con borde ámbar + `surface-2`, el efecto "cajón etiquetado"); badges
+        de rol (Owner/Editor/Viewer) en `bg-secondary`/`bg-info`/`bg-light` stock
+      - `VaultDetail.razor` — mismo `list-group-item` para entries, notes **y** members;
+        badges de tags en `bg-secondary` stock; **`.secret` (mono para contraseñas, el otro
+        pilar de identidad de `UI.md`) no se usa en ningún lado del archivo** — la contraseña
+        revelada se muestra en la tipografía normal, no monoespaciada
+      - `Trash.razor` — `list-group-item` + badge de tipo en `bg-secondary` stock
+      - `Health.razor` — `list-group-item`; los badges de fuerza usan `bg-danger`/
+        `bg-warning`/`bg-success` de Bootstrap **sin remapear** (`app.css` solo redefine
+        `--bs-primary` y `--bs-secondary-color`, no `--bs-danger`/`--bs-warning`/
+        `--bs-success`) — el rojo/verde de Bootstrap, no el rust/success que `UI.md` define
+        como identidad (`--danger: #c4503a`, `--success: #6f9e4a`)
+      - `Login.razor`/`Register.razor` — **estas sí están bien conectadas**, usan `.auth-card`
+        correctamente. Sirven de referencia de "cómo se ve cuando el contenido sí usa el
+        sistema", contraste útil para el resto
+- [x] Conclusión: el problema no es visual (elegir mejores colores), es de **integración** —
+      re-conectar clases que ya existen y ya están bien diseñadas. El Increment 5
+      (consistencia) es en la práctica el core de este sprint, no un cleanup menor al final
+- [x] Salida: punch list concreta, no un rediseño — este increment no toca código
+
+### Increment 2 — Nav: íconos reales
+- [x] Reemplazar las clases muertas de `NavMenu.razor` por **Bootstrap Icons** (`bi bi-*`,
+      ya usado/documentado en `UI.md` §6, cero dependencia nueva) — 6 íconos (Home, Vaults,
+      Password health, Trash, Sign out, Sign in), elegidos por afinidad al vocabulario
+      workshop donde el nombre lo permita (ej. `bi-box-seam`/`bi-archive` para Vaults en vez
+      de un genérico "list")
+- [x] Sin ícono custom dibujado a mano para esto: 6 glyphs de nav no justifican mantener un
+      icon font propio; Bootstrap Icons cubre el caso
+- [x] **Corrección al plan:** Bootstrap Icons **no estaba** en el proyecto (`UI.md` §6 lo daba
+      por tildado, pero `wwwroot/lib/` solo tenía el CSS/JS de Bootstrap y `index.html` no lo
+      linkeaba) — por eso el nav no mostraba nada. Se sumó por CDN de jsDelivr, una línea en
+      `index.html`; vendorizarlo queda como opción si el uso offline importa
+
+### Increment 3 — Empty states con voz "workshop"
+- [x] Copy propio (no "No items found") en las listas vacías: Vaults, entradas/notas de un
+      vault recién creado, Trash sin nada borrado, Health sin vaults. `UI.md` ya da el tono
+      de ejemplo ("The shed's empty — hang your first vault.")
+- [x] Sin ilustración custom todavía — texto + el ícono de la sección alcanza; una
+      ilustración dibujada es la primera candidata a cortar si el sprint se alarga
+
+### Increment 4 — Feedback y loading, una vez
+- [x] Definir **un** patrón de alerta de éxito/error (hoy cada página arma su propio
+      `alert alert-danger` suelto) y **un** indicador de carga (spinner Bootstrap ya
+      alcanza) — implementarlo en un lugar y aplicarlo, no un componente nuevo por página
+- [x] Carga: componente `Components/Loading.razor` aplicado en los 8 puntos de espera
+      (vaults, entradas, notas, historial, adjuntos). Feedback: el `alert alert-danger`
+      inline **ya era** el patrón repetido en 5 páginas y quedó themeado solo por el remapeo
+      de tokens — se documentó como decisión en vez de agregar un componente de toast sin
+      consumidor; el éxito usa la misma forma con `alert-success` cuando alguna pantalla
+      lo necesite
+- [x] Cierra los dos ítems de `UI.md` §5 que quedaron sin decidir en Sprint 5
+
+### Increment 5 — Pasada de consistencia
+- [x] Corregir el drift real que haya salido del Increment 1 (colores/radios/espaciados
+      que no pasan por los tokens) — alcance = lo que apareció en la auditoría, no una
+      reescritura general
+- [x] **La causa raíz no eran las páginas, era el tema oscuro de Bootstrap**: pinta sus
+      propias superficies/bordes/semánticos en grises fríos (`#212529`, `#343a40`, `#6c757d`),
+      así que `list-group`, inputs y badges ignoraban la paleta por más que el contenido usara
+      las clases correctas. Se remapearon los `--bs-*` a los tokens en `:root` una sola vez
+      (diff mucho menor que reescribir cada listado en cada razor). Excepción: los `.btn-*`
+      llevan hex literal compilado, así que `outline-secondary/primary/danger` y `warning`
+      (la estrella de favorito) se restatearon a mano
+- [x] `.badge-role` pasó a `.badge-chip` — roles, tags y tipos de la papelera comparten el
+      mismo chip neutro, y `.secret` (mono) se aplicó al campo de contraseña del formulario
+- [x] **Shell: se borraron `MainLayout.razor.css` y `NavMenu.razor.css`** (ver la corrección del
+      Increment 1). Eran la fuente de verdad duplicada que le ganaba a `app.css` por
+      especificidad; el shell quedó consolidado en `app.css` con tokens (sidebar y top-row sobre
+      `--surface`, sticky, nav-links en `--text-muted` con el activo en ámbar). Neto −173/+39
+      líneas. También salió el link "About" a learn.microsoft.com del top-row, reemplazado por el
+      usuario logueado
+- [x] Tipografía: solo si la auditoría encuentra algo roto — el scale de Bootstrap ya
+      está aceptado en `UI.md` ("keep Bootstrap's; only revisit if something looks off").
+      No apareció nada roto, no se tocó
+
+### Increment 6 — Auditoría de frontend (sin código)
+> Cerrada la identidad visual, se auditó `TheShed.Client` entero (21 archivos `.razor`/`.cs`,
+> 1.985 líneas + `wwwroot`) buscando duplicación, código muerto y problemas propios de Blazor.
+> Los increments 7-10 salen de ahí. **Lo que está bien y no se toca:** cero `async void`, cero
+> `.Result`/`.Wait()`, cero `StateHasChanged` manual, servicios tipados por recurso inyectados
+> por DI (ninguna página arma `HttpClient` a mano) y `NotFoundPage` de .NET 10 ya usado.
+- [x] Inventario: **solo 2 componentes propios** (`Loading`, `RedirectToLogin`), todo lo demás
+      son páginas — de ahí que haya 8 `alert alert-danger` y 6 `confirm()` copiados
+- [x] Hallazgo estructural: `VaultDetail.razor` son **986 líneas, el 50% del frontend**
+      (la segunda página más grande tiene 121), con 5 responsabilidades y 4 pares
+      `_busy`/`_error` paralelos
+- [x] Salida: 19 hallazgos priorizados. Ninguno es breaking hacia afuera — no cambian rutas,
+      contratos de API ni DTOs de `Shared`
+
+### Increment 7 — Correcciones visibles
+> Primero lo que el usuario puede ver hoy. Nada toca firmas públicas.
+- [x] Búsqueda de entradas con debounce + cancelación (`VaultDetail.razor:140,734`): hoy
+      dispara **un request por tecla** y sin cancelar, así que una respuesta vieja puede pisar
+      a una nueva y mostrar resultados que no corresponden al input. `CancellationTokenSource`
+      + `Task.Delay(300)`, sin librerías. Ojo: esto sí obliga a implementar `IDisposable` en el
+      componente, que hoy no lo necesita
+- [x] La cancelación se llevó un cambio de firma en `EntryClient.ListAsync` (parámetro
+      `CancellationToken` opcional, default `default`): sin eso el debounce corta la espera pero
+      **no el request ya en vuelo**, que es la mitad de la carrera. Los otros 4 llamadores no
+      se tocaron
+- [x] `_copiedId` no se resetea nunca (`VaultDetail.razor:207,584`): el botón queda en
+      "Copied!" hasta recargar. Y el comentario de la línea 584 dice "never shown on screen"
+      justo de lo que la 207 muestra en pantalla — corregir ambos. Es de los pocos lugares
+      donde `StateHasChanged` está justificado (el cambio ocurre después de un `await`)
+- [x] `ErrorBoundary` en `MainLayout` + try/catch en las 7 operaciones destructivas sin red
+      (`Trash.razor:76,87` · `VaultDetail.razor:557,742,790,882`): hoy un 500 al borrar sube al
+      renderer y el usuario ve la barra amarilla genérica. Es incoherente dentro del mismo
+      archivo — crear y editar **sí** están envueltos. El patrón de alerta ya está decidido en
+      `UI.md` §5: reusar, no diseñar
+- [x] El `ErrorBoundary` lleva `Recover()` en `OnParametersSet`: sin eso, una vez que una
+      página rompe el boundary queda mostrando el error **para siempre**, incluso navegando a
+      otra sección. Se le puso `ErrorContent` propio con el `alert alert-danger` del sistema en
+      vez del default de Blazor (que trae su propio rojo `#b32121` fuera de paleta) — o sea que
+      `.blazor-error-boundary` en `app.css:260-268` **queda definitivamente muerto** y el
+      Increment 8 lo borra en vez de dudar
+- [x] Superficie de error para las acciones de lista: `_error` solo se renderiza dentro del
+      formulario abierto, así que fallar al borrar o marcar favorito no tenía dónde mostrarse.
+      Se sumó **un** `_actionError` a nivel página (favorito, borrar entrada, borrar nota, quitar
+      miembro) en vez de un campo por sección — el componente ya tiene 4 pares busy/error y el
+      Increment 10 los va a migrar a todos. Borrar tag y borrar adjunto usan los suyos, que sí
+      están cerca del botón
+- [x] `@key` en los `@foreach` de entradas, notas y miembros (`:178`, `:362`, `:397`).
+      Importa sobre todo en entradas porque **la lista se reordena** al marcar favorito.
+      Matiz: el markup se deriva del modelo y el estado va en diccionarios por id, así que los
+      **datos que se muestran ya son correctos** — lo que se pierde sin `@key` es la identidad
+      de los nodos DOM (foco, scroll, el `<input type=file>` de adjuntos)
+- [ ] **Falta verificación en navegador** — los 4 arreglos son de comportamiento (timing,
+      reordenamiento, fallos de red) y ninguno se prueba compilando. Ver la nota de límites al
+      pie del sprint
+
+### Increment 8 — Limpieza: borrar, no agregar
+- [x] Podar `wwwroot/lib/bootstrap/` a `bootstrap.min.css`: **el JS de Bootstrap nunca se
+      carga** (`index.html` no lo linkea) y aun así se publican los 12 archivos de `dist/js/`,
+      los `.map`, los RTL y los builds grid/reboot/utilities. Verificado que nada lo necesita:
+      no hay modales/dropdowns/tooltips, el colapso del nav es C# + CSS y "Manage tags" usa
+      `<details>` nativo. **Requiere verificación** antes de borrar: que ningún sprint futuro
+      dependa del JS (los modales serían el candidato)
+- [x] Resultado medido: **8,5 MB → 236 KB, 44 archivos trackeados → 1**. El grueso eran los
+      `.map`, no el CSS. Riesgo asumido: el Sprint 19 (aviso de inactividad) es el candidato
+      más probable a querer un modal; si pasa, se re-agrega solo el bundle JS o se hace con
+      `<dialog>` nativo. Todo esto es un `git checkout` de distancia
+- [x] `.form-floating` (`app.css:309-317`) sin ningún `.razor` que lo use — residuo del
+      template. Y `.blazor-error-boundary` (`:260-268`) solo aplica si existe un
+      `<ErrorBoundary>`: si entra el Increment 7 pasa a estar viva, si no se borra. Decidir,
+      no dejarla en el limbo → **borrada**: el Increment 7 le puso `ErrorContent` propio al
+      boundary, así que el default de Blazor no se renderiza nunca
+- [x] `AuthResult.Response` (`IAuthService.cs:6`) no lo lee nadie — `AuthService:58`
+      deserializa el `AuthResponse` solo para descartarlo. Pasa a `record AuthResult(bool
+      Success, string? Error)`; el estado del usuario ya viene por `AuthenticationStateProvider`,
+      que es la fuente correcta. Único cambio de firma pública del sprint, sin consumidores
+      fuera del proyecto
+- [x] Con `Response` afuera, la deserialización quedó sin motivo y se borró entera: el único
+      chequeo que aportaba era "body no nulo", y quien confirma la sesión de verdad es
+      `RefreshAsync()` contra `/api/auth/me`. Se fue también el `AuthResult.Fail("Unexpected
+      response from the server.")`, que solo podía dispararse con un 2xx de body vacío
+- [x] `wwwroot/icon-192.png` sin referencias (**requiere verificación**: es el tamaño típico
+      de manifest PWA y el proyecto no tiene manifest ni service worker) → borrado; si más
+      adelante se quiere PWA, el icono se regenera
+- [x] Comentario XML mentiroso en `VaultClient.cs:6-7` — afirma que el `HttpClient` lleva el
+      Bearer token, falso desde el Sprint 16 (cookie `HttpOnly`). Un comentario que miente
+      sobre el modelo de auth es peor que ninguno. Más el BOM y el `@layout MainLayout`
+      redundante de `NotFound.razor` (ya es el `DefaultLayout` de `App.razor:4`)
+- [x] **Fuera del plan original:** `type="email"` en los campos de email de `Login.razor:22` y
+      `Register.razor:28`, que eran `type="text"`. Salió de ver el gestor de contraseñas del
+      navegador autocompletando `user2user3` en el login y fallando la validación de
+      `[EmailAddress]`. No elimina el autofill —eso es una credencial guardada en el navegador,
+      no algo que la app controle— pero acota lo que el navegador ofrece y da el teclado
+      correcto en móvil
+
+### Increment 9 — Extracciones (con la duplicación ya medida)
+- [ ] `Components/ErrorAlert.razor` (`Message` + `Class` para las variantes inline) y una
+      extensión `IJSRuntime.ConfirmAsync()` — 14 usos entre las dos. Extensión y no servicio
+      con interfaz: hay una sola implementación posible
+- [ ] `DateTimeExtensions.ToRelativeText()`: `DaysAgoText` está duplicado idéntico en
+      `Trash.razor:57` y `VaultDetail.razor:587`. Si se quiere en `Shared` para que Server
+      también lo use, decidirlo **antes** del Sprint 17
+- [ ] Constantes repartidas: claims `"username"`/`"email"` en 3 archivos, ruta `vaults/{id}`
+      armada a mano en 4 lugares, y el límite de 5 MB en `AttachmentClient.cs:10` (con el
+      comentario que admite que espeja al server) repetido como string de UI en
+      `VaultDetail.razor:652`. El de adjuntos es el de más riesgo: si el server cambia el
+      límite, el cliente miente en dos lugares y nada falla al compilar
+- [ ] **No unificar `Login`/`Register`.** Son ~90% idénticas, pero son dos páginas estables
+      que nadie toca hace 15 sprints y el componente con `RenderFragment` se lee peor que
+      cualquiera de las dos. Extraer solo si aparece una tercera pantalla de auth — el 2FA del
+      Sprint 18 es el candidato natural
+
+### Increment 10 — Partir `VaultDetail`
+> Al final a propósito: los increments 7-9 le sacan ~150 líneas antes de empezar y le dejan
+> las piezas (`ErrorAlert`, `ConfirmAsync`, `ToRelativeText`) que los componentes nuevos van a
+> consumir. **Conflicto de agenda a decidir:** el Sprint 17 (import/export) suma UI a este
+> mismo archivo, así que o se parte antes o se parte a ~1.100 líneas.
+- [ ] Partir por sección y no por tipo de dato — `EntryList`, `NoteList`, `MemberPanel`, cada
+      uno dueño de su propio busy/error. `VaultDetail` queda como cabecera + composición (~80
+      líneas). Refactor interno: no cambia rutas ni API
+- [ ] `OnInitializedAsync` → `OnParametersSetAsync` (`:490`): hoy el cuerpo depende de
+      `[Parameter] Id` y no re-ejecuta si el parámetro cambia sin recarga. **No es alcanzable
+      hoy** (no hay ningún link de un vault a otro), pero el primer breadcrumb o "vaults
+      relacionados" lo activa. Limpiar además el estado por vault (`_revealed`, `_history`,
+      `_attachmentsOpenIds`) al cambiar el id
+- [ ] Oportunistas, si el refactor los toca de paso: `DotNetStreamReference` para la descarga
+      de adjuntos (hoy el `byte[]` va a JS en base64 dentro del JSON del interop, +33% y una
+      copia entera de hasta 5 MB de cada lado) y cachear el `AuthenticationState` en
+      `JwtAuthenticationStateProvider:16-28`, que además traga cualquier `HttpRequestException`
+      como "no autenticado" — un 500 o un corte de red se le muestran al usuario como sesión
+      cerrada
+
+### Increment 11 — Accesibilidad y PR
+- [ ] `aria-label` en el botón de favorito (`VaultDetail.razor:199-201`): su contenido es `★`,
+      así que un lector de pantalla anuncia el carácter. `role="status"` en `Loading.razor`.
+      El resto está bien: `<label for>` correctos en los 4 formularios y los `<span class="bi">`
+      con `aria-hidden="true"`
+- [ ] Verificación e2e en navegador de las páginas tocadas (mismo patrón que sprints
+      anteriores) + PR a `main`
+
+### Increment 12 — Responsive: shell mobile-first
+> Cierra el límite que dejó explícito el Increment 6: "el responsive abajo de 641px no
+> se evaluó — `app.css` ya declara desde el Sprint 5 que el shell es desktop-first".
+> `app.css` forzaba el sidebar siempre abierto con un comentario
+> `ponytail: desktop-first, revisit if mobile matters` — llegó el momento.
+- [x] Sidebar pasa a top bar sticky en mobile (marca + hamburguesa); `.nav-scrollable`
+      se despega del flujo y se muestra como dropdown superpuesto, con `.nav-backdrop`
+      oscureciendo el resto y cerrando el menú al tocar afuera. Desktop (≥641px) sigue
+      igual: columna fija de 15rem, nav siempre abierto
+      → commit `fix: make the app shell mobile-first with an off-canvas nav menu`
+- [x] Verificado en navegador a 390px (login/register, vaults, vault detail con
+      formulario abierto y con un entry creado) y sin regresión a 1536px (desktop)
+- [ ] **Encontrado al verificar, queda para el Increment 13:** la fila de un entry
+      (★ Reveal/Copy/History/Files/Edit/Delete) se desborda del card en mobile — el
+      `btn-group` no wrappea ni scrollea, se corta contra el borde
+
+### Increment 13 — Identidad tipográfica
+> Pedido del usuario a mitad del Increment 12: la paleta/tokens Workshop ya estaban
+> cerrados desde el Increment 5, pero body/headings seguían en
+> `'Helvetica Neue', Helvetica, Arial, sans-serif` — la pila más genérica posible, sin
+> relación con la identidad "Workshop". Vía Bunny Fonts (mismo mecanismo de CDN que
+> Bootstrap Icons desde el Increment 2; a diferencia de Google Fonts directo, no deja
+> cookies ni manda el IP del visitante a Google — más apropiado para un gestor de
+> contraseñas).
+- [x] `--font-display` (Big Shoulders Display, condensada industrial) aplicada a
+      `h1`/`h2`/`.navbar-brand` — refuerza el look "stamped label" que ya tenían por el
+      `uppercase`/`letter-spacing` del Increment 5. `--font-sans` (Inter) para el resto
+      del body. `--font-mono` (secretos) sin cambios
+      → commit `feat: give headings an industrial condensed identity (Big Shoulders Display + Inter)`
+- [x] Verificado en navegador (login/register): la mayúscula "stamped" pasó de
+      Helvetica genérica a algo con carácter real
+
+### Increment 14 — Responsive: VaultDetail y pasada de Health/Trash
+> El shell (Increment 12) quedó sólido, pero `VaultDetail.razor` repite el patrón
+> `d-flex justify-content-between` sin wrap en varias filas — solo se confirmó roto
+> una (fila de entry) mirando el navegador a 390px. Se divide en un commit chico por
+> sección en vez de uno solo grande, para poder revisar/mergear cada uno por separado.
+- [ ] Fila de entry: el `btn-group` de acciones (★ Reveal Copy History Files Edit
+      Delete) se corta contra el borde del card en mobile — **confirmado** con
+      screenshot a 390px. Wrap o scroll horizontal contenido, sin recortar
+- [ ] Panel de Members: fila de member (nombre/email + select de rol + Remove) y fila
+      de "agregar member" (email + select + Add) — mismo patrón `d-flex` sin wrap.
+      **Sin confirmar overflow real todavía** (el input de email se achica solo en la
+      captura que se vio, pero queda muy apretado)
+- [ ] Filas de historial de contraseña y de adjuntos (fecha/usuario o nombre de
+      archivo + botones) — mismo patrón, esos paneles no se abrieron en mobile todavía
+- [ ] Barra de filtros (tags + buscador + "Manage tags"): revisar que el buscador de
+      ancho fijo (`14rem`) no rompa el wrap en pantallas angostas con varios tags
+- [ ] Pasada de Health/Trash a 390px — no se miraron todavía, sumar un commit solo si
+      aparece algo roto
+- [ ] Pasada rápida de Vaults/Login/Register a 390px para confirmar que la tipografía
+      nueva (Increment 13) no rompió el wrap en ningún lado (ya son grid de Bootstrap,
+      debería ser gratis)
+
+> **Evitar en todo el sprint:** texturas de madera, pegboard de fondo, nombres "cute" para
+> secciones, ilustraciones custom fuera de empty states — eso es lo que lo hace ver
+> amateur en vez de premium.
+
+> **Límites de la auditoría del Increment 6, explícitos:** se hizo leyendo código, sin
+> herramientas de navegador, así que los hallazgos de rendimiento están razonados y **no
+> medidos**. El contraste (`--text-muted` ≈6.4:1, `.badge-chip` ≈5.9:1) es cálculo de
+> luminancia, no medición. El responsive abajo de 641px no se evaluó — `app.css` ya declara
+> desde el Sprint 5 que el shell es desktop-first. Tampoco se corrió un `publish`, así que el
+> impacto de podar `lib/` está en archivos y no en KB. Dado que la auditoría del Increment 1
+> falló justamente por leer archivos sin abrir la app, este límite pesa.
 
 ---
 

@@ -3,7 +3,6 @@
 @using TheShed.Client.Services
 @using TheShed.Shared.Helpers
 @using TheShed.Shared.Models.DTOs.Health
-@inject HealthClient HealthApi
 
 <PageTitle>Password health — The Shed</PageTitle>
 
@@ -11,45 +10,29 @@
 
 @if (_items is null)
 {
-    <p>Loading…</p>
+    <Loading />
 }
 else if (_items.Count == 0)
 {
-    <p class="text-muted">No entries to check yet.</p>
+    <p class="text-muted"><span class="bi bi-shield-check me-2" aria-hidden="true"></span>Nothing to inspect yet — add an entry first.</p>
 }
 else
 {
-    <div class="list-group">
+    <div class="row-list">
         @foreach (var item in _items)
         {
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
+            <div class="row-item">
+                <div class="d-flex justify-content-between align-items-center">
                     <a href="@($"vaults/{item.VaultId}")">@item.EntryName</a>
-                </div>
-                <div>
-                    <span class="badge @StrengthBadgeClass(item.Strength) me-2">@item.Strength</span>
-                    @if (item.IsReused)
-                    {
-                        <span class="badge bg-warning text-dark">Reused</span>
-                    }
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="chip @StrengthChipClass(item.Strength)">@item.Strength</span>
+                        @if (item.IsReused)
+                        {
+                            <span class="chip reused">Reused</span>
+                        }
+                    </div>
                 </div>
             </div>
         }
     </div>
-}
-
-@code {
-    private IReadOnlyList<PasswordHealthItem>? _items;
-
-    protected override async Task OnInitializedAsync()
-    {
-        _items = await HealthApi.GetPasswordReportAsync();
-    }
-
-    private static string StrengthBadgeClass(PasswordStrength strength) => strength switch
-    {
-        PasswordStrength.Weak => "bg-danger",
-        PasswordStrength.Medium => "bg-warning text-dark",
-        _ => "bg-success"
-    };
 }

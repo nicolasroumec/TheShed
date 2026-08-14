@@ -1,0 +1,54 @@
+@using TheShed.Shared.Models.Enums
+
+<h2 class="mt-5 mb-3 h4">Members</h2>
+<p class="text-muted small">Share this vault with other users. Viewers can read entries; editors can also add and edit them.</p>
+
+@if (_members is { Count: > 0 })
+{
+    <div class="row-list mb-3">
+        @foreach (var member in _members)
+        {
+            <div class="row-item" @key="member.UserId">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="fw-bold">@member.Username</div>
+                        <small class="text-muted">@member.Email</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <select class="form-select form-select-sm" style="width: 8rem"
+                                value="@member.Role"
+                                @onchange="e => ChangeRoleAsync(member, e)">
+                            <option value="@VaultRole.Viewer">Viewer</option>
+                            <option value="@VaultRole.Editor">Editor</option>
+                        </select>
+                        <button type="button" class="icon-btn danger" title="Remove" aria-label="Remove member"
+                                @onclick="() => RemoveMemberAsync(member)">
+                            <span class="bi bi-person-dash" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <p class="text-muted">This vault is not shared with anyone yet.</p>
+}
+
+@if (!string.IsNullOrEmpty(_memberError))
+{
+    <div class="alert alert-danger" role="alert">@_memberError</div>
+}
+
+<div class="job-form d-flex align-items-center gap-2 flex-wrap">
+    <input type="email" class="form-control" placeholder="user@example.com" style="max-width: 20rem"
+           @bind="_memberEmail" />
+    <select class="form-select" style="width: 8rem" @bind="_memberRole">
+        <option value="@VaultRole.Viewer">Viewer</option>
+        <option value="@VaultRole.Editor">Editor</option>
+    </select>
+    <button class="btn btn-primary" disabled="@_memberBusy" @onclick="AddMemberAsync">
+        @(_memberBusy ? "Adding…" : "Add")
+    </button>
+</div>

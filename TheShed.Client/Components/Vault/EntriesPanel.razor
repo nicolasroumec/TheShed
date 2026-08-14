@@ -1,0 +1,144 @@
+@if (!string.IsNullOrEmpty(_listError))
+{
+    <div class="alert alert-danger" role="alert">@_listError</div>
+}
+
+@if (_form is not null)
+{
+    <div class="job-form mb-4">
+        <div class="job-form-title">@(_editingId is null ? "New entry" : "Edit entry")</div>
+        <EditForm Model="@_form" OnValidSubmit="SubmitAsync">
+                <DataAnnotationsValidator />
+
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <div class="alert alert-danger" role="alert">@_error</div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label" for="name">Name</label>
+                    <InputText id="name" class="form-control" @bind-Value="_form.Name" />
+                    <ValidationMessage For="@(() => _form.Name)" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="username">Username</label>
+                    <InputText id="username" class="form-control" @bind-Value="_form.Username" autocomplete="off" />
+                    <ValidationMessage For="@(() => _form.Username)" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="password">Password</label>
+                    <div class="input-group">
+                        <InputText id="password" type="@(_showPassword ? "text" : "password")" class="form-control secret" @bind-Value="_form.Password" autocomplete="off" />
+                        <button type="button" class="btn btn-outline-secondary" @onclick="() => _showPassword = !_showPassword">
+                            @(_showPassword ? "Hide" : "Show")
+                        </button>
+                    </div>
+                    <ValidationMessage For="@(() => _form.Password)" />
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="GeneratePassword">Generate</button>
+                        <label class="form-label mb-0 small">Length</label>
+                        <input type="number" min="4" max="128" class="form-control form-control-sm" style="width: 5rem"
+                               @bind="_genLength" />
+                        <div class="form-check mb-0">
+                            <input id="gen-symbols" type="checkbox" class="form-check-input" @bind="_genSymbols" />
+                            <label class="form-check-label small" for="gen-symbols">Symbols</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="url">URL (optional)</label>
+                    <InputText id="url" class="form-control" @bind-Value="_form.Url" />
+                    <ValidationMessage For="@(() => _form.Url)" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="notes">Notes (optional)</label>
+                    <InputTextArea id="notes" class="form-control" @bind-Value="_form.Notes" />
+                </div>
+                <div class="form-check mb-3">
+                    <InputCheckbox id="favorite" class="form-check-input" @bind-Value="_form.IsFavorite" />
+                    <label class="form-check-label" for="favorite">Favorite</label>
+                </div>
+
+                @if (_editingId is not null && _tags.Count > 0)
+                {
+                    <div class="mb-3">
+                        <label class="form-label">Tags</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var tag in _tags)
+                            {
+                                var assigned = _formTagIds.Contains(tag.Id);
+                                <button type="button"
+                                        class="btn btn-sm @(assigned ? "btn-primary" : "btn-outline-secondary")"
+                                        @onclick="() => ToggleEntryTagAsync(tag.Id)">
+                                    @tag.Name
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <button type="submit" class="btn btn-primary" disabled="@_busy">
+                    @(_busy ? "Saving…" : "Save")
+                </button>
+                <button type="button" class="btn btn-link" @onclick="CancelForm">Cancel</button>
+        </EditForm>
+    </div>
+}
+
+<div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+    <span class="text-muted small">Filter:</span>
+    <button type="button" class="filter-tab @(_activeTagId is null ? "active" : "")"
+            @onclick="() => FilterByTagAsync(null)">All</button>
+    @foreach (var tag in _tags)
+    {
+        <button type="button" class="filter-tab @(_activeTagId == tag.Id ? "active" : "")"
+                @onclick="() => FilterByTagAsync(tag.Id)">@tag.Name</button>
+    }
+    <input class="form-control form-control-sm" style="max-width: 14rem" placeholder="Search entries…"
+           value="@_search" @oninput="SearchInputAsync" />
+
+    <details class="ms-auto">
+        <summary class="small text-muted" style="cursor: pointer">Manage tags</summary>
+        <div class="mt-2">
+            @if (!string.IsNullOrEmpty(_tagError))
+            {
+                <div class="alert alert-danger py-1 px-2 small" role="alert">@_tagError</div>
+            }
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <input class="form-control form-control-sm" style="max-width: 14rem" placeholder="New tag"
+                       @bind="_newTagName" @bind:event="oninput" @onkeydown="TagInputKeyDown" />
+                <button class="btn btn-sm btn-primary" @onclick="CreateTagAsync"
+                        disabled="@string.IsNullOrWhiteSpace(_newTagName)">Add</button>
+            </div>
+            @foreach (var tag in _tags)
+            {
+                <div class="d-flex justify-content-between align-items-center small py-1">
+                    <span>@tag.Name</span>
+                    <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => DeleteTagAsync(tag)">Remove</button>
+                </div>
+            }
+        </div>
+    </details>
+</div>
+
+@if (_entries is null)
+{
+    <Loading Text="Loading entries…" />
+}
+else if (_entries.Count == 0)
+{
+    <p class="text-muted">@(_activeTagId is null && string.IsNullOrWhiteSpace(_search) ? "This drawer's empty — add your first entry." : "Nothing on this shelf matches the filter.")</p>
+}
+else
+{
+    <div class="row-list">
+        @foreach (var entry in _entries)
+        {
+            @* Favorites reorder this list, so the rows need a stable identity. *@
+            <EntryRow @key="entry.Id" Entry="entry" CanWrite="CanWrite"
+                      OnFavoriteToggled="ToggleFavoriteAsync"
+                      OnDeleteRequested="DeleteAsync"
+                      OnEditRequested="StartEditAsync" />
+        }
+    </div>
+}

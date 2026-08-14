@@ -25,7 +25,7 @@
 
         <div class="mb-3">
             <label class="form-label" for="email">Email</label>
-            <InputText id="email" class="form-control" @bind-Value="_model.Email" autocomplete="email" />
+            <InputText id="email" type="email" class="form-control" @bind-Value="_model.Email" autocomplete="email" />
             <ValidationMessage For="@(() => _model.Email)" />
         </div>
 

@@ -1,0 +1,52 @@
+@if (IsOpen)
+{
+    <div class="mt-2">
+        @if (_attachments is null)
+        {
+            <Loading Text="Loading files…" Class="small mb-0" />
+        }
+        else
+        {
+            @if (_attachments.Count == 0)
+            {
+                <p class="text-muted small mb-0">No files attached.</p>
+            }
+            else
+            {
+                @foreach (var file in _attachments)
+                {
+                    <div class="d-flex justify-content-between align-items-center small border-top py-1">
+                        <span>@file.FileName <span class="text-muted">(@FileSizeText(file.FileSizeBytes))</span></span>
+                        <div class="d-flex align-items-center gap-1">
+                            <button type="button" class="icon-btn" title="Download" aria-label="Download file"
+                                    @onclick="() => DownloadAttachmentAsync(file)">
+                                <span class="bi bi-download" aria-hidden="true"></span>
+                            </button>
+                            @if (CanWrite)
+                            {
+                                <button type="button" class="icon-btn danger" title="Delete" aria-label="Delete file"
+                                        @onclick="() => DeleteAttachmentAsync(file.Id)">
+                                    <span class="bi bi-trash" aria-hidden="true"></span>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+            @if (CanWrite)
+            {
+                <div class="mt-2">
+                    <InputFile OnChange="UploadAttachmentAsync" />
+                    @if (_busy)
+                    {
+                        <span class="text-muted small ms-2">Uploading…</span>
+                    }
+                </div>
+            }
+            @if (_error is not null)
+            {
+                <div class="alert alert-danger small mb-0 mt-2 px-2 py-1" role="alert">@_error</div>
+            }
+        }
+    </div>
+}

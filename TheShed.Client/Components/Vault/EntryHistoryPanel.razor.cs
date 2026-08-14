@@ -1,0 +1,49 @@
+using Microsoft.AspNetCore.Components;
+using TheShed.Client.Services;
+using TheShed.Shared.Models.DTOs.Entries;
+
+namespace TheShed.Client.Components.Vault;
+
+public partial class EntryHistoryPanel
+{
+    [Parameter, EditorRequired] public int EntryId { get; set; }
+    [Parameter] public DateTime PasswordChangedAt { get; set; }
+    [Parameter] public bool IsOpen { get; set; }
+
+    [Inject] private EntryClient EntryApi { get; set; } = default!;
+
+    private IReadOnlyList<EntryHistoryItem>? _history;
+    private readonly Dictionary<int, string> _revealedHistory = new(); // historyId -> decrypted old password
+    private DateTime? _lastPasswordChangedAt;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // The password may have changed under us (an edit in the parent's form). A stale
+        // history cache would otherwise keep showing pre-edit entries as "current".
+        if (_lastPasswordChangedAt is not null && _lastPasswordChangedAt != PasswordChangedAt)
+        {
+            _history = null;
+            _revealedHistory.Clear();
+        }
+        _lastPasswordChangedAt = PasswordChangedAt;
+
+        if (IsOpen && _history is null)
+        {
+            _history = await EntryApi.GetHistoryAsync(EntryId);
+        }
+    }
+
+    private async Task ToggleHistoryRevealAsync(int historyId)
+    {
+        if (_revealedHistory.Remove(historyId))
+        {
+            return; // was shown, now hidden
+        }
+
+        var detail = await EntryApi.GetHistoryEntryAsync(EntryId, historyId);
+        if (detail is not null)
+        {
+            _revealedHistory[historyId] = detail.Password;
+        }
+    }
+}

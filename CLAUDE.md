@@ -37,6 +37,8 @@ dotnet ef database update --project TheShed.Server            # apply migrations
 - Language for the **whole project: English** — code, comments (including `<summary>` XML)
   and documentation (`docs/`, `CLAUDE.md`)
 - All entities inherit `AuditableEntity` (soft delete + timestamps)
+- Every `.razor` file **must** use code-behind: markup in `Foo.razor`, logic in `Foo.razor.cs`
+  (partial class). Inline `@code { }` blocks are not allowed.
 
 ## Security — critical rules
 - Master password hash: **Argon2** (never bcrypt, never MD5/SHA)
