@@ -2,4 +2,5 @@
   <Project Path="TheShed.Client/TheShed.Client.csproj" />
   <Project Path="TheShed.Server/TheShed.Server.csproj" />
   <Project Path="TheShed.Shared/TheShed.Shared.csproj" />
+  <Project Path="TheShed.Tests/TheShed.Tests.csproj" />
 </Solution>
