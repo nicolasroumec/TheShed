@@ -10,7 +10,9 @@ namespace TheShed.Shared.Models.DTOs.Auth
         [Required, EmailAddress]
         public string Email { get; set; } = string.Empty;
 
-        [Required, MinLength(8)]
+        // Argon2 cost grows with the input, so an unbounded password is a cheap way to burn
+        // server CPU. 128 chars is far above any real master password.
+        [Required, MinLength(8), MaxLength(128)]
         public string Password { get; set; } = string.Empty;
     }
 }

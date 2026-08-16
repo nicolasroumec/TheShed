@@ -1,5 +1,7 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TheShed.Server.Data;
@@ -51,6 +53,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// Security — rate limiting on the auth endpoints. Argon2 is deliberately expensive, so an
+// unthrottled login is both a brute-force surface against the master password and a way to
+// burn server CPU. Applied via [EnableRateLimiting] on AuthController.
+var authPermitLimit = builder.Configuration.GetValue("RateLimiting:AuthPermitLimit", 10);
+var authWindowMinutes = builder.Configuration.GetValue("RateLimiting:AuthWindowMinutes", 5);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // ponytail: partitioned by IP only. Model binding runs after this middleware, so the email
+    // is not available here — brute force spread across many IPs still gets through. Per-email
+    // throttling needs a counter inside AuthService; add it if IP limiting proves insufficient.
+    // Behind a reverse proxy this needs UseForwardedHeaders to see the real client IP.
+    options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authPermitLimit,
+                Window = TimeSpan.FromMinutes(authWindowMinutes)
+            }));
+});
+
 // Servicios de aplicación — autenticación (Scoped: depende de TheShedContext)
 builder.Services.AddScoped<IAuthService, AuthService>();
 
@@ -96,6 +120,9 @@ app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+// After UseRouting: endpoint-specific policies need the endpoint already resolved.
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

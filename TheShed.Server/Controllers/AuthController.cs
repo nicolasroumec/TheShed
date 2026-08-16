@@ -2,6 +2,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using TheShed.Server.Security;
 using TheShed.Server.Services;
 using TheShed.Shared.Models.DTOs.Auth;
 
@@ -15,6 +17,7 @@ namespace TheShed.Server.Controllers
 
         public AuthController(IAuthService auth) => _auth = auth;
 
+        [EnableRateLimiting(RateLimitPolicies.Auth)]
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterRequest request, CancellationToken ct)
         {
@@ -27,6 +30,7 @@ namespace TheShed.Server.Controllers
             return CreatedAtAction(nameof(Register), result.Response);
         }
 
+        [EnableRateLimiting(RateLimitPolicies.Auth)]
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginRequest request, CancellationToken ct)
         {
