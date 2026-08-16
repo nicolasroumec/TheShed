@@ -1,0 +1,12 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- The git tag is the version: v0.1.0 builds as 0.1.0, later commits as 0.1.1-alpha.0.N -->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" Version="7.0.0" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>
