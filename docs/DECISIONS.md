@@ -113,3 +113,28 @@ modelo real de Bitwarden/1Password, no un descuido de este proyecto.
 **Alcance:** no es una tarea suelta, son 4 sprints — ver `SPRINTS.md` 25-28 (derivación
 de clave + keypair por usuario, vault key por vault, compartir vía key-wrapping
 asimétrico, migración de datos existentes).
+
+## D8 — CSP estricto por encima del fingerprinting de assets WASM
+**Decisión:** el `Content-Security-Policy` mantiene `script-src 'self' 'wasm-unsafe-eval'` sin
+`'unsafe-inline'`, y para que eso sea posible se apaga el fingerprinting de assets WASM
+(`<WasmFingerprintAssets>false</WasmFingerprintAssets>` en `TheShed.Client.csproj`).
+**Contexto:** con fingerprinting activo, Blazor resuelve `_framework/dotnet.js` al nombre real
+(hasheado) a través de un `<script type="importmap">` **inline**. Un `script-src` sin
+`'unsafe-inline'` bloquea ese importmap, la traducción nunca ocurre, Blazor pide el nombre literal
+y recibe un 404: la app queda colgada en "Loading". No es un caso de borde — es el
+`script-src` que la propia documentación de Microsoft recomienda para Blazor WebAssembly.
+**Alternativas descartadas:**
+- `'unsafe-inline'` en `script-src` — anula justamente la protección por la que existe el header, y
+  en un gestor de contraseñas XSS es la amenaza principal del cliente (el mismo motivo de D6).
+- Hash SRI o nonce sobre el importmap (lo que Microsoft recomienda) — ambos asumen un componente
+  `ImportMap` de Razor donde inyectar el atributo. Acá el importmap lo genera el pipeline de static
+  assets al servir un `index.html` estático: no hay punto de inyección sin escribir código que
+  intercepte y reescriba la respuesta.
+**Costo aceptado:** se pierde el cache-busting por nombre de archivo al deployar. `blazor.boot.json`
+sigue llevando hashes de contenido, así que el runtime revalida igual; el riesgo práctico es un
+navegador sirviendo un asset viejo de caché tras un deploy.
+**Camino de vuelta (marcado con `ponytail:` en el csproj):** calcular el SHA-256 del importmap
+renderizado por respuesta y sumarlo a `script-src` como hash SRI. Vale la pena recién si el
+fingerprinting llega a importar.
+**Limitación conocida:** `style-src` conserva `'unsafe-inline'` — 8 componentes usan atributos
+`style=""`. Es una superficie mucho menor que la de scripts; sacarlo es moverlos a clases.

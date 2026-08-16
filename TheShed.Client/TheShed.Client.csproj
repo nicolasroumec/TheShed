@@ -5,6 +5,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <!-- Fingerprinted assets are resolved through an inline <script type="importmap">, which the
+         Content-Security-Policy blocks unless script-src allows inline scripts. Turning
+         fingerprinting off keeps the strict script-src the CSP is there for.
+         ponytail: the cost is filename-based cache busting on deploy (blazor.boot.json still
+         carries content hashes, so the runtime revalidates). To get it back, compute the SHA-256
+         of the rendered import map per response and add it to script-src as an SRI hash. -->
+    <WasmFingerprintAssets>false</WasmFingerprintAssets>
   </PropertyGroup>
 
   <ItemGroup>

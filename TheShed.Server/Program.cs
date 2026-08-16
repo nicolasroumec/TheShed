@@ -115,6 +115,39 @@ if (app.Environment.IsDevelopment())
     app.UseWebAssemblyDebugging();
 }
 
+// Security — HSTS is production-only: in development it would pin localhost to https in the
+// browser's preload cache and outlive the debugging session.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+// Security — response headers. Early in the pipeline so static files carry them too.
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY"; // frame-ancestors below covers this too, for older browsers
+    headers["Referrer-Policy"] = "no-referrer";
+    // 'wasm-unsafe-eval' is what the Blazor WebAssembly runtime needs to compile its modules;
+    // script-src stays free of 'unsafe-inline'/'unsafe-eval', which is the part that stops XSS.
+    // The CDN entries are Bootstrap Icons (jsdelivr) and the Bunny Fonts stylesheet + font files.
+    // ponytail: style-src still needs 'unsafe-inline' because 8 components use style="" attributes;
+    // move those to classes to drop it.
+    headers["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "base-uri 'self'; " +
+        "object-src 'none'; " +
+        "frame-ancestors 'none'; " +
+        "form-action 'self'; " +
+        "img-src 'self' data:; " +
+        "script-src 'self' 'wasm-unsafe-eval'; " +
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.bunny.net; " +
+        "font-src 'self' https://cdn.jsdelivr.net https://fonts.bunny.net; " +
+        "connect-src 'self'";
+    await next();
+});
+
 app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();

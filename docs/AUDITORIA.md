@@ -84,6 +84,15 @@ tienen Bitwarden/1Password. Feature planeada, no implementada — ver también s
 credential-stuffing contra `/api/auth/login` a la velocidad que permita la red. Argon2 en el hash mitiga
 el costo de crackear un hash robado, pero no protege el endpoint de login en sí mismo.
 
+**✅ Resuelto (2026-08-16, Sprint 21).** `AddRateLimiter` en `Program.cs` con una policy de ventana fija
+particionada por IP (10 intentos / 5 min, configurable vía `RateLimiting:AuthPermitLimit` y
+`AuthWindowMinutes`), aplicada con `[EnableRateLimiting]` sobre `Register` y `Login`. Verificado contra
+el servidor corriendo: intentos 1-10 → 401, del 11 en adelante → 429.
+**Limitación conocida:** particiona solo por IP, no por email. El middleware de rate limiting corre antes
+del model binding, así que el email todavía no está parseado en ese punto; fuerza bruta distribuida entre
+muchas IPs sigue pasando. Hacerlo requiere un contador dentro de `AuthService` — marcado con `ponytail:`
+en `Program.cs`. Detrás de un reverse proxy hace falta `UseForwardedHeaders` para ver la IP real.
+
 ### A4 — Sin protección CSRF explícita pese a sesión por cookie
 **Ubicación:** `TheShed.Server/Controllers/AuthController.cs:65-75` (`SetAuthCookie`,
 `SameSite = SameSiteMode.Lax`), sin `[ValidateAntiForgeryToken]` ni middleware antiforgery en
@@ -93,6 +102,13 @@ el costo de crackear un hash robado, pero no protege el endpoint de login en sí
 defensa. No hay un token antiforgery de doble verificación como capa adicional, que es la práctica
 recomendada cuando la autenticación vive en una cookie. Riesgo real hoy: bajo-medio (mitigado por Lax),
 pero es una dependencia frágil de un solo mecanismo del navegador.
+
+**🔵 Abierto — pospuesto deliberadamente (2026-08-16, Sprint 21).** Se evaluó junto con A3/M5 y se dejó
+afuera por tamaño, no por olvido: el plan lo trataba como un ítem del mismo peso que los otros dos y no
+lo es. Con un cliente WASM puro y auth por cookie, `AddAntiforgery()` no alcanza — hace falta un endpoint
+que emita el token, que el cliente lo lea y lo reenvíe como header en cada mutación (patrón double-submit
+completo). Sigue siendo defensa en profundidad: `SameSite=Lax` (D6) es la primera línea y ya está puesta.
+Va en su propio PR.
 
 ## Hallazgos medios 🟡
 
@@ -135,6 +151,16 @@ No es grave por sí solo (la app hoy no maneja contenido de terceros ni iframes)
 maneja secretos de alto valor, headers de defensa en profundidad (CSP en particular, para mitigar el
 impacto de un XSS futuro) son una práctica estándar ausente.
 
+**✅ Resuelto (2026-08-16, Sprint 22).** `UseHsts()` (solo fuera de Development) más un middleware con
+`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` y un CSP
+completo. `script-src` quedó estricto (`'self' 'wasm-unsafe-eval'`, sin `unsafe-inline`/`unsafe-eval`),
+que es la parte que realmente frena XSS. Verificado en navegador: la app arranca, fuentes e íconos de CDN
+cargan, el login hace su POST y no hay violaciones en consola.
+**Costo colateral:** el CSP estricto obligó a apagar el fingerprinting de assets WASM — ver **D8** en
+`DECISIONS.md`.
+**Limitación conocida:** `style-src` mantiene `'unsafe-inline'` porque 8 componentes usan atributos
+`style=""`. Marcado con `ponytail:` en `Program.cs`; sacarlo es mover esos estilos a clases.
+
 ## Hallazgos bajos / mejoras menores 🟢
 
 ### B1 — Filtrado de existencia de email en registro
@@ -154,6 +180,11 @@ No hay tope de longitud en la contraseña maestra antes de pasar a Argon2. Riesg
 vulnerable a DoS por string largo en la práctica típica de este volumen), pero es una validación de
 entrada ausente en un límite de confianza.
 
+**✅ Resuelto (2026-08-16, Sprint 21).** `[MaxLength(128)]` en `RegisterRequest.Password` **y también en
+`LoginRequest.Password`**, que el hallazgo no mencionaba: login alimenta el mismo Argon2 y es el endpoint
+que un anónimo puede golpear libremente, así que arreglarlo solo en registro dejaba la mitad abierta.
+Cubierto por `TheShed.Tests/Security/AuthRequestValidationTests.cs`.
+
 ## Features faltantes
 
 | Feature | Estado | Prioridad sugerida |
@@ -164,7 +195,7 @@ entrada ausente en un límite de confianza.
 | Detección de contraseñas débiles guardadas | Completo | — |
 | Auto-bloqueo por inactividad | Ausente (ver A2) | Alta |
 | Reautenticación para acciones sensibles | Ausente (ver A1) | Alta |
-| Rate limiting / bloqueo progresivo en login | Ausente (ver A3) | Alta |
+| Rate limiting / bloqueo progresivo en login | Completo — por IP, no por email (ver A3) | — |
 | 2FA/MFA para desbloquear la app | Ausente — campos `TwoFactorEnabled`/`TwoFactorSecret` existen en `User` (`TheShed.Shared/Models/Entities/User.cs:13-14`) pero sin ninguna lógica que los use | Alta |
 | TOTP integrado (generador/lector para las cuentas guardadas) | Ausente | Media |
 | Alertas de brechas (Have I Been Pwned, k-anonimato) | Ausente | Media |
@@ -240,10 +271,10 @@ entrada ausente en un límite de confianza.
 1. Decidir explícitamente si The Shed apunta a ser zero-knowledge (mover cifrado al cliente) o si el
    modelo "self-hosted, confío en mi servidor" (oportunidad #1) es la propuesta real — y documentarlo
    como decisión de arquitectura, no dejarlo implícito (C1).
-2. Rate limiting en `/api/auth/login` y `/api/auth/register` (A3) — es la pieza más barata de las de
-   severidad alta y cierra una superficie de ataque real hoy mismo.
+2. ~~Rate limiting en `/api/auth/login` y `/api/auth/register` (A3)~~ — ✅ hecho (2026-08-16, Sprint 21).
 3. Auto-bloqueo por inactividad + reautenticación para revelar/exportar contraseñas (A1, A2) — ya
    planeado en `docs/PRODUCT.md`, falta implementar.
-4. Evaluar antiforgery token como capa adicional a `SameSite=Lax` (A4).
+4. Evaluar antiforgery token como capa adicional a `SameSite=Lax` (A4) — evaluado, pospuesto por tamaño
+   (ver la nota en A4); es el candidato natural al próximo PR de hardening.
 5. Resolver el problema de adjuntos huérfanos en purga (M2) antes de que `Attachments/` crezca sin límite.
-6. Sumar `Content-Security-Policy` y `UseHsts()` (M5) — bajo costo, buena defensa en profundidad.
+6. ~~Sumar `Content-Security-Policy` y `UseHsts()` (M5)~~ — ✅ hecho (2026-08-16, Sprint 22), ver D8.
