@@ -474,7 +474,7 @@
 - [x] Sumar entrada **D6** en `DECISIONS.md` (cookie httpOnly, SameSite=Lax, motivo)
       siguiendo el patrón de D1-D5
 - [x] Verificación e2e en navegador (ver abajo)
-- [ ] PR a `main`
+- [x] PR a `main` (#16)
 
 ### Verificación
 - `dotnet build` (solución completa) + `dotnet test` — suite completa en verde.
@@ -852,49 +852,59 @@
       correcto en móvil
 
 ### Increment 9 — Extracciones (con la duplicación ya medida)
-- [ ] `Components/ErrorAlert.razor` (`Message` + `Class` para las variantes inline) y una
-      extensión `IJSRuntime.ConfirmAsync()` — 14 usos entre las dos. Extensión y no servicio
-      con interfaz: hay una sola implementación posible
-- [ ] `DateTimeExtensions.ToRelativeText()`: `DaysAgoText` está duplicado idéntico en
-      `Trash.razor:57` y `VaultDetail.razor:587`. Si se quiere en `Shared` para que Server
-      también lo use, decidirlo **antes** del Sprint 17
-- [ ] Constantes repartidas: claims `"username"`/`"email"` en 3 archivos, ruta `vaults/{id}`
-      armada a mano en 4 lugares, y el límite de 5 MB en `AttachmentClient.cs:10` (con el
-      comentario que admite que espeja al server) repetido como string de UI en
-      `VaultDetail.razor:652`. El de adjuntos es el de más riesgo: si el server cambia el
-      límite, el cliente miente en dos lugares y nada falla al compilar
-- [ ] **No unificar `Login`/`Register`.** Son ~90% idénticas, pero son dos páginas estables
-      que nadie toca hace 15 sprints y el componente con `RenderFragment` se lee peor que
-      cualquiera de las dos. Extraer solo si aparece una tercera pantalla de auth — el 2FA del
-      Sprint 18 es el candidato natural
+- [x] **El `confirm()` se resolvió distinto a lo planeado:** en vez de la extensión
+      `IJSRuntime.ConfirmAsync()`, salió `IModalService`/`ModalService` + `ModalHost`
+      (`Components/ModalHost.razor`) — un modal propio en vez del diálogo nativo del navegador
+      → commits `feat: add ModalService/ModalHost...` y `refactor: convert remaining
+      window.confirm call-sites to ModalService`
+- [ ] `Components/ErrorAlert.razor` (`Message` + `Class` para las variantes inline) —
+      **sigue pendiente**, el archivo no existe
+- [ ] `DateTimeExtensions.ToRelativeText()` — **sigue pendiente**: `DaysAgoText` continúa
+      duplicado idéntico, ahora en `EntryRow.razor.cs` y `Trash.razor.cs` (se mudó con el split
+      del Increment 10, no se unificó). Si se quiere en `Shared` para que Server también lo use,
+      decidirlo **antes** del Sprint 17
+- [ ] Constantes repartidas — **sigue pendiente**, aunque el split bajó los números: claims
+      `"username"`/`"email"` quedaron en 2 archivos (`JwtAuthenticationStateProvider.cs:44-45`,
+      `Home.razor:8`) y la ruta `vaults/{id}` en 2 (`Vaults.razor:55`, `Health.razor:26`). El
+      límite de 5 MB sigue igual de duplicado y es el de más riesgo: `AttachmentClient.cs:10`
+      (const, con el comentario que admite que espeja al server) y el string de UI en
+      `EntryAttachmentsPanel.razor.cs:44`. Si el server cambia el límite, el cliente miente en
+      dos lugares y nada falla al compilar
+- [x] **No unificar `Login`/`Register`** — decisión sostenida: siguen siendo dos páginas
+      separadas. Son ~90% idénticas, pero son estables y el componente con `RenderFragment` se
+      lee peor que cualquiera de las dos. Extraer solo si aparece una tercera pantalla de auth —
+      el 2FA del Sprint 18 es el candidato natural
 
 ### Increment 10 — Partir `VaultDetail`
 > Al final a propósito: los increments 7-9 le sacan ~150 líneas antes de empezar y le dejan
 > las piezas (`ErrorAlert`, `ConfirmAsync`, `ToRelativeText`) que los componentes nuevos van a
 > consumir. **Conflicto de agenda a decidir:** el Sprint 17 (import/export) suma UI a este
 > mismo archivo, así que o se parte antes o se parte a ~1.100 líneas.
-- [ ] Partir por sección y no por tipo de dato — `EntryList`, `NoteList`, `MemberPanel`, cada
-      uno dueño de su propio busy/error. `VaultDetail` queda como cabecera + composición (~80
-      líneas). Refactor interno: no cambia rutas ni API
-- [ ] `OnInitializedAsync` → `OnParametersSetAsync` (`:490`): hoy el cuerpo depende de
-      `[Parameter] Id` y no re-ejecuta si el parámetro cambia sin recarga. **No es alcanzable
-      hoy** (no hay ningún link de un vault a otro), pero el primer breadcrumb o "vaults
-      relacionados" lo activa. Limpiar además el estado por vault (`_revealed`, `_history`,
-      `_attachmentsOpenIds`) al cambiar el id
-- [ ] Oportunistas, si el refactor los toca de paso: `DotNetStreamReference` para la descarga
-      de adjuntos (hoy el `byte[]` va a JS en base64 dentro del JSON del interop, +33% y una
-      copia entera de hasta 5 MB de cada lado) y cachear el `AuthenticationState` en
-      `JwtAuthenticationStateProvider:16-28`, que además traga cualquier `HttpRequestException`
-      como "no autenticado" — un 500 o un corte de red se le muestran al usuario como sesión
-      cerrada
+- [x] **Hecho.** Partido por sección: `VaultDetail` quedó en **70 líneas** (40 razor + 30
+      code-behind, era 1077 en un solo archivo) como cabecera + composición. 6 componentes bajo
+      `Components/Vault/`: `EntriesPanel`, `EntryRow`, `EntryHistoryPanel`,
+      `EntryAttachmentsPanel`, `NotesPanel`, `MembersPanel` — uno más que los 5 del plan
+      (`EntryRow` se separó de `EntriesPanel`), cada uno dueño de su busy/error. Sin cambios de
+      ruta ni de API, como estaba previsto. Detalle de los 5 increments (A-E) en `TODO.md`
+- [ ] `OnInitializedAsync` → `OnParametersSetAsync` — **sigue pendiente**: tanto
+      `VaultDetail.razor.cs:18` como `EntriesPanel.razor.cs:41` siguen en `OnInitializedAsync`.
+      **No es alcanzable hoy** (no hay ningún link de un vault a otro), pero el primer breadcrumb
+      o "vaults relacionados" lo activa. Limpiar además el estado por vault al cambiar el id
+- [ ] Oportunistas — **ninguno de los dos entró.** No hay `DotNetStreamReference` en el cliente:
+      la descarga de adjuntos sigue mandando el `byte[]` a JS en base64 dentro del JSON del
+      interop (+33% y una copia entera de hasta 5 MB de cada lado). Y
+      `JwtAuthenticationStateProvider` sigue sin cachear — llama `api/auth/me` en cada
+      `GetAuthenticationStateAsync()` y sigue tragando cualquier `HttpRequestException` como "no
+      autenticado", así que un 500 o un corte de red se le muestran al usuario como sesión cerrada
 
 ### Increment 11 — Accesibilidad y PR
-- [ ] `aria-label` en el botón de favorito (`VaultDetail.razor:199-201`): su contenido es `★`,
-      así que un lector de pantalla anuncia el carácter. `role="status"` en `Loading.razor`.
-      El resto está bien: `<label for>` correctos en los 4 formularios y los `<span class="bi">`
-      con `aria-hidden="true"`
-- [ ] Verificación e2e en navegador de las páginas tocadas (mismo patrón que sprints
-      anteriores) + PR a `main`
+- [x] `aria-label` en el botón de favorito — hecho, y de paso quedó en más lugares de los
+      planeados: `EntryRow.razor:22` (favorito), `:28` (reveal/hide), `:33` (copy), `:37`
+      (menú de acciones), más download/delete de adjuntos, reveal de historial y remove de
+      miembro. Los `<span class="bi">` con `aria-hidden="true"` y los `<label for>` siguen bien
+- [ ] `role="status"` en `Loading.razor` — **sigue pendiente**, el componente no lo tiene
+- [x] PR a `main` (#17). La verificación e2e en navegador se hizo por increment (12 y 13 la
+      documentan explícitamente), no como una pasada final única
 
 ### Increment 12 — Responsive: shell mobile-first
 > Cierra el límite que dejó explícito el Increment 6: "el responsive abajo de 641px no
@@ -908,9 +918,14 @@
       → commit `fix: make the app shell mobile-first with an off-canvas nav menu`
 - [x] Verificado en navegador a 390px (login/register, vaults, vault detail con
       formulario abierto y con un entry creado) y sin regresión a 1536px (desktop)
-- [ ] **Encontrado al verificar, queda para el Increment 13:** la fila de un entry
-      (★ Reveal/Copy/History/Files/Edit/Delete) se desborda del card en mobile — el
-      `btn-group` no wrappea ni scrollea, se corta contra el borde
+- [x] **Encontrado al verificar, resuelto después:** la fila de un entry
+      (★ Reveal/Copy/History/Files/Edit/Delete) se desbordaba del card en mobile — el
+      `btn-group` no wrappeaba ni scrolleaba. Se cerró por dos lados: el `btn-group` se
+      reemplazó por `icon-btn` + un `<details class="overflow-menu">` que mete las acciones
+      raras (history/files/edit/delete) detrás de un menú en vez de estirar la fila, y
+      `components.css:158` stackea la fila entera abajo de 640px
+      → commits `refactor: replace EntryRow's list-group/btn-group with row-item + icon-btn/overflow-menu`
+      y `fix: stack entry/note/trash rows and wrap their action buttons on mobile`
 
 ### Increment 13 — Identidad tipográfica
 > Pedido del usuario a mitad del Increment 12: la paleta/tokens Workshop ya estaban
@@ -933,22 +948,41 @@
 > `d-flex justify-content-between` sin wrap en varias filas — solo se confirmó roto
 > una (fila de entry) mirando el navegador a 390px. Se divide en un commit chico por
 > sección en vez de uno solo grande, para poder revisar/mergear cada uno por separado.
-- [ ] Fila de entry: el `btn-group` de acciones (★ Reveal Copy History Files Edit
-      Delete) se corta contra el borde del card en mobile — **confirmado** con
-      screenshot a 390px. Wrap o scroll horizontal contenido, sin recortar
-- [ ] Panel de Members: fila de member (nombre/email + select de rol + Remove) y fila
-      de "agregar member" (email + select + Add) — mismo patrón `d-flex` sin wrap.
-      **Sin confirmar overflow real todavía** (el input de email se achica solo en la
-      captura que se vio, pero queda muy apretado)
-- [ ] Filas de historial de contraseña y de adjuntos (fecha/usuario o nombre de
-      archivo + botones) — mismo patrón, esos paneles no se abrieron en mobile todavía
-- [ ] Barra de filtros (tags + buscador + "Manage tags"): revisar que el buscador de
-      ancho fijo (`14rem`) no rompa el wrap en pantallas angostas con varios tags
-- [ ] Pasada de Health/Trash a 390px — no se miraron todavía, sumar un commit solo si
-      aparece algo roto
-- [ ] Pasada rápida de Vaults/Login/Register a 390px para confirmar que la tipografía
-      nueva (Increment 13) no rompió el wrap en ningún lado (ya son grid de Bootstrap,
-      debería ser gratis)
+> **Se resolvió estructuralmente, no fila por fila.** El refactor a `row-item`/`icon-btn`/
+> `overflow-menu` más **una** regla en `components.css:158` cubrió casi todo el increment de
+> una: el selector descendiente `.row-item .d-flex.justify-content-between` stackea cualquier
+> fila abajo de 640px, incluidas las anidadas un nivel más adentro. Salió más barato que los
+> "varios commits chicos por sección" que planeaba el increment.
+
+- [x] Fila de entry — resuelta (ver Increment 12): `EntryRow.razor:1` es `.row-item`, sus
+      acciones llevan `flex-wrap`, y las raras se fueron al `overflow-menu`
+- [x] Panel de Members — cubierto: la fila de member es `.row-item` >
+      `d-flex justify-content-between` (`MembersPanel.razor:11-12`), así que stackea; y la fila
+      de "agregar member" ya lleva `flex-wrap` (`:44`)
+- [x] Filas de historial y de adjuntos — cubiertas por el mismo selector descendiente:
+      `EntryHistoryPanel.razor:16` y `EntryAttachmentsPanel.razor:18` renderizan dentro del
+      `.row-item` de `EntryRow`. Es exactamente el caso que documenta el comentario del CSS
+- [x] Barra de filtros — el contenedor lleva `flex-wrap` (`EntriesPanel.razor:88`) y el buscador
+      es `max-width: 14rem`, no ancho fijo, así que se achica antes de forzar el wrap
+- [ ] Pasada de Health/Trash a 390px — `Health.razor:24` y `Trash.razor:29` **ya usan
+      `.row-item`**, así que estructuralmente están cubiertos por la misma regla, pero no consta
+      que se hayan mirado en el navegador a 390px
+- [ ] Pasada rápida de Vaults/Login/Register a 390px para confirmar que la tipografía nueva
+      (Increment 13) no rompió el wrap — no consta que se haya hecho
+
+> **Checkboxes reconciliados contra `main` el 2026-08-16.** El sprint se mergeó (PR #17) con
+> varios ítems hechos pero sin tildar, y otros resueltos distinto a como los describía el plan.
+> Se verificó cada uno leyendo el repo, no la memoria. **Lo que quedó realmente pendiente**, todo
+> menor y ninguno bloqueante:
+> - `Components/ErrorAlert.razor` y `DateTimeExtensions.ToRelativeText()` — no existen;
+>   `DaysAgoText` sigue duplicado en `EntryRow.razor.cs` y `Trash.razor.cs` (Increment 9)
+> - Las constantes repartidas, sobre todo el límite de 5 MB duplicado entre `AttachmentClient.cs`
+>   y `EntryAttachmentsPanel.razor.cs` (Increment 9)
+> - `OnInitializedAsync` → `OnParametersSetAsync`, y los dos oportunistas
+>   (`DotNetStreamReference` para adjuntos, cachear el `AuthenticationState`) (Increment 10)
+> - `role="status"` en `Loading.razor` (Increment 11)
+> - Las dos pasadas de verificación a 390px de Health/Trash y Vaults/Login/Register — el markup
+>   ya usa `.row-item`, así que estructuralmente están cubiertas, pero nadie las miró (Increment 14)
 
 > **Evitar en todo el sprint:** texturas de madera, pegboard de fondo, nombres "cute" para
 > secciones, ilustraciones custom fuera de empty states — eso es lo que lo hace ver
@@ -964,28 +998,81 @@
 
 ---
 
-## 🟣 Sprint 21 — Login hardening: rate limiting + antiforgery · `feature/login-hardening`
-> `docs/AUDITORIA.md` A3, A4, B2. Prioridad alta en la auditoría: "la pieza más barata de
-> las de severidad alta, cierra una superficie de ataque real hoy mismo".
+## ✅ Sprint 21 + 22 — Hardening: rate limiting + headers de seguridad · `feature/security-hardening`
+> `docs/AUDITORIA.md` A3, A4, B2 (Sprint 21) y M5 (Sprint 22). Se hicieron **en una sola rama**:
+> son dos increments chicos sobre el mismo `Program.cs` y el mismo tema.
+>
+> **Criterio para elegirlos como próximo trabajo, por encima del Sprint 17 (import/export):**
+> los Sprints 25-28 reescriben el núcleo de cifrado (el server deja de descifrar, todo se mueve
+> al cliente), así que invalidan trabajo hecho sobre `IEncryptionService` — y `CsvImportService`
+> del Sprint 17 se apoya justo ahí, se construiría dos veces. El rate limiting y los headers HTTP
+> son **ortogonales** al modelo de cifrado: viven en el pipeline HTTP y siguen valiendo después
+> de la migración zero-knowledge.
 
-- [ ] Rate limiting en `POST /api/auth/login` y `/api/auth/register` —
-      `Microsoft.AspNetCore.RateLimiting` (built-in desde .NET 7, sin dependencia nueva),
-      ventana fija/deslizante por IP (+ por email en login, para no dejar fuerza bruta
-      distribuida entre IPs). 429 tras N intentos en la ventana
-- [ ] Antiforgery token (`AddAntiforgery()`) como capa adicional a `SameSite=Lax` (D6) en
-      los endpoints que mutan estado vía cookie — defensa en profundidad, no reemplaza
-      SameSite, que sigue siendo la primera línea
-- [ ] `[MaxLength(128)]` en `RegisterRequest.Password` (B2) — oportunista, un atributo
-- [ ] Tests (rate limit dispara 429, antiforgery rechaza request sin token) + PR a `main`
+### Increment 1 — Rate limiting + tope de longitud de contraseña (A3, B2)
+- [x] `AddRateLimiter` en `Program.cs` con `options.AddPolicy(...)` +
+      `RateLimitPartition.GetFixedWindowLimiter` particionado **por IP**; 10 intentos / 5 min,
+      configurable (`RateLimiting:AuthPermitLimit`, `AuthWindowMinutes` en `appsettings.json`).
+      `UseRateLimiter()` va **después de `UseRouting()`** — las policies por endpoint necesitan
+      el endpoint ya resuelto. Sin dependencia nueva: `Microsoft.AspNetCore.RateLimiting` es
+      built-in desde .NET 7
+- [x] `Security/RateLimitPolicies.cs` — el nombre de la policy como `const`. Un typo entre
+      `Program.cs` y el controller no rompe el build, deja el endpoint **sin throttling en
+      silencio**; con la const es error de compilación
+- [x] `[EnableRateLimiting]` en `Register` y `Login` de `AuthController`
+- [x] `[MaxLength(128)]` en `RegisterRequest.Password` **y en `LoginRequest.Password`** — B2 solo
+      mencionaba el de registro, pero login alimenta el mismo Argon2 y es el endpoint que un
+      anónimo puede golpear libremente; arreglar solo uno dejaba la mitad abierta
+- [x] `TheShed.Tests/Security/AuthRequestValidationTests.cs` (5 tests) — suite **181/181**
+      → commit `feat: add IP rate limiting to auth endpoints and cap password length`
 
-## 🟣 Sprint 22 — Headers de seguridad HTTP · `feature/security-headers`
-> `docs/AUDITORIA.md` M5. Bajo costo, buena defensa en profundidad — hoy no hay
-> `UseHsts()` ni `Content-Security-Policy` configurados en `Program.cs`.
+> **Verificación (no solo compilar):** servidor corriendo, 13 POST seguidos a `/api/auth/login` →
+> intentos 1-10 devuelven 401, del 11 en adelante 429.
 
-- [ ] `UseHsts()` + middleware de headers: `Content-Security-Policy`,
-      `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
-      `Referrer-Policy: no-referrer`
-- [ ] Verificación manual (DevTools ▸ Network ▸ Response headers) + PR a `main`
+> **Limitación conocida (`ponytail:` en `Program.cs`):** particiona solo por IP. El middleware de
+> rate limiting corre **antes del model binding**, así que el email no está parseado todavía —
+> fuerza bruta distribuida entre muchas IPs sigue pasando. Requiere un contador en `AuthService`.
+> Detrás de un reverse proxy hace falta `UseForwardedHeaders` para ver la IP real.
+
+### Increment 2 — HSTS + headers de seguridad (M5)
+- [x] `UseHsts()` **solo fuera de Development** — en dev pinnearía `localhost` a https en la caché
+      de preload del navegador y sobreviviría a la sesión de debug
+- [x] Middleware con `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+      `Referrer-Policy: no-referrer` y el CSP completo. Va **antes de `UseStaticFiles`** para que
+      los archivos estáticos también lleven los headers
+- [x] CSP con `script-src 'self' 'wasm-unsafe-eval'` (sin `unsafe-inline`/`unsafe-eval`), más las
+      entradas de CDN que la app realmente usa: jsdelivr (Bootstrap Icons) y fonts.bunny.net
+      (tipografía del Increment 13 del Sprint 20) en `style-src`/`font-src`
+- [x] **`<WasmFingerprintAssets>false</WasmFingerprintAssets>` en `TheShed.Client.csproj`** — no
+      estaba en el plan, salió de verificar en navegador. Ver **D8** en `DECISIONS.md`
+      → commit `feat: add HSTS and security response headers (CSP, nosniff, frame-options)`
+
+> **El hallazgo del increment:** con el CSP puesto la app quedaba colgada en "Loading" y
+> `_framework/dotnet.js` daba 404. Con fingerprinting activo, quien traduce ese nombre al archivo
+> real (hasheado) es un `<script type="importmap">` **inline**, que el `script-src` estricto
+> bloquea. O sea: el `script-src` que Microsoft documenta para Blazor WASM rompe la app si el
+> fingerprinting está prendido, y no hay dónde inyectar el hash SRI/nonce que ellos recomiendan
+> porque el importmap lo genera el pipeline de static assets, no un componente Razor. Se resolvió
+> apagando el fingerprinting (D8).
+>
+> **Lección, la misma del Increment 1 del Sprint 20:** esto no se veía compilando ni con `curl`
+> (los headers salían perfectos). Apareció recién abriendo la app en el navegador.
+
+> **Verificación en navegador:** app arranca y redirige a `/login` (o sea `GET /api/auth/me`
+> pasó → `connect-src 'self'` OK); tipografía Bunny Fonts e íconos de jsdelivr cargan; POST de
+> login devuelve 401 y renderiza la alerta; **cero violaciones de CSP en consola**.
+
+> **Limitación conocida (`ponytail:` en `Program.cs`):** `style-src` mantiene `'unsafe-inline'`
+> porque 8 componentes usan atributos `style=""`. `script-src`, que es el que frena XSS de verdad,
+> quedó estricto.
+
+### Pendiente — Antiforgery (A4), a su propio PR
+- [ ] Antiforgery token (`AddAntiforgery()`) como capa adicional a `SameSite=Lax` (D6).
+      **Pospuesto deliberadamente, no olvidado:** el plan lo trataba como un ítem del mismo peso
+      que el rate limiting y no lo es. Con un cliente WASM puro y auth por cookie, `AddAntiforgery()`
+      no alcanza — hace falta un endpoint que emita el token, que el cliente lo lea y lo reenvíe
+      como header en cada mutación (double-submit completo). Es defensa en profundidad:
+      `SameSite=Lax` ya es la primera línea y está puesta
 
 ## 🟣 Sprint 23 — Hardening menor: adjuntos huérfanos + generador · `feature/minor-hardening`
 > `docs/AUDITORIA.md` M2, M3, B1.

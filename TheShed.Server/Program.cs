@@ -1,5 +1,7 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TheShed.Server.Data;
@@ -51,6 +53,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// Security — rate limiting on the auth endpoints. Argon2 is deliberately expensive, so an
+// unthrottled login is both a brute-force surface against the master password and a way to
+// burn server CPU. Applied via [EnableRateLimiting] on AuthController.
+var authPermitLimit = builder.Configuration.GetValue("RateLimiting:AuthPermitLimit", 10);
+var authWindowMinutes = builder.Configuration.GetValue("RateLimiting:AuthWindowMinutes", 5);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // ponytail: partitioned by IP only. Model binding runs after this middleware, so the email
+    // is not available here — brute force spread across many IPs still gets through. Per-email
+    // throttling needs a counter inside AuthService; add it if IP limiting proves insufficient.
+    // Behind a reverse proxy this needs UseForwardedHeaders to see the real client IP.
+    options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authPermitLimit,
+                Window = TimeSpan.FromMinutes(authWindowMinutes)
+            }));
+});
+
 // Servicios de aplicación — autenticación (Scoped: depende de TheShedContext)
 builder.Services.AddScoped<IAuthService, AuthService>();
 
@@ -91,11 +115,47 @@ if (app.Environment.IsDevelopment())
     app.UseWebAssemblyDebugging();
 }
 
+// Security — HSTS is production-only: in development it would pin localhost to https in the
+// browser's preload cache and outlive the debugging session.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+// Security — response headers. Early in the pipeline so static files carry them too.
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY"; // frame-ancestors below covers this too, for older browsers
+    headers["Referrer-Policy"] = "no-referrer";
+    // 'wasm-unsafe-eval' is what the Blazor WebAssembly runtime needs to compile its modules;
+    // script-src stays free of 'unsafe-inline'/'unsafe-eval', which is the part that stops XSS.
+    // The CDN entries are Bootstrap Icons (jsdelivr) and the Bunny Fonts stylesheet + font files.
+    // ponytail: style-src still needs 'unsafe-inline' because 8 components use style="" attributes;
+    // move those to classes to drop it.
+    headers["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "base-uri 'self'; " +
+        "object-src 'none'; " +
+        "frame-ancestors 'none'; " +
+        "form-action 'self'; " +
+        "img-src 'self' data:; " +
+        "script-src 'self' 'wasm-unsafe-eval'; " +
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.bunny.net; " +
+        "font-src 'self' https://cdn.jsdelivr.net https://fonts.bunny.net; " +
+        "connect-src 'self'";
+    await next();
+});
+
 app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+// After UseRouting: endpoint-specific policies need the endpoint already resolved.
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

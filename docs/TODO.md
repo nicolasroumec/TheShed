@@ -146,6 +146,35 @@ roadmap: Sprint 19 se amplió (A1, reautenticación para revelar/copiar contrase
 sumaron los Sprints 21-24 (rate limiting + antiforgery, headers HTTP, adjuntos huérfanos
 + generador, TOTP en entradas guardadas + alertas HIBP a baja prioridad).
 
+**Infraestructura del repo (2026-08-16).** Se sumó CI y versionado, que no existían:
+`.github/workflows/ci.yml` corre `dotnet test` en cada push a `main` y en cada PR (un solo
+comando alcanza: `TheShed.Tests` referencia a `Server`, que referencia a `Client` y `Shared`,
+así que compila los cuatro proyectos). El versionado va con **MinVer** (`Directory.Build.props`,
+`MinVerTagPrefix=v`): **el tag de git es la versión**, no hay número que mantener a mano —
+`v0.2.0` estampa `0.2.0` en los ensamblados y los commits posteriores salen como
+`0.2.1-alpha.0.N`. Release notes generadas por GitHub desde los commits convencionales, sin
+changelog versionado en el repo (se descartó release-please: monta workflow + config + manifest
+y no sabe actualizar un `.csproj` sin marcadores a mano). Tags publicados: `v0.1.0` (estado tras
+el Sprint 20) y `v0.1.1` (fix de `Microsoft.AspNetCore.OpenApi` 10.0.2 → 10.0.11, que arrastraba
+`Microsoft.OpenApi` 2.0.0 con el advisory NU1903/CVE-2026-49451; el riesgo real era nulo —
+la vulnerabilidad es DoS al **parsear** documentos OpenAPI de fuentes no confiables, y The Shed
+solo genera el suyo, con `MapOpenApi()` detrás de `IsDevelopment()`).
+
+**Sprints 21+22 cerrados (2026-08-16, `feature/security-hardening`).** Rate limiting por IP en
+login/register (429 tras 10 intentos / 5 min), `[MaxLength(128)]` en las contraseñas de ambos
+DTOs de auth, `UseHsts()` y headers de seguridad con un CSP de `script-src` estricto. A3, B2 y M5
+de la auditoría quedan cerrados; **A4 (antiforgery) sigue abierto a propósito** — es más grande de
+lo que el plan asumía y va a su propio PR. Se eligieron por delante del Sprint 17 (import/export)
+porque son ortogonales al cifrado: los Sprints 25-28 invalidarían el import/export construido
+sobre `IEncryptionService`, pero no tocan el pipeline HTTP. Efecto colateral documentado en **D8**:
+el CSP estricto obligó a apagar el fingerprinting de assets WASM.
+
+**Próximo paso sugerido:** el bloque zero-knowledge (Sprints 25-28), que es la prioridad que ya
+marcaba D7 y sigue siendo lo que bloquea al resto. Antes conviene una pasada corta de
+mantenimiento de docs: tildar los ítems del Sprint 20 que ya están hechos en el código (ver la
+nota de desfasaje en `SPRINTS.md`) y arrancar la rama de traducción a inglés, que crece con cada
+sprint.
+
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra
 - [x] AES-256-GCM para cifrado de entradas (servicio + tests)
