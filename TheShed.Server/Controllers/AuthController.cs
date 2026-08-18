@@ -21,6 +21,16 @@ namespace TheShed.Server.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterRequest request, CancellationToken ct)
         {
+            // Generated client-side (see RegisterRequest) — no [Required] there so the EditForm's
+            // validator doesn't block submission before AuthService fills them in. A caller
+            // bypassing the client entirely (e.g. a raw API request) is rejected here instead.
+            if (string.IsNullOrEmpty(request.KeySalt) ||
+                string.IsNullOrEmpty(request.PublicKey) ||
+                string.IsNullOrEmpty(request.EncryptedPrivateKey))
+            {
+                return BadRequest(new { message = "Falta material criptográfico generado por el cliente." });
+            }
+
             var result = await _auth.RegisterAsync(request, ct);
             if (!result.Success)
             {

@@ -24,6 +24,16 @@ namespace TheShed.Tests.Controllers
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
 
+        // KeySalt/PublicKey/EncryptedPrivateKey are generated client-side, not annotated
+        // [Required] (see RegisterRequest), so AuthController guards their presence itself —
+        // tests that exercise the happy/business-error paths need them filled to get past that.
+        private static RegisterRequest SampleRegisterRequest() => new()
+        {
+            KeySalt = "c2FsdA==",
+            PublicKey = "pem",
+            EncryptedPrivateKey = "blob"
+        };
+
         [Fact]
         public async Task Register_Exito_Devuelve201()
         {
@@ -32,7 +42,7 @@ namespace TheShed.Tests.Controllers
                 RegisterResult = new AuthResult(true, AuthError.None, SampleResponse(), "token")
             });
 
-            var result = await controller.Register(new RegisterRequest(), CancellationToken.None);
+            var result = await controller.Register(SampleRegisterRequest(), CancellationToken.None);
 
             var created = Assert.IsType<CreatedAtActionResult>(result);
             Assert.Equal(201, created.StatusCode);
@@ -47,7 +57,7 @@ namespace TheShed.Tests.Controllers
                 RegisterResult = new AuthResult(true, AuthError.None, SampleResponse(), "token")
             });
 
-            await controller.Register(new RegisterRequest(), CancellationToken.None);
+            await controller.Register(SampleRegisterRequest(), CancellationToken.None);
 
             var setCookie = controller.ControllerContext.HttpContext.Response.Headers.SetCookie.ToString();
             Assert.Contains("authToken=token", setCookie);
@@ -62,10 +72,24 @@ namespace TheShed.Tests.Controllers
                 RegisterResult = new AuthResult(false, AuthError.EmailInUse, null)
             });
 
-            var result = await controller.Register(new RegisterRequest(), CancellationToken.None);
+            var result = await controller.Register(SampleRegisterRequest(), CancellationToken.None);
 
             var conflict = Assert.IsType<ConflictObjectResult>(result);
             Assert.Equal(409, conflict.StatusCode);
+        }
+
+        [Fact]
+        public async Task Register_SinMaterialCriptografico_Devuelve400()
+        {
+            var controller = CreateController(new FakeAuthService
+            {
+                RegisterResult = new AuthResult(true, AuthError.None, SampleResponse(), "token")
+            });
+
+            var result = await controller.Register(new RegisterRequest(), CancellationToken.None);
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal(400, badRequest.StatusCode);
         }
 
         [Fact]

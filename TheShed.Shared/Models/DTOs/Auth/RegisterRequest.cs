@@ -16,17 +16,17 @@ namespace TheShed.Shared.Models.DTOs.Auth
         public string Password { get; set; } = string.Empty;
 
         // Generated client-side (IKeyDerivationService.GenerateSalt, base64) and attached by
-        // AuthService before the request goes out — never typed by the user.
-        [Required]
+        // AuthService right before the request goes out — empty at the moment the user submits
+        // the form. No [Required] here on purpose: EditForm's DataAnnotationsValidator validates
+        // the whole model on submit, and these are still empty at that point, which would block
+        // HandleSubmit from ever running. AuthController guards their presence server-side instead.
         public string KeySalt { get; set; } = string.Empty;
 
         // Also generated client-side (IUserKeypairService.Generate) and attached by AuthService.
         // EncryptedPrivateKey is wrapped with the stretched master key before it ever leaves
         // the browser — the server stores it as an opaque blob.
-        [Required]
         public string PublicKey { get; set; } = string.Empty;
 
-        [Required]
         public string EncryptedPrivateKey { get; set; } = string.Empty;
     }
 }
