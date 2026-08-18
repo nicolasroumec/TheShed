@@ -14,5 +14,10 @@ namespace TheShed.Shared.Models.DTOs.Auth
         // server CPU. 128 chars is far above any real master password.
         [Required, MinLength(8), MaxLength(128)]
         public string Password { get; set; } = string.Empty;
+
+        // Generated client-side (IKeyDerivationService.GenerateSalt, base64) and attached by
+        // AuthService before the request goes out — never typed by the user.
+        [Required]
+        public string KeySalt { get; set; } = string.Empty;
     }
 }

@@ -55,7 +55,8 @@ namespace TheShed.Server.Controllers
             {
                 Username = username!,
                 Email = email!,
-                ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime
+                ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime,
+                KeySalt = User.FindFirstValue("keySalt")
             });
         }
 

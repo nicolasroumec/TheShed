@@ -8,6 +8,13 @@ namespace TheShed.Shared.Models.Entities
         public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
+
+        // Zero-knowledge key derivation (Sprint 25). Public, non-secret PBKDF2 salt used to
+        // re-derive the client-side stretched master key on every device/session. Nullable
+        // because users registered before this sprint have none until they log in post-Sprint 28
+        // and one gets generated retroactively.
+        public string? KeySalt { get; set; }
+
         public bool IsActive { get; set; } = true;
         public DateTime? LastLoginAt { get; set; }
         public bool TwoFactorEnabled { get; set; } = false;

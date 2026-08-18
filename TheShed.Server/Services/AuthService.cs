@@ -33,7 +33,8 @@ namespace TheShed.Server.Services
             {
                 Username = request.Username.Trim(),
                 Email = email,
-                PasswordHash = _hasher.Hash(request.Password)
+                PasswordHash = _hasher.Hash(request.Password),
+                KeySalt = request.KeySalt
             };
 
             _db.Users.Add(user);
@@ -65,7 +66,8 @@ namespace TheShed.Server.Services
             {
                 ExpiresAt = expiresAt,
                 Username = user.Username,
-                Email = user.Email
+                Email = user.Email,
+                KeySalt = user.KeySalt
             }, token);
         }
     }
