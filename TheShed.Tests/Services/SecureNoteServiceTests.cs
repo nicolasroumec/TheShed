@@ -1,12 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
-using TheShed.Server.Security;
 using TheShed.Server.Services;
 using TheShed.Shared.Models.DTOs.Notes;
 using TheShed.Shared.Models.Entities;
 using TheShed.Shared.Models.Enums;
+using TheShed.Shared.Security;
 using Xunit;
 
 namespace TheShed.Tests.Services
@@ -14,7 +13,7 @@ namespace TheShed.Tests.Services
     public class SecureNoteServiceTests
     {
         // A fixed 32-byte key keeps encryption deterministic across a test's operations.
-        private static readonly string TestKey = Convert.ToBase64String(new byte[32]);
+        private static readonly byte[] TestKey = new byte[32];
 
         private const int StrangerId = 9999; // a user with no access to the seeded vault
 
@@ -25,7 +24,7 @@ namespace TheShed.Tests.Services
 
         private static SecureNoteService CreateService(TheShedContext db)
         {
-            var encryption = new AesEncryptionService(Options.Create(new EncryptionSettings { Key = TestKey }));
+            var encryption = new AesEncryptionService(TestKey);
             return new SecureNoteService(db, encryption, new VaultAccessService(db));
         }
 

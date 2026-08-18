@@ -17,12 +17,15 @@ namespace TheShed.Client.Services
         private readonly HttpClient _http;
         private readonly JwtAuthenticationStateProvider _stateProvider;
         private readonly IKeyDerivationService _kdf;
+        private readonly IUserKeypairService _keypair;
 
-        public AuthService(HttpClient http, AuthenticationStateProvider stateProvider, IKeyDerivationService kdf)
+        public AuthService(HttpClient http, AuthenticationStateProvider stateProvider,
+            IKeyDerivationService kdf, IUserKeypairService keypair)
         {
             _http = http;
             _stateProvider = (JwtAuthenticationStateProvider)stateProvider;
             _kdf = kdf;
+            _keypair = keypair;
         }
 
         public async Task<AuthResult> LoginAsync(LoginRequest request)
@@ -37,7 +40,13 @@ namespace TheShed.Client.Services
 
         public async Task<AuthResult> RegisterAsync(RegisterRequest request)
         {
-            request.KeySalt = Convert.ToBase64String(_kdf.GenerateSalt());
+            var salt = _kdf.GenerateSalt();
+            var stretchedMasterKey = _kdf.DeriveKey(request.Password, salt);
+            var keypair = _keypair.Generate(stretchedMasterKey);
+
+            request.KeySalt = Convert.ToBase64String(salt);
+            request.PublicKey = keypair.PublicKeyPem;
+            request.EncryptedPrivateKey = keypair.EncryptedPrivateKey;
 
             var response = await _http.PostAsJsonAsync("api/auth/register", request);
             if (response.StatusCode == HttpStatusCode.Conflict)

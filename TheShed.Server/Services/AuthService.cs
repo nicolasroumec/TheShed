@@ -34,7 +34,9 @@ namespace TheShed.Server.Services
                 Username = request.Username.Trim(),
                 Email = email,
                 PasswordHash = _hasher.Hash(request.Password),
-                KeySalt = request.KeySalt
+                KeySalt = request.KeySalt,
+                PublicKey = request.PublicKey,
+                EncryptedPrivateKey = request.EncryptedPrivateKey
             };
 
             _db.Users.Add(user);

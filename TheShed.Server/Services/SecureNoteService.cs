@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
-using TheShed.Server.Security;
+using TheShed.Shared.Security;
 using TheShed.Shared.Models.DTOs.Notes;
 using TheShed.Shared.Models.Entities;
 

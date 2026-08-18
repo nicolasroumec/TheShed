@@ -1,4 +1,4 @@
-namespace TheShed.Server.Security
+namespace TheShed.Shared.Security
 {
     /// <summary>
     /// Cifra y descifra los valores sensibles de las entradas (p. ej.

@@ -15,6 +15,12 @@ namespace TheShed.Shared.Models.Entities
         // and one gets generated retroactively.
         public string? KeySalt { get; set; }
 
+        // Keypair for zero-knowledge vault sharing (Sprint 27). Same nullability reasoning as
+        // KeySalt. PublicKey is PEM text; EncryptedPrivateKey is an opaque base64 blob — the
+        // server never holds the private key in the clear.
+        public string? PublicKey { get; set; }
+        public string? EncryptedPrivateKey { get; set; }
+
         public bool IsActive { get; set; } = true;
         public DateTime? LastLoginAt { get; set; }
         public bool TwoFactorEnabled { get; set; } = false;

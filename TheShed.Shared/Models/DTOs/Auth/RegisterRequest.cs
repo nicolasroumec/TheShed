@@ -19,5 +19,14 @@ namespace TheShed.Shared.Models.DTOs.Auth
         // AuthService before the request goes out — never typed by the user.
         [Required]
         public string KeySalt { get; set; } = string.Empty;
+
+        // Also generated client-side (IUserKeypairService.Generate) and attached by AuthService.
+        // EncryptedPrivateKey is wrapped with the stretched master key before it ever leaves
+        // the browser — the server stores it as an opaque blob.
+        [Required]
+        public string PublicKey { get; set; } = string.Empty;
+
+        [Required]
+        public string EncryptedPrivateKey { get; set; } = string.Empty;
     }
 }

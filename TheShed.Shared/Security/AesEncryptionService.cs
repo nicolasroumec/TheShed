@@ -1,13 +1,15 @@
 using System.Security.Cryptography;
-using Microsoft.Extensions.Options;
 
-namespace TheShed.Server.Security
+namespace TheShed.Shared.Security
 {
     /// <summary>
     /// Implementación de <see cref="IEncryptionService"/> con AES-256-GCM.
     /// Genera un nonce aleatorio por operación y devuelve
     /// <c>base64(nonce(12) || ciphertext || tag(16))</c>.
-    /// La clave (32 bytes) se obtiene de <see cref="EncryptionSettings"/>.
+    /// La clave (32 bytes) se recibe ya resuelta — este tipo no sabe de dónde viene
+    /// (config del servidor, D3; o una stretched master key / vault key derivada en el
+    /// cliente vía WASM, Sprint 25+), así corre igual en <c>TheShed.Server</c> y en
+    /// <c>TheShed.Client</c>.
     /// </summary>
     public class AesEncryptionService : IEncryptionService
     {
@@ -17,21 +19,16 @@ namespace TheShed.Server.Security
 
         private readonly byte[] _key;
 
-        public AesEncryptionService(IOptions<EncryptionSettings> settings)
+        public AesEncryptionService(byte[] key)
         {
-            var raw = settings.Value.Key;
-            if (string.IsNullOrWhiteSpace(raw))
+            ArgumentNullException.ThrowIfNull(key);
+            if (key.Length != KeySize)
             {
-                throw new InvalidOperationException(
-                    "Falta la clave de cifrado (Encryption:Key). Configurarla por User Secrets o variables de entorno.");
+                throw new ArgumentException(
+                    $"La clave debe ser de {KeySize} bytes (AES-256); se recibieron {key.Length}.", nameof(key));
             }
 
-            _key = Convert.FromBase64String(raw);
-            if (_key.Length != KeySize)
-            {
-                throw new InvalidOperationException(
-                    $"La clave de cifrado debe decodificar a {KeySize} bytes (AES-256); se obtuvieron {_key.Length}.");
-            }
+            _key = key;
         }
 
         public string Encrypt(string plaintext)
