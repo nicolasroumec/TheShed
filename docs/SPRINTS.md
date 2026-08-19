@@ -1122,7 +1122,7 @@
 - [ ] Sin increments todavía — placeholder de roadmap, evaluar recién si la lista de
       arriba se vacía.
 
-## 🟣 Sprint 29 — Generador: modo memorable (passphrase) · `feature/password-generator-passphrase`
+## 🟢 Sprint 29 — Generador: modo memorable (passphrase) · `feature/password-generator-passphrase`
 > Disparado por comparar con el generador de 1Password (`1password.com/es/password-generator`):
 > ofrece 3 modos (Random / Easy to Remember / PIN). El modo Random ya existe (Sprint 7,
 > `PasswordGenerator.Generate`); de los otros dos, el memorable es el que aporta algo que hoy no
@@ -1132,20 +1132,30 @@
 > este sprint (genera el string en `Shared`, el cifrado es un paso posterior y ajeno).
 
 ### Increment 1 — `PasswordGenerator.GeneratePassphrase`
-- [ ] Wordlist embebida en `TheShed.Shared` (EFF short wordlist, ~1300 palabras, dominio público —
-      nada de dependencia nueva, es un `.txt` como embedded resource)
-- [ ] `GeneratePassphrase(wordCount = 4, separator = "-", capitalizeFirst = false, includeNumber = false)`
+- [x] **Ajuste sobre el plan:** en vez de vendorizar la wordlist EFF completa (7776 entradas,
+      requiere embedded resource + lectura de stream), `PassphraseWordList.cs` — 353 palabras
+      comunes en inglés escritas a mano como `string[]` (~8.5 bits/palabra, comentario `ponytail:`
+      documentando el trade-off y cómo subir a la lista completa si hace falta más entropía)
+- [x] `GeneratePassphrase(wordCount = 4, separator = "-", capitalizeFirst = false, includeNumber = false)`
       — mismo `RandomNumberGenerator` que ya usa `Generate()` para elegir cada palabra
-- [ ] Tests: longitud en palabras, separador aplicado, capitalización, número final cuando se pide
+- [x] Tests: longitud en palabras, separador aplicado, capitalización, número final cuando se pide,
+      wordCount=0 lanza, no determinístico — suite completa **194/194** en verde
+      → commit `feat: add memorable passphrase mode to PasswordGenerator`
 
 ### Increment 2 — UI
-- [ ] Toggle Random/Memorable en el panel de generador de `EntriesPanel.razor` (mismo lugar que
+- [x] Toggle Random/Memorable en el panel de generador de `EntriesPanel.razor` (mismo lugar que
       hoy tiene longitud + símbolos): random muestra los controles actuales, memorable muestra
       cantidad de palabras + separador
-- [ ] Verificado en navegador: generar una passphrase, copiarla, guardarla en una entrada
+- [x] Verificado en navegador: registrado un usuario de prueba, creado un vault, generado en
+      ambos modos (`course-cook-buffalo-assume` en Memorable, random de 20 con símbolos) y
+      guardada una entrada — roundtrip OK
+- [x] **Hallazgo de la verificación (no es un bug de este sprint):** justo después de crear la
+      cuenta, la pestaña queda sin responder ~30-40s — es la derivación PBKDF2/generación RSA del
+      Sprint 25 corriendo en el intérprete WASM (sin AOT en debug), no un cuelgue real; conviene
+      saberlo para no confundirlo con un freeze la próxima vez que se verifique algo post-registro
 
 ### Increment 3 — Tests + PR
-- [ ] Suite completa en verde
+- [x] Suite completa en verde (194/194)
 - [ ] PR a `main`
 
 ---
