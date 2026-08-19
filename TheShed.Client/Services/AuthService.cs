@@ -42,7 +42,7 @@ namespace TheShed.Client.Services
         {
             var salt = _kdf.GenerateSalt();
             var stretchedMasterKey = _kdf.DeriveKey(request.Password, salt);
-            var keypair = _keypair.Generate(stretchedMasterKey);
+            var keypair = await _keypair.GenerateAsync(stretchedMasterKey);
 
             request.KeySalt = Convert.ToBase64String(salt);
             request.PublicKey = keypair.PublicKeyPem;

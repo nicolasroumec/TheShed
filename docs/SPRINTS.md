@@ -511,27 +511,50 @@
       `Isopoh.Cryptography.Argon2` es nativo (P/Invoke), no corre en WASM sin research
       aparte; PBKDF2 con ≥600k iteraciones (guía OWASP 2023) es aceptable como punto de
       partida, upgrade a Argon2id-WASM si aparece una lib que lo soporte
-- [ ] Keypair por usuario al registrar: `RSA` (`System.Security.Cryptography.RSA`, ya
-      disponible en WASM) generado en el cliente. La clave privada se cifra con la
-      stretched master key (AES-GCM, mismo formato que D3) antes de subir. El servidor
-      guarda `PublicKey` (texto) y `EncryptedPrivateKey` (blob opaco) — nunca ve la
-      privada en claro
-- [ ] Migración de esquema: `User.PublicKey`/`User.EncryptedPrivateKey` nullable —
+- [x] Keypair por usuario al registrar: `RSA` generado en el cliente, clave privada
+      cifrada con la stretched master key (AES-GCM, mismo formato que D3) antes de
+      subir. El servidor guarda `PublicKey` (texto) y `EncryptedPrivateKey` (blob
+      opaco) — nunca ve la privada en claro. **Corrección sobre el plan original:**
+      ni `RSA.Create()` ni `AesGcm` corren en browser-wasm (`PlatformNotSupportedException`
+      — .NET delega esas dos APIs al SO real, y WASM no tiene salida al SO; PBKDF2/HMAC/SHA
+      sí son gestionados y corren bien, por eso el KDF de arriba nunca dio problema). Los
+      tests de `UserKeypairServiceTests` estaban en verde porque corrían sobre `net10.0`
+      normal, no sobre WASM — recién se vio al probar el registro en un navegador real.
+      Solución: `TheShed.Client/wwwroot/js/interop.js` (`generateRsaKeypair`,
+      `encryptAesGcm`) delega ambas operaciones a la Web Crypto API del navegador
+      (`crypto.subtle`) vía `WebCryptoUserKeypairService` (`TheShed.Client/Services`),
+      manteniendo el mismo formato SPKI/PKCS8/PEM y `nonce‖ciphertext‖tag` que ya usaba
+      el lado servidor. Detalle completo en el manual publicado el 2026-08-19 (pedir el
+      link si hace falta releerlo — no versionado en el repo).
+- [x] Migración de esquema: `User.PublicKey`/`User.EncryptedPrivateKey` nullable —
       usuarios existentes quedan sin keypair hasta que logueen post-Sprint 28 y se les
       genere retroactivamente
-- [ ] Tests: derivación determinística (mismo password + salt → misma key), roundtrip
-      de keypair, inspección del payload de red del registro para confirmar que la
-      privada nunca viaja en claro
+- [x] Tests: derivación determinística (mismo password + salt → misma key), roundtrip
+      de PEM/keypair con RSA real, inspección del payload de red del registro (capturado
+      con un hook de `window.fetch` en el navegador) para confirmar que la privada nunca
+      viaja en claro — solo `publicKey` (PEM, es pública por diseño) y
+      `encryptedPrivateKey` (blob base64 opaco)
 
 ## 🟣 Sprint 26 — Zero-knowledge: vault key y cifrado de entradas/notas · `feature/e2e-vault-encryption`
+> ⚠️ **Bloqueante conocido, ya resuelto una vez (Sprint 25):** `AesEncryptionService`
+> (`AesGcm` de .NET) **no corre en browser-wasm** — tira `PlatformNotSupportedException`,
+> mismo motivo que RSA (delega al SO real, WASM no tiene salida ahí). El ítem de abajo
+> que decía "reusa el mismo código de `Shared`, distinto lugar de ejecución" da a entender
+> que alcanza con correr `AesEncryptionService` desde `Client` — **no alcanza**. Hace
+> falta el mismo patrón Web Crypto que ya se armó para el keypair: `encryptAesGcm`/
+> `decryptAesGcm` en `TheShed.Client/wwwroot/js/interop.js` vía `crypto.subtle`, llamado
+> por interop desde un servicio en `TheShed.Client/Services` (ver `WebCryptoUserKeypairService`
+> como referencia del patrón). El formato de bytes (`nonce(12)||ciphertext||tag(16)`) sí
+> es compatible entre ambos lados, así que el wire format no cambia — solo quién ejecuta
+> el cifrado. `AesEncryptionService` en `Server` queda intacta (ahí `AesGcm` sí anda).
 - [ ] Vault key: al crear un vault, el cliente genera una clave AES-256 aleatoria
       ("vault key"), la cifra con la stretched master key del dueño y la sube como blob
       opaco (`VaultKeyWrap` por `vaultId`+`userId`, arranca con una fila: el dueño)
 - [ ] `PasswordEntry`/`SecureNote`: el cifrado se mueve al cliente con la vault key
-      (reusa el mismo formato `nonce||ciphertext||tag` de `AesEncryptionService`, corriendo
-      del lado `Client` en vez de `Server` — mismo código de `Shared`, distinto lugar de
-      ejecución). El servidor deja de descifrar: `PasswordEntryService.ToResponse` y
-      equivalentes pasan a devolver el blob tal cual
+      (mismo formato `nonce||ciphertext||tag` que ya usa `AesEncryptionService`, pero
+      ejecutado vía Web Crypto en `Client` — no la clase de `Shared` tal cual, ver
+      advertencia arriba). El servidor deja de descifrar: `PasswordEntryService.ToResponse`
+      y equivalentes pasan a devolver el blob tal cual
 - [ ] Listado y búsqueda: hoy `PasswordEntryService` filtra server-side por
       nombre/usuario/URL. Pasa a traer todos los items del vault de una vez (blobs),
       descifrar en memoria del cliente y filtrar ahí — mismo patrón que Bitwarden/

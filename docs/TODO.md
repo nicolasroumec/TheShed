@@ -169,11 +169,33 @@ porque son ortogonales al cifrado: los Sprints 25-28 invalidarían el import/exp
 sobre `IEncryptionService`, pero no tocan el pipeline HTTP. Efecto colateral documentado en **D8**:
 el CSP estricto obligó a apagar el fingerprinting de assets WASM.
 
-**Próximo paso sugerido:** el bloque zero-knowledge (Sprints 25-28), que es la prioridad que ya
-marcaba D7 y sigue siendo lo que bloquea al resto. Antes conviene una pasada corta de
-mantenimiento de docs: tildar los ítems del Sprint 20 que ya están hechos en el código (ver la
-nota de desfasaje en `SPRINTS.md`) y arrancar la rama de traducción a inglés, que crece con cada
-sprint.
+**Sprint 25 — keypair RSA verificado end-to-end y arreglado (2026-08-19,
+`feature/e2e-key-derivation`).** El feature de keypair (commits del 2026-08-18) tenía tests en
+verde pero nunca se había probado en un navegador real. Al hacerlo, el registro rompía:
+`RSA.Create()` y después `AesGcm` tiran `PlatformNotSupportedException` en browser-wasm — .NET
+delega esas dos APIs al SO real (OpenSSL/CNG), y WASM no tiene salida ahí (PBKDF2/HMAC/SHA sí
+son gestionados y andan bien, por eso el KDF nunca dio síntomas). Los tests no lo veían porque
+corren sobre `net10.0` normal, no sobre WASM. Arreglado delegando ambas operaciones a la Web
+Crypto API del navegador (`crypto.subtle`) vía JS interop —
+`TheShed.Client/wwwroot/js/interop.js` (`generateRsaKeypair`, `encryptAesGcm`) +
+`WebCryptoUserKeypairService` (`TheShed.Client/Services`) — manteniendo el mismo formato
+SPKI/PKCS8/PEM y `nonce‖ciphertext‖tag` que ya usaba el servidor, así que quedan compatibles sin
+tocar el wire format. Verificado registrando un usuario real en Chrome e inspeccionando el
+payload de red (`window.fetch` hookeado): la privada nunca viaja en claro, solo como blob base64
+cifrado. 185 tests. Detalle completo (glosario, causa raíz, diagrama del flujo) en un manual
+publicado como Artifact ese día — pedir el link si hace falta releerlo, no está versionado en el
+repo. **Importante para el Sprint 26:** el mismo problema de `AesGcm` en WASM le pega directo al
+plan de reusar `AesEncryptionService` client-side para vault key/entradas/notas — quedó anotado
+como bloqueante conocido (con la solución ya resuelta, mismo patrón Web Crypto) al principio de
+la sección del Sprint 26 en `SPRINTS.md`.
+
+**Próximo paso sugerido:** seguir con el resto del bloque zero-knowledge (Sprints 26-28), que
+sigue siendo la prioridad que marcaba D7. Sprint 26 arranca con el bloqueante de `AesGcm`/WASM ya
+identificado y documentado arriba — aplicar el mismo patrón Web Crypto del Sprint 25 antes de
+escribir el resto de la lógica de vault key, no redescubrirlo. Aparte, sigue pendiente la pasada
+corta de mantenimiento de docs: tildar los ítems del Sprint 20 que ya están hechos en el código
+(ver la nota de desfasaje en `SPRINTS.md`) y arrancar la rama de traducción a inglés, que crece
+con cada sprint.
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra

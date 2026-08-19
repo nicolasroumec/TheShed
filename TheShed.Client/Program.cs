@@ -28,6 +28,6 @@ builder.Services.AddScoped<TrashClient>();
 builder.Services.AddScoped<AttachmentClient>();
 builder.Services.AddScoped<HealthClient>();
 builder.Services.AddScoped<IKeyDerivationService, KeyDerivationService>();
-builder.Services.AddScoped<IUserKeypairService, UserKeypairService>();
+builder.Services.AddScoped<IUserKeypairService, WebCryptoUserKeypairService>();
 
 await builder.Build().RunAsync();

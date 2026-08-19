@@ -7,9 +7,15 @@ namespace TheShed.Shared.Security
     /// Genera un nonce aleatorio por operación y devuelve
     /// <c>base64(nonce(12) || ciphertext || tag(16))</c>.
     /// La clave (32 bytes) se recibe ya resuelta — este tipo no sabe de dónde viene
-    /// (config del servidor, D3; o una stretched master key / vault key derivada en el
-    /// cliente vía WASM, Sprint 25+), así corre igual en <c>TheShed.Server</c> y en
-    /// <c>TheShed.Client</c>.
+    /// (config del servidor, D3; o una stretched master key / vault key derivada en el cliente).
+    /// <para>
+    /// <b>Solo corre en <c>TheShed.Server</c></b>: <see cref="AesGcm"/> tira
+    /// <see cref="PlatformNotSupportedException"/> en browser-wasm (sin backend nativo de
+    /// crypto ahí, igual que RSA). El lado <c>TheShed.Client</c> tiene que cifrar/descifrar
+    /// AES-GCM vía Web Crypto (interop JS, ver <c>WebCryptoUserKeypairService</c> en
+    /// <c>TheShed.Client.Services</c>) en vez de esta clase, manteniendo el mismo layout de
+    /// bytes (nonce||ciphertext||tag) para que ambos lados sean compatibles.
+    /// </para>
     /// </summary>
     public class AesEncryptionService : IEncryptionService
     {

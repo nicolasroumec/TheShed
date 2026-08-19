@@ -7,6 +7,9 @@ namespace TheShed.Shared.Security
     /// Generates the per-user RSA keypair used for zero-knowledge vault sharing (Sprint 27):
     /// the public key wraps a vault key for a member, the private key unwraps it. Runs
     /// client-side — the server only ever sees the public key and the encrypted private key.
+    /// Asynchronous because the browser implementation delegates keygen to the Web Crypto API
+    /// (<c>RSA.Create()</c> throws <see cref="PlatformNotSupportedException"/> on browser-wasm —
+    /// there is no native crypto provider backing it there).
     /// </summary>
     public interface IUserKeypairService
     {
@@ -15,6 +18,6 @@ namespace TheShed.Shared.Security
         /// <paramref name="stretchedMasterKey"/> (AES-256-GCM, same wire format as
         /// <see cref="IEncryptionService"/>).
         /// </summary>
-        UserKeypair Generate(byte[] stretchedMasterKey);
+        Task<UserKeypair> GenerateAsync(byte[] stretchedMasterKey);
     }
 }
