@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using TheShed.Client;
 using TheShed.Client.Auth;
 using TheShed.Client.Services;
+using TheShed.Shared.Security;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -26,5 +27,7 @@ builder.Services.AddScoped<TagClient>();
 builder.Services.AddScoped<TrashClient>();
 builder.Services.AddScoped<AttachmentClient>();
 builder.Services.AddScoped<HealthClient>();
+builder.Services.AddScoped<IKeyDerivationService, KeyDerivationService>();
+builder.Services.AddScoped<IUserKeypairService, WebCryptoUserKeypairService>();
 
 await builder.Build().RunAsync();

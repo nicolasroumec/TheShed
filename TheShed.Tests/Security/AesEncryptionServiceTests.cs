@@ -1,18 +1,13 @@
 using System.Security.Cryptography;
-using Microsoft.Extensions.Options;
-using TheShed.Server.Security;
+using TheShed.Shared.Security;
 using Xunit;
 
 namespace TheShed.Tests.Security
 {
     public class AesEncryptionServiceTests
     {
-        private static AesEncryptionService CreateService()
-        {
-            var key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-            var settings = Options.Create(new EncryptionSettings { Key = key });
-            return new AesEncryptionService(settings);
-        }
+        private static AesEncryptionService CreateService() =>
+            new(RandomNumberGenerator.GetBytes(32));
 
         [Theory]
         [InlineData("contraseña-super-secreta")]
@@ -64,20 +59,10 @@ namespace TheShed.Tests.Security
         }
 
         [Fact]
-        public void Constructor_ClaveVacia_Lanza()
-        {
-            var settings = Options.Create(new EncryptionSettings { Key = "" });
-            Assert.Throws<InvalidOperationException>(() => new AesEncryptionService(settings));
-        }
-
-        [Fact]
         public void Constructor_ClaveLongitudIncorrecta_Lanza()
         {
-            // 16 bytes en vez de 32.
-            var key = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
-            var settings = Options.Create(new EncryptionSettings { Key = key });
-
-            Assert.Throws<InvalidOperationException>(() => new AesEncryptionService(settings));
+            var key = RandomNumberGenerator.GetBytes(16); // 16 bytes en vez de 32
+            Assert.Throws<ArgumentException>(() => new AesEncryptionService(key));
         }
 
         [Fact]

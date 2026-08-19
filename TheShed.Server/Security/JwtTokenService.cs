@@ -17,13 +17,17 @@ namespace TheShed.Server.Security
         {
             var expiresAt = DateTime.UtcNow.AddMinutes(_settings.ExpiryMinutes);
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim("username", user.Username),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new(JwtRegisteredClaimNames.Email, user.Email),
+                new("username", user.Username),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
+            if (user.KeySalt is not null)
+            {
+                claims.Add(new Claim("keySalt", user.KeySalt));
+            }
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Key));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

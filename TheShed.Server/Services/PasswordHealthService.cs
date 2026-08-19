@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TheShed.Server.Data;
-using TheShed.Server.Security;
+using TheShed.Shared.Security;
 using TheShed.Shared.Helpers;
 using TheShed.Shared.Models.DTOs.Health;
 

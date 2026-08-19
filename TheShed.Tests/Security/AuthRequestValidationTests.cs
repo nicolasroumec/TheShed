@@ -25,7 +25,10 @@ namespace TheShed.Tests.Security
             {
                 Username = "shed-user",
                 Email = "user@example.com",
-                Password = new string('x', length)
+                Password = new string('x', length),
+                KeySalt = "c2FsdA==",
+                PublicKey = "pem",
+                EncryptedPrivateKey = "blob"
             };
 
             Assert.Equal(expectedValid, IsValid(request, out _));

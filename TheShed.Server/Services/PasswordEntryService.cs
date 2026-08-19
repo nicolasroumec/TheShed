@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
-using TheShed.Server.Security;
+using TheShed.Shared.Security;
 using TheShed.Shared.Models.DTOs.Entries;
 using TheShed.Shared.Models.DTOs.Tags;
 using TheShed.Shared.Models.Entities;

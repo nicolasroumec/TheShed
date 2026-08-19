@@ -2,17 +2,17 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
-using TheShed.Server.Security;
 using TheShed.Server.Services;
 using TheShed.Shared.Models.Entities;
 using TheShed.Shared.Models.Enums;
+using TheShed.Shared.Security;
 using Xunit;
 
 namespace TheShed.Tests.Services
 {
     public class AttachmentServiceTests
     {
-        private static readonly string TestKey = Convert.ToBase64String(new byte[32]);
+        private static readonly byte[] TestKey = new byte[32];
         private const int StrangerId = 9999; // a user with no access to the seeded vault
         private const long DefaultMaxSize = 5 * 1024 * 1024;
 
@@ -23,7 +23,7 @@ namespace TheShed.Tests.Services
 
         private static (AttachmentService Service, InMemoryAttachmentStorage Storage) CreateService(TheShedContext db, long maxSize = DefaultMaxSize)
         {
-            var encryption = new AesEncryptionService(Options.Create(new EncryptionSettings { Key = TestKey }));
+            var encryption = new AesEncryptionService(TestKey);
             var storage = new InMemoryAttachmentStorage();
             var settings = Options.Create(new AttachmentSettings { MaxFileSizeBytes = maxSize });
             return (new AttachmentService(db, encryption, new VaultAccessService(db), storage, settings), storage);

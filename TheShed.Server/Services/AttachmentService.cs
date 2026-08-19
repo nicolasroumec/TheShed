@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
-using TheShed.Server.Security;
+using TheShed.Shared.Security;
 using TheShed.Shared.Models.DTOs.Attachments;
 using TheShed.Shared.Models.Entities;
 using TheShed.Shared.Models.Enums;
