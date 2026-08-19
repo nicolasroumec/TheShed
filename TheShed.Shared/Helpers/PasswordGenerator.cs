@@ -44,5 +44,29 @@ namespace TheShed.Shared.Helpers
         }
 
         private static char Pick(string pool) => pool[RandomNumberGenerator.GetInt32(pool.Length)];
+
+        /// <summary>Generates a memorable passphrase from a curated word list
+        /// (<see cref="PassphraseWordList"/>), e.g. "correct-horse-battery-staple".</summary>
+        public static string GeneratePassphrase(int wordCount = 4, string separator = "-",
+            bool capitalizeFirst = false, bool includeNumber = false)
+        {
+            if (wordCount < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(wordCount), "Word count must be at least 1.");
+            }
+
+            var pool = PassphraseWordList.Words;
+            var words = new string[wordCount];
+            for (var i = 0; i < wordCount; i++)
+            {
+                var word = pool[RandomNumberGenerator.GetInt32(pool.Length)];
+                words[i] = capitalizeFirst ? char.ToUpperInvariant(word[0]) + word[1..] : word;
+            }
+
+            var passphrase = string.Join(separator, words);
+            return includeNumber
+                ? passphrase + separator + RandomNumberGenerator.GetInt32(10)
+                : passphrase;
+        }
     }
 }

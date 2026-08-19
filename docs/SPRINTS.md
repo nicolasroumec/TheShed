@@ -1122,6 +1122,32 @@
 - [ ] Sin increments todavía — placeholder de roadmap, evaluar recién si la lista de
       arriba se vacía.
 
+## 🟣 Sprint 29 — Generador: modo memorable (passphrase) · `feature/password-generator-passphrase`
+> Disparado por comparar con el generador de 1Password (`1password.com/es/password-generator`):
+> ofrece 3 modos (Random / Easy to Remember / PIN). El modo Random ya existe (Sprint 7,
+> `PasswordGenerator.Generate`); de los otros dos, el memorable es el que aporta algo que hoy no
+> hay — un PIN numérico es un `Generate` sin letras/símbolos, no justifica un modo aparte.
+> **Ojo con el orden:** si Sprint 26 (zero-knowledge, vault key) ya se hizo para entonces, el
+> cifrado de lo que este generador produce corre client-side vía Web Crypto — no cambia nada de
+> este sprint (genera el string en `Shared`, el cifrado es un paso posterior y ajeno).
+
+### Increment 1 — `PasswordGenerator.GeneratePassphrase`
+- [ ] Wordlist embebida en `TheShed.Shared` (EFF short wordlist, ~1300 palabras, dominio público —
+      nada de dependencia nueva, es un `.txt` como embedded resource)
+- [ ] `GeneratePassphrase(wordCount = 4, separator = "-", capitalizeFirst = false, includeNumber = false)`
+      — mismo `RandomNumberGenerator` que ya usa `Generate()` para elegir cada palabra
+- [ ] Tests: longitud en palabras, separador aplicado, capitalización, número final cuando se pide
+
+### Increment 2 — UI
+- [ ] Toggle Random/Memorable en el panel de generador de `EntriesPanel.razor` (mismo lugar que
+      hoy tiene longitud + símbolos): random muestra los controles actuales, memorable muestra
+      cantidad de palabras + separador
+- [ ] Verificado en navegador: generar una passphrase, copiarla, guardarla en una entrada
+
+### Increment 3 — Tests + PR
+- [ ] Suite completa en verde
+- [ ] PR a `main`
+
 ---
 
 ## 🔵 Transversal — Traducir a inglés · `feature/i18n-english`
