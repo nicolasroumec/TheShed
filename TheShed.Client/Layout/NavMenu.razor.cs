@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Components;
 using TheShed.Client.Services;
 
@@ -7,6 +8,9 @@ public partial class NavMenu
 {
     [Inject] private IAuthService AuthService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private static readonly string AppVersion =
+        Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "dev";
 
     private bool _collapseNavMenu = true;
 
