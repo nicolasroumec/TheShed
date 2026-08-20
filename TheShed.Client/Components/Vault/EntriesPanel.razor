@@ -34,15 +34,31 @@
                         </button>
                     </div>
                     <ValidationMessage For="@(() => _form.Password)" />
-                    <div class="d-flex align-items-center gap-2 mt-2">
+                    <div class="d-flex align-items-center gap-2 mt-2 flex-wrap">
                         <button type="button" class="btn btn-sm btn-outline-primary" @onclick="GeneratePassword">Generate</button>
-                        <label class="form-label mb-0 small">Length</label>
-                        <input type="number" min="4" max="128" class="form-control form-control-sm" style="width: 5rem"
-                               @bind="_genLength" />
-                        <div class="form-check mb-0">
-                            <input id="gen-symbols" type="checkbox" class="form-check-input" @bind="_genSymbols" />
-                            <label class="form-check-label small" for="gen-symbols">Symbols</label>
-                        </div>
+                        <button type="button" class="btn btn-sm @(_genMemorable ? "btn-outline-secondary" : "btn-primary")"
+                                @onclick="() => _genMemorable = false">Random</button>
+                        <button type="button" class="btn btn-sm @(_genMemorable ? "btn-primary" : "btn-outline-secondary")"
+                                @onclick="() => _genMemorable = true">Memorable</button>
+                        @if (!_genMemorable)
+                        {
+                            <label class="form-label mb-0 small">Length</label>
+                            <input type="number" min="4" max="128" class="form-control form-control-sm" style="width: 5rem"
+                                   @bind="_genLength" />
+                            <div class="form-check mb-0">
+                                <input id="gen-symbols" type="checkbox" class="form-check-input" @bind="_genSymbols" />
+                                <label class="form-check-label small" for="gen-symbols">Symbols</label>
+                            </div>
+                        }
+                        else
+                        {
+                            <label class="form-label mb-0 small">Words</label>
+                            <input type="number" min="1" max="10" class="form-control form-control-sm" style="width: 4rem"
+                                   @bind="_genWordCount" />
+                            <label class="form-label mb-0 small">Separator</label>
+                            <input type="text" class="form-control form-control-sm" style="width: 3rem" maxlength="3"
+                                   @bind="_genSeparator" />
+                        }
                     </div>
                 </div>
                 <div class="mb-3">

@@ -28,8 +28,11 @@ public partial class EntriesPanel : IDisposable
     private static readonly TimeSpan SearchDebounce = TimeSpan.FromMilliseconds(300);
 
     private bool _showPassword;        // toggles the form password field between text/password
-    private int _genLength = 20;       // password generator options
+    private bool _genMemorable;        // false = random chars, true = passphrase
+    private int _genLength = 20;       // random mode options
     private bool _genSymbols = true;
+    private int _genWordCount = 4;     // memorable mode options
+    private string _genSeparator = "-";
 
     private IReadOnlyList<TagResponse> _tags = [];      // the caller's tags (per-user)
     private int? _activeTagId;                          // null = no tag filter
@@ -220,8 +223,9 @@ public partial class EntriesPanel : IDisposable
             return;
         }
 
-        var length = Math.Clamp(_genLength, 4, 128); // guard against out-of-range typed values
-        _form.Password = PasswordGenerator.Generate(length, _genSymbols);
+        _form.Password = _genMemorable
+            ? PasswordGenerator.GeneratePassphrase(Math.Clamp(_genWordCount, 1, 10), _genSeparator)
+            : PasswordGenerator.Generate(Math.Clamp(_genLength, 4, 128), _genSymbols); // clamp guards out-of-range typed values
         _showPassword = true; // reveal so the user can see what was generated
     }
 

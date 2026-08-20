@@ -45,5 +45,63 @@ namespace TheShed.Tests.Helpers
         {
             Assert.NotEqual(PasswordGenerator.Generate(), PasswordGenerator.Generate());
         }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(4)]
+        [InlineData(8)]
+        public void GeneratePassphrase_HasRequestedWordCount(int wordCount)
+        {
+            var passphrase = PasswordGenerator.GeneratePassphrase(wordCount);
+
+            Assert.Equal(wordCount, passphrase.Split('-').Length);
+        }
+
+        [Fact]
+        public void GeneratePassphrase_UsesGivenSeparator()
+        {
+            var passphrase = PasswordGenerator.GeneratePassphrase(3, separator: "_");
+
+            Assert.Equal(3, passphrase.Split('_').Length);
+            Assert.DoesNotContain("-", passphrase);
+        }
+
+        [Fact]
+        public void GeneratePassphrase_CapitalizeFirst_CapitalizesEachWord()
+        {
+            var passphrase = PasswordGenerator.GeneratePassphrase(4, capitalizeFirst: true);
+
+            Assert.All(passphrase.Split('-'), word => Assert.True(char.IsUpper(word[0])));
+        }
+
+        [Fact]
+        public void GeneratePassphrase_WithoutCapitalize_IsLowercase()
+        {
+            var passphrase = PasswordGenerator.GeneratePassphrase(4);
+
+            Assert.Equal(passphrase, passphrase.ToLowerInvariant());
+        }
+
+        [Fact]
+        public void GeneratePassphrase_IncludeNumber_AppendsTrailingDigit()
+        {
+            var passphrase = PasswordGenerator.GeneratePassphrase(3, includeNumber: true);
+            var last = passphrase.Split('-')[^1];
+
+            Assert.Single(last);
+            Assert.True(char.IsDigit(last[0]));
+        }
+
+        [Fact]
+        public void GeneratePassphrase_ZeroWords_Throws()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => PasswordGenerator.GeneratePassphrase(0));
+        }
+
+        [Fact]
+        public void GeneratePassphrase_IsRandom()
+        {
+            Assert.NotEqual(PasswordGenerator.GeneratePassphrase(6), PasswordGenerator.GeneratePassphrase(6));
+        }
     }
 }
