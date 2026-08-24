@@ -52,3 +52,14 @@ window.encryptAesGcm = async (keyBase64, plaintextBase64) => {
     combined.set(new Uint8Array(sealed), nonce.length);
     return bytesToB64(combined);
 };
+
+// Inverse of encryptAesGcm: splits the leading 12-byte nonce back off before handing the rest
+// (ciphertext||tag) to Web Crypto, which expects them concatenated the same way it produced them.
+window.decryptAesGcm = async (keyBase64, ciphertextBase64) => {
+    const key = await crypto.subtle.importKey('raw', b64ToBytes(keyBase64), 'AES-GCM', false, ['decrypt']);
+    const combined = b64ToBytes(ciphertextBase64);
+    const nonce = combined.slice(0, 12);
+    const sealed = combined.slice(12);
+    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, sealed);
+    return bytesToB64(new Uint8Array(plaintext));
+};

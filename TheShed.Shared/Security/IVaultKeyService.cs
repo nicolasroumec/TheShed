@@ -15,5 +15,9 @@ namespace TheShed.Shared.Security
         /// format as <see cref="IEncryptionService"/>) with <paramref name="stretchedMasterKey"/>.
         /// </summary>
         Task<string> GenerateWrappedKeyAsync(byte[] stretchedMasterKey);
+
+        /// <summary>Reverses <see cref="GenerateWrappedKeyAsync"/>: unwraps a vault key with the
+        /// stretched master key it was wrapped with, e.g. to open a vault on a new session.</summary>
+        Task<byte[]> UnwrapKeyAsync(byte[] stretchedMasterKey, string wrappedKey);
     }
 }

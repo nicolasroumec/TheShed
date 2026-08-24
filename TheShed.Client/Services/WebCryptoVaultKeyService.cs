@@ -23,5 +23,15 @@ namespace TheShed.Client.Services
             return await _js.InvokeAsync<string>(
                 "encryptAesGcm", Convert.ToBase64String(stretchedMasterKey), Convert.ToBase64String(vaultKey));
         }
+
+        public async Task<byte[]> UnwrapKeyAsync(byte[] stretchedMasterKey, string wrappedKey)
+        {
+            ArgumentNullException.ThrowIfNull(stretchedMasterKey);
+            ArgumentException.ThrowIfNullOrEmpty(wrappedKey);
+
+            var plaintextBase64 = await _js.InvokeAsync<string>(
+                "decryptAesGcm", Convert.ToBase64String(stretchedMasterKey), wrappedKey);
+            return Convert.FromBase64String(plaintextBase64);
+        }
     }
 }

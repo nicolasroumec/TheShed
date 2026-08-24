@@ -59,7 +59,8 @@ namespace TheShed.Server.Services
             }
 
             var vault = await _db.Vaults.FirstAsync(v => v.Id == vaultId, ct);
-            return EntryResult<VaultResponse>.Ok(ToResponse(vault, userId, access));
+            var wrappedKey = await GetWrappedKeyAsync(vaultId, userId, ct);
+            return EntryResult<VaultResponse>.Ok(ToResponse(vault, userId, access, wrappedKey));
         }
 
         public async Task<VaultResponse> CreateAsync(int userId, VaultCreateRequest request, CancellationToken ct = default)
@@ -82,7 +83,8 @@ namespace TheShed.Server.Services
             });
             await _db.SaveChangesAsync(ct);
 
-            return ToResponse(vault, userId, VaultAccess.Write);
+            // No extra query: the wrap was just handed in as part of this same request.
+            return ToResponse(vault, userId, VaultAccess.Write, request.VaultKeyWrap);
         }
 
         public async Task<EntryResult<VaultResponse>> UpdateAsync(int userId, int vaultId, VaultUpdateRequest request, CancellationToken ct = default)
@@ -98,8 +100,15 @@ namespace TheShed.Server.Services
             vault.Description = request.Description;
             await _db.SaveChangesAsync(ct);
 
-            return EntryResult<VaultResponse>.Ok(ToResponse(vault, userId, VaultAccess.Write));
+            var wrappedKey = await GetWrappedKeyAsync(vaultId, userId, ct);
+            return EntryResult<VaultResponse>.Ok(ToResponse(vault, userId, VaultAccess.Write, wrappedKey));
         }
+
+        private Task<string?> GetWrappedKeyAsync(int vaultId, int userId, CancellationToken ct) =>
+            _db.VaultKeyWraps
+                .Where(w => w.VaultId == vaultId && w.UserId == userId)
+                .Select(w => w.WrappedKey)
+                .FirstOrDefaultAsync(ct);
 
         public async Task<EntryResult<bool>> DeleteAsync(int userId, int vaultId, CancellationToken ct = default)
         {
@@ -250,7 +259,7 @@ namespace TheShed.Server.Services
             return vault.OwnerId == userId ? null : EntryError.Forbidden;
         }
 
-        private static VaultResponse ToResponse(Vault vault, int userId, VaultAccess access) => new()
+        private static VaultResponse ToResponse(Vault vault, int userId, VaultAccess access, string? wrappedKey) => new()
         {
             Id = vault.Id,
             Name = vault.Name,
@@ -258,7 +267,8 @@ namespace TheShed.Server.Services
             IsOwner = vault.OwnerId == userId,
             CanWrite = access == VaultAccess.Write,
             CreatedAt = vault.CreatedAt,
-            UpdatedAt = vault.UpdatedAt
+            UpdatedAt = vault.UpdatedAt,
+            WrappedKey = wrappedKey
         };
     }
 }
