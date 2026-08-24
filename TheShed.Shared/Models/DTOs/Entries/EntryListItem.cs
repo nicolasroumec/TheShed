@@ -2,9 +2,11 @@ using TheShed.Shared.Models.DTOs.Tags;
 
 namespace TheShed.Shared.Models.DTOs.Entries
 {
-    /// <summary>Lightweight entry shape for listings. Carries only metadata and
-    /// never the password; the password ciphertext (decrypted client-side) is
-    /// revealed one at a time via GET /api/entries/{id}.</summary>
+    /// <summary>Lightweight entry shape for listings. Name, Username and Url are AES-256-GCM
+    /// ciphertext (vault key, Sprint 26) — the caller decrypts them client-side right after
+    /// fetching, to display and to search/sort locally (the server can no longer do either on
+    /// ciphertext). Never carries the password; that ciphertext is fetched and decrypted one
+    /// entry at a time via GET /api/entries/{id}.</summary>
     public class EntryListItem
     {
         public int Id { get; set; }

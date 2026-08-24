@@ -2,14 +2,15 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TheShed.Shared.Models.DTOs.Entries
 {
-    /// <summary>Data to edit an existing entry. Does not include VaultId: an entry
-    /// does not change vault when edited. The password replaces the previous one.</summary>
+    /// <summary>Data to edit an existing entry. Does not include VaultId: an entry does not
+    /// change vault when edited. Name, Username, Password and Url are ciphertext (see
+    /// EntryCreateRequest) and each replaces the previous blob.</summary>
     public class EntryUpdateRequest
     {
-        [Required, MaxLength(200)]
+        [Required]
         public string Name { get; set; } = string.Empty;
 
-        [Required, MaxLength(200)]
+        [Required]
         public string Username { get; set; } = string.Empty;
 
         // AES-256-GCM ciphertext (vault key), encrypted client-side — the server never sees the
@@ -24,7 +25,6 @@ namespace TheShed.Shared.Models.DTOs.Entries
         // outgoing password gets snapshotted to EntryHistory.
         public bool PasswordChanged { get; set; }
 
-        [MaxLength(2048)]
         public string? Url { get; set; }
 
         public string? Notes { get; set; }

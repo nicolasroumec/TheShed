@@ -156,20 +156,24 @@ namespace TheShed.Tests.Services
         // --- List ---
 
         [Fact]
-        public async Task ListAsync_ReturnsMetadataOrderedByName()
+        public async Task ListAsync_ReturnsMetadataInCreationOrder()
         {
+            // Sprint 26: Name/Username/Url are ciphertext, so the server can no longer sort
+            // alphabetically by them — that responsibility moved to the client, which decrypts
+            // and re-sorts (see EntriesPanel.RecomputeVisible). The server's own order is just
+            // creation order (Id), a stable tiebreaker behind the favorite-first sort.
             using var db = CreateContext();
             var (ownerId, vaultId) = await SeedVaultAsync(db);
             var service = CreateService(db);
-            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Zelda", Username = "z", Password = "p" });
-            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Amazon", Username = "a", Password = "p" });
+            var zelda = await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Zelda", Username = "z", Password = "p" });
+            var amazon = await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Amazon", Username = "a", Password = "p" });
 
             var result = await service.ListAsync(ownerId, vaultId);
 
             Assert.True(result.Success);
             Assert.Collection(result.Value!,
-                first => Assert.Equal("Amazon", first.Name),
-                second => Assert.Equal("Zelda", second.Name));
+                first => Assert.Equal(zelda.Value!.Id, first.Id),
+                second => Assert.Equal(amazon.Value!.Id, second.Id));
         }
 
         [Fact]
@@ -197,29 +201,14 @@ namespace TheShed.Tests.Services
             var result = await service.ListAsync(ownerId, vaultId);
 
             Assert.Collection(result.Value!,
-                first => Assert.Equal("Zelda", first.Name),   // favorite, despite sorting after "Amazon" alphabetically
+                first => Assert.Equal("Zelda", first.Name),    // favorite, despite being created after "Amazon"
                 second => Assert.Equal("Amazon", second.Name));
         }
 
-        [Fact]
-        public async Task ListAsync_Search_FiltersByNameUsernameOrUrl()
-        {
-            using var db = CreateContext();
-            var (ownerId, vaultId) = await SeedVaultAsync(db);
-            var service = CreateService(db);
-            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Gmail", Username = "ana", Password = "p", Url = "https://gmail.com" });
-            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Amazon", Username = "shopper", Password = "p", Url = "https://amazon.com" });
-
-            var byName = await service.ListAsync(ownerId, vaultId, search: "gmail");
-            var byUsername = await service.ListAsync(ownerId, vaultId, search: "shopper");
-            var byUrl = await service.ListAsync(ownerId, vaultId, search: "amazon.com");
-            var noMatch = await service.ListAsync(ownerId, vaultId, search: "nope");
-
-            Assert.Equal("Gmail", Assert.Single(byName.Value!).Name);
-            Assert.Equal("Amazon", Assert.Single(byUsername.Value!).Name);
-            Assert.Equal("Amazon", Assert.Single(byUrl.Value!).Name);
-            Assert.Empty(noMatch.Value!);
-        }
+        // No more ListAsync_Search_* here: Name/Username/Url are ciphertext (Sprint 26), so
+        // there's no search param left on the server to test — EntriesPanel filters client-side
+        // after decrypting (see EntriesPanel.RecomputeVisible; no automated coverage for it,
+        // this codebase has no Razor component test harness — verified manually in-browser).
 
         // --- Update ---
 

@@ -16,12 +16,13 @@ namespace TheShed.Server.Controllers
 
         public EntriesController(IPasswordEntryService entries) => _entries = entries;
 
-        // GET /api/entries?vaultId=123&tagId=5&search=foo — metadata only, no passwords.
-        // tagId/search filter optionally; favorites sort first.
+        // GET /api/entries?vaultId=123&tagId=5 — metadata only, no passwords. tagId filters
+        // optionally; favorites sort first. No search param (Sprint 26): Name/Username/Url are
+        // ciphertext, so the caller fetches the (tag-filtered) list and searches client-side.
         [HttpGet]
-        public async Task<IActionResult> List([FromQuery] int vaultId, [FromQuery] int? tagId, [FromQuery] string? search, CancellationToken ct)
+        public async Task<IActionResult> List([FromQuery] int vaultId, [FromQuery] int? tagId, CancellationToken ct)
         {
-            var result = await _entries.ListAsync(CurrentUserId, vaultId, tagId, search, ct);
+            var result = await _entries.ListAsync(CurrentUserId, vaultId, tagId, ct);
             return result.Success ? Ok(result.Value) : MapError(result.Error);
         }
 
