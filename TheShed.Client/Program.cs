@@ -29,5 +29,6 @@ builder.Services.AddScoped<AttachmentClient>();
 builder.Services.AddScoped<HealthClient>();
 builder.Services.AddScoped<IKeyDerivationService, KeyDerivationService>();
 builder.Services.AddScoped<IUserKeypairService, WebCryptoUserKeypairService>();
+builder.Services.AddScoped<IStretchedKeyStore, StretchedKeyStore>();
 
 await builder.Build().RunAsync();
