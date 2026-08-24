@@ -56,13 +56,30 @@ namespace TheShed.Tests.Services
             var userId = await AddUserAsync(db, "ana");
             var service = CreateService(db);
 
-            var vault = await service.CreateAsync(userId, new VaultCreateRequest { Name = "  Work  ", Description = "stuff" });
+            var vault = await service.CreateAsync(userId,
+                new VaultCreateRequest { Name = "  Work  ", Description = "stuff", VaultKeyWrap = "wrapped-key" });
 
             Assert.Equal("Work", vault.Name); // trimmed
             Assert.True(vault.IsOwner);
             Assert.True(vault.CanWrite);
             var stored = await db.Vaults.SingleAsync();
             Assert.Equal(userId, stored.OwnerId);
+        }
+
+        [Fact]
+        public async Task CreateAsync_StoresVaultKeyWrapForOwner()
+        {
+            using var db = CreateContext();
+            var userId = await AddUserAsync(db, "ana");
+            var service = CreateService(db);
+
+            var vault = await service.CreateAsync(userId,
+                new VaultCreateRequest { Name = "Work", VaultKeyWrap = "wrapped-key" });
+
+            var wrap = await db.VaultKeyWraps.SingleAsync();
+            Assert.Equal(vault.Id, wrap.VaultId);
+            Assert.Equal(userId, wrap.UserId);
+            Assert.Equal("wrapped-key", wrap.WrappedKey);
         }
 
         // --- List ---

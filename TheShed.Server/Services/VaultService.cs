@@ -71,7 +71,15 @@ namespace TheShed.Server.Services
                 Description = request.Description
             };
 
+            // Added together so EF resolves the FK from the navigation in one SaveChanges call,
+            // instead of a round trip to learn vault.Id first.
             _db.Vaults.Add(vault);
+            _db.VaultKeyWraps.Add(new VaultKeyWrap
+            {
+                Vault = vault,
+                UserId = userId,
+                WrappedKey = request.VaultKeyWrap
+            });
             await _db.SaveChangesAsync(ct);
 
             return ToResponse(vault, userId, VaultAccess.Write);

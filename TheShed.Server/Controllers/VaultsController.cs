@@ -34,6 +34,14 @@ namespace TheShed.Server.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(VaultCreateRequest request, CancellationToken ct)
         {
+            // Generated client-side (see VaultCreateRequest) — no [Required] there so the
+            // EditForm's validator doesn't block submission before it's filled in. A caller
+            // bypassing the client entirely (e.g. a raw API request) is rejected here instead.
+            if (string.IsNullOrEmpty(request.VaultKeyWrap))
+            {
+                return BadRequest(new { message = "Missing client-generated vault key." });
+            }
+
             var vault = await _vaults.CreateAsync(CurrentUserId, request, ct);
             return CreatedAtAction(nameof(Get), new { id = vault.Id }, vault);
         }

@@ -20,6 +20,7 @@ namespace TheShed.Server.Data
         public DbSet<User> Users => Set<User>();
         public DbSet<Vault> Vaults => Set<Vault>();
         public DbSet<VaultMember> VaultMembers => Set<VaultMember>();
+        public DbSet<VaultKeyWrap> VaultKeyWraps => Set<VaultKeyWrap>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -34,6 +35,12 @@ namespace TheShed.Server.Data
                 .HasOne(vm => vm.User)
                 .WithMany(u => u.VaultMemberships)
                 .HasForeignKey(vm => vm.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<VaultKeyWrap>()
+                .HasOne(vkw => vkw.User)
+                .WithMany()
+                .HasForeignKey(vkw => vkw.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<EntryHistory>()
