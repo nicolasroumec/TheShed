@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using TheShed.Client.Services;
 using TheShed.Shared.Models.DTOs.Notes;
+using TheShed.Shared.Security;
 
 namespace TheShed.Client.Components.Vault;
 
@@ -11,6 +12,10 @@ public partial class NotesPanel
 
     [Inject] private NoteClient NoteApi { get; set; } = default!;
     [Inject] private IModalService Modal { get; set; } = default!;
+    [Inject] private IVaultKeyCache VaultKeyCache { get; set; } = default!;
+    [Inject] private IAesGcmService AesGcm { get; set; } = default!;
+
+    private const string MissingVaultKeyError = "Your session is missing this vault's encryption key — log out and log back in.";
 
     private IReadOnlyList<NoteListItem>? _notes;
     private readonly Dictionary<int, string> _revealedNotes = new();
@@ -32,10 +37,18 @@ public partial class NotesPanel
             return; // was shown, now hidden
         }
 
+        var vaultKey = VaultKeyCache.Get(VaultId);
+        if (vaultKey is null)
+        {
+            _notesListError = MissingVaultKeyError;
+            return;
+        }
+
         var note = await NoteApi.GetAsync(noteId);
         if (note is not null)
         {
-            _revealedNotes[noteId] = note.Content;
+            _notesListError = null;
+            _revealedNotes[noteId] = await AesGcm.DecryptAsync(vaultKey, note.Content);
         }
     }
 
@@ -54,13 +67,20 @@ public partial class NotesPanel
             return;
         }
 
+        var vaultKey = VaultKeyCache.Get(VaultId);
+        if (vaultKey is null)
+        {
+            _noteError = MissingVaultKeyError;
+            return;
+        }
+
         _editingNoteId = noteId;
         _noteError = null;
         _noteForm = new NoteCreateRequest
         {
             VaultId = VaultId,
             Title = note.Title,
-            Content = note.Content,
+            Content = await AesGcm.DecryptAsync(vaultKey, note.Content),
             IsFavorite = note.IsFavorite
         };
     }
@@ -79,20 +99,38 @@ public partial class NotesPanel
             return;
         }
 
+        var vaultKey = VaultKeyCache.Get(VaultId);
+        if (vaultKey is null)
+        {
+            _noteError = MissingVaultKeyError;
+            return;
+        }
+
         _noteBusy = true;
         _noteError = null;
         try
         {
+            // Encrypted into a local var, not written back onto _noteForm.Content: a failed save
+            // leaves the form open for retry, and the visible textarea should stay the plaintext
+            // the user typed, not the ciphertext blob from the failed attempt.
+            var encryptedContent = await AesGcm.EncryptAsync(vaultKey, _noteForm.Content);
+
             if (_editingNoteId is null)
             {
-                await NoteApi.CreateAsync(_noteForm);
+                await NoteApi.CreateAsync(new NoteCreateRequest
+                {
+                    VaultId = _noteForm.VaultId,
+                    Title = _noteForm.Title,
+                    Content = encryptedContent,
+                    IsFavorite = _noteForm.IsFavorite
+                });
             }
             else
             {
                 await NoteApi.UpdateAsync(_editingNoteId.Value, new NoteUpdateRequest
                 {
                     Title = _noteForm.Title,
-                    Content = _noteForm.Content,
+                    Content = encryptedContent,
                     IsFavorite = _noteForm.IsFavorite
                 });
                 _revealedNotes.Remove(_editingNoteId.Value); // stale content if it was shown

@@ -3,7 +3,8 @@ using System.ComponentModel.DataAnnotations;
 namespace TheShed.Shared.Models.DTOs.Notes
 {
     /// <summary>Data to edit an existing secure note. Does not include VaultId: a note
-    /// does not change vault when edited. The content replaces the previous one.</summary>
+    /// does not change vault when edited. Content is ciphertext (see NoteCreateRequest) and
+    /// replaces the previous one.</summary>
     public class NoteUpdateRequest
     {
         [Required, MaxLength(200)]

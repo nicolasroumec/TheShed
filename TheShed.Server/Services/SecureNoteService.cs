@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
-using TheShed.Shared.Security;
 using TheShed.Shared.Models.DTOs.Notes;
 using TheShed.Shared.Models.Entities;
 
@@ -10,13 +9,11 @@ namespace TheShed.Server.Services
     public class SecureNoteService : ISecureNoteService
     {
         private readonly TheShedContext _db;
-        private readonly IEncryptionService _encryption;
         private readonly IVaultAccessService _access;
 
-        public SecureNoteService(TheShedContext db, IEncryptionService encryption, IVaultAccessService access)
+        public SecureNoteService(TheShedContext db, IVaultAccessService access)
         {
             _db = db;
-            _encryption = encryption;
             _access = access;
         }
 
@@ -76,7 +73,7 @@ namespace TheShed.Server.Services
             {
                 VaultId = request.VaultId,
                 Title = request.Title.Trim(),
-                ContentEncrypted = _encryption.Encrypt(request.Content),
+                ContentEncrypted = request.Content,
                 IsFavorite = request.IsFavorite
             };
 
@@ -105,7 +102,7 @@ namespace TheShed.Server.Services
             }
 
             note.Title = request.Title.Trim();
-            note.ContentEncrypted = _encryption.Encrypt(request.Content);
+            note.ContentEncrypted = request.Content;
             note.IsFavorite = request.IsFavorite;
 
             await _db.SaveChangesAsync(ct);
@@ -138,13 +135,14 @@ namespace TheShed.Server.Services
             return EntryResult<bool>.Ok(true);
         }
 
-        /// <summary>Maps a note to its detail DTO, decrypting the stored content.</summary>
+        /// <summary>Maps a note to its detail DTO. Content is passed through as stored — the
+        /// server cannot decrypt it (Sprint 26).</summary>
         private NoteResponse ToResponse(SecureNote note) => new()
         {
             Id = note.Id,
             VaultId = note.VaultId,
             Title = note.Title,
-            Content = _encryption.Decrypt(note.ContentEncrypted),
+            Content = note.ContentEncrypted,
             IsFavorite = note.IsFavorite,
             CreatedAt = note.CreatedAt,
             UpdatedAt = note.UpdatedAt
