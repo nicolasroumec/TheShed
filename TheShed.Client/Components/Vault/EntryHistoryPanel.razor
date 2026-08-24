@@ -1,6 +1,10 @@
 @if (IsOpen)
 {
     <div class="mt-2">
+        @if (!string.IsNullOrEmpty(_actionError))
+        {
+            <div class="alert alert-danger py-1 px-2 small" role="alert">@_actionError</div>
+        }
         @if (_history is null)
         {
             <Loading Text="Loading history…" Class="small mb-0" />

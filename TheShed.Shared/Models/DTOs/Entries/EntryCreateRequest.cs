@@ -2,8 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TheShed.Shared.Models.DTOs.Entries
 {
-    /// <summary>Data to create an entry. The password travels in plaintext and the
-    /// server encrypts it before persisting.</summary>
+    /// <summary>Data to create an entry. Password is AES-256-GCM ciphertext (vault key),
+    /// encrypted client-side before this request goes out — the server only ever stores and
+    /// returns the blob as-is (Sprint 26).</summary>
     public class EntryCreateRequest
     {
         [Required]

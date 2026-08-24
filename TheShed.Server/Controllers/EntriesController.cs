@@ -25,7 +25,7 @@ namespace TheShed.Server.Controllers
             return result.Success ? Ok(result.Value) : MapError(result.Error);
         }
 
-        // GET /api/entries/123 — single entry with the decrypted password.
+        // GET /api/entries/123 — single entry, password as its ciphertext blob (Sprint 26).
         [HttpGet("{id:int}")]
         public async Task<IActionResult> Get(int id, CancellationToken ct)
         {
@@ -96,7 +96,7 @@ namespace TheShed.Server.Controllers
             return result.Success ? Ok(result.Value) : MapError(result.Error);
         }
 
-        // GET /api/entries/123/history/456 — a single past password, decrypted.
+        // GET /api/entries/123/history/456 — a single past password, as its ciphertext blob.
         [HttpGet("{id:int}/history/{historyId:int}")]
         public async Task<IActionResult> GetHistoryEntry(int id, int historyId, CancellationToken ct)
         {

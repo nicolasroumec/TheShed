@@ -32,5 +32,6 @@ builder.Services.AddScoped<IUserKeypairService, WebCryptoUserKeypairService>();
 builder.Services.AddScoped<IStretchedKeyStore, StretchedKeyStore>();
 builder.Services.AddScoped<IVaultKeyService, WebCryptoVaultKeyService>();
 builder.Services.AddScoped<IVaultKeyCache, VaultKeyCache>();
+builder.Services.AddScoped<IAesGcmService, WebCryptoAesGcmService>();
 
 await builder.Build().RunAsync();

@@ -3,8 +3,8 @@ using TheShed.Shared.Models.DTOs.Tags;
 namespace TheShed.Shared.Models.DTOs.Entries
 {
     /// <summary>Lightweight entry shape for listings. Carries only metadata and
-    /// never the password; the plaintext password is revealed one at a time via
-    /// GET /api/entries/{id}.</summary>
+    /// never the password; the password ciphertext (decrypted client-side) is
+    /// revealed one at a time via GET /api/entries/{id}.</summary>
     public class EntryListItem
     {
         public int Id { get; set; }

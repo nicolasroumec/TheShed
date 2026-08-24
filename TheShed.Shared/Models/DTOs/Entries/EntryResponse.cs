@@ -2,9 +2,10 @@ using TheShed.Shared.Models.DTOs.Tags;
 
 namespace TheShed.Shared.Models.DTOs.Entries
 {
-    /// <summary>Detail of a single entry. Includes the decrypted password; returned
-    /// only when requesting an individual entry (GET /api/entries/{id}),
-    /// never in listings.</summary>
+    /// <summary>Detail of a single entry. Password is the AES-256-GCM ciphertext blob as stored
+    /// (vault key) — the server cannot decrypt it (Sprint 26); the caller unwraps it client-side.
+    /// Returned only when requesting an individual entry (GET /api/entries/{id}), never in
+    /// listings.</summary>
     public class EntryResponse
     {
         public int Id { get; set; }

@@ -4,6 +4,7 @@ using TheShed.Client.Services;
 using TheShed.Shared.Helpers;
 using TheShed.Shared.Models.DTOs.Entries;
 using TheShed.Shared.Models.DTOs.Tags;
+using TheShed.Shared.Security;
 
 namespace TheShed.Client.Components.Vault;
 
@@ -15,6 +16,11 @@ public partial class EntriesPanel : IDisposable
     [Inject] private EntryClient EntryApi { get; set; } = default!;
     [Inject] private TagClient TagApi { get; set; } = default!;
     [Inject] private IModalService Modal { get; set; } = default!;
+    [Inject] private IVaultKeyCache VaultKeyCache { get; set; } = default!;
+    [Inject] private IAesGcmService AesGcm { get; set; } = default!;
+
+    private byte[]? VaultKey => VaultKeyCache.Get(VaultId);
+    private const string MissingVaultKeyError = "Your session is missing this vault's encryption key — log out and log back in.";
 
     private IReadOnlyList<EntryListItem>? _entries;
     private string? _listError;     // failures of list-level actions (favorite, delete)
@@ -22,6 +28,7 @@ public partial class EntriesPanel : IDisposable
 
     private EntryCreateRequest? _form;   // non-null while the create/edit form is open
     private int? _editingId;             // null = creating, otherwise the entry being edited
+    private string? _editingOriginalPassword; // plaintext as loaded, to detect a real change on save
     private bool _busy;
     private string? _error;
 
@@ -63,8 +70,17 @@ public partial class EntriesPanel : IDisposable
             return;
         }
 
+        var vaultKey = VaultKey;
+        if (vaultKey is null)
+        {
+            _error = MissingVaultKeyError;
+            return;
+        }
+        var plaintextPassword = await AesGcm.DecryptAsync(vaultKey, entry.Password);
+
         _editingId = entryId;
         _error = null;
+        _editingOriginalPassword = plaintextPassword;
         _formTagIds.Clear();
         foreach (var tag in entry.Tags)
         {
@@ -75,7 +91,7 @@ public partial class EntriesPanel : IDisposable
             VaultId = VaultId,
             Name = entry.Name,
             Username = entry.Username,
-            Password = entry.Password,
+            Password = plaintextPassword,
             Url = entry.Url,
             Notes = entry.Notes,
             IsFavorite = entry.IsFavorite
@@ -86,6 +102,7 @@ public partial class EntriesPanel : IDisposable
     {
         _form = null;
         _editingId = null;
+        _editingOriginalPassword = null;
         _error = null;
         _showPassword = false;
         _formTagIds.Clear();
@@ -236,13 +253,34 @@ public partial class EntriesPanel : IDisposable
             return;
         }
 
+        var vaultKey = VaultKey;
+        if (vaultKey is null)
+        {
+            _error = MissingVaultKeyError;
+            return;
+        }
+
         _busy = true;
         _error = null;
         try
         {
+            // Encrypted into a local var, not written back onto _form.Password: a failed save
+            // leaves the form open for retry, and the visible input should stay the plaintext
+            // the user typed, not the ciphertext blob from the failed attempt.
+            var encryptedPassword = await AesGcm.EncryptAsync(vaultKey, _form.Password);
+
             if (_editingId is null)
             {
-                await EntryApi.CreateAsync(_form);
+                await EntryApi.CreateAsync(new EntryCreateRequest
+                {
+                    VaultId = _form.VaultId,
+                    Name = _form.Name,
+                    Username = _form.Username,
+                    Password = encryptedPassword,
+                    Url = _form.Url,
+                    Notes = _form.Notes,
+                    IsFavorite = _form.IsFavorite
+                });
             }
             else
             {
@@ -250,7 +288,8 @@ public partial class EntriesPanel : IDisposable
                 {
                     Name = _form.Name,
                     Username = _form.Username,
-                    Password = _form.Password,
+                    Password = encryptedPassword,
+                    PasswordChanged = _form.Password != _editingOriginalPassword,
                     Url = _form.Url,
                     Notes = _form.Notes,
                     IsFavorite = _form.IsFavorite

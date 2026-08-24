@@ -151,7 +151,7 @@ else
         @foreach (var entry in _entries)
         {
             @* Favorites reorder this list, so the rows need a stable identity. *@
-            <EntryRow @key="entry.Id" Entry="entry" CanWrite="CanWrite"
+            <EntryRow @key="entry.Id" Entry="entry" CanWrite="CanWrite" VaultKey="VaultKey"
                       OnFavoriteToggled="ToggleFavoriteAsync"
                       OnDeleteRequested="DeleteAsync"
                       OnEditRequested="StartEditAsync" />
