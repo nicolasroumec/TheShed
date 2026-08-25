@@ -26,9 +26,12 @@ namespace TheShed.Server.Services
                 return EntryResult<IReadOnlyList<NoteListItem>>.Fail(EntryError.NotFound);
             }
 
+            // Title is ciphertext (Sprint 26) — the server can no longer sort by it meaningfully.
+            // It returns notes ordered by Id; the caller decrypts and re-sorts favorite-then-title
+            // client-side, same as PasswordEntryService.
             var items = await _db.SecureNotes
                 .Where(n => n.VaultId == vaultId)
-                .OrderBy(n => n.Title)
+                .OrderBy(n => n.Id)
                 .Select(n => new NoteListItem
                 {
                     Id = n.Id,
@@ -135,8 +138,8 @@ namespace TheShed.Server.Services
             return EntryResult<bool>.Ok(true);
         }
 
-        /// <summary>Maps a note to its detail DTO. Content is passed through as stored — the
-        /// server cannot decrypt it (Sprint 26).</summary>
+        /// <summary>Maps a note to its detail DTO. Title and Content are passed through as
+        /// stored — the server cannot decrypt either of them (Sprint 26).</summary>
         private NoteResponse ToResponse(SecureNote note) => new()
         {
             Id = note.Id,

@@ -1,9 +1,9 @@
 namespace TheShed.Shared.Models.DTOs.Notes
 {
-    /// <summary>Detail of a single secure note. Content is the AES-256-GCM ciphertext blob as
-    /// stored (vault key) — the server cannot decrypt it (Sprint 26); the caller unwraps it
-    /// client-side. Returned only when requesting an individual note (GET /api/notes/{id}),
-    /// never in listings.</summary>
+    /// <summary>Detail of a single secure note. Title and Content are both AES-256-GCM ciphertext
+    /// blobs as stored (vault key) — the server cannot decrypt either of them (Sprint 26); the
+    /// caller unwraps each client-side. Returned only when requesting an individual note
+    /// (GET /api/notes/{id}), never in listings.</summary>
     public class NoteResponse
     {
         public int Id { get; set; }
