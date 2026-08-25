@@ -189,13 +189,26 @@ plan de reusar `AesEncryptionService` client-side para vault key/entradas/notas 
 como bloqueante conocido (con la solución ya resuelta, mismo patrón Web Crypto) al principio de
 la sección del Sprint 26 en `SPRINTS.md`.
 
-**Próximo paso sugerido:** seguir con el resto del bloque zero-knowledge (Sprints 26-28), que
-sigue siendo la prioridad que marcaba D7. Sprint 26 arranca con el bloqueante de `AesGcm`/WASM ya
-identificado y documentado arriba — aplicar el mismo patrón Web Crypto del Sprint 25 antes de
-escribir el resto de la lógica de vault key, no redescubrirlo. Aparte, sigue pendiente la pasada
-corta de mantenimiento de docs: tildar los ítems del Sprint 20 que ya están hechos en el código
-(ver la nota de desfasaje en `SPRINTS.md`) y arrancar la rama de traducción a inglés, que crece
-con cada sprint.
+**Sprint 26 cerrado (2026-08-25, `feature/e2e-vault-encryption`).** Vault key generada y envuelta
+al crear un vault, cifrado de `PasswordEntry`/`SecureNote` movido al cliente con esa key,
+listado/búsqueda de entradas movidos a client-side (el servidor ya no puede filtrar sobre
+ciphertext), test end-to-end que prueba que lo guardado en el servidor no se puede reconstruir
+sin la master password — bloqueante de `AesGcm`/WASM resuelto con el mismo patrón Web Crypto de
+`interop.js` que ya se había armado en el Sprint 25. Verificado en navegador (mismo criterio que
+Sprint 25: tests en verde no alcanza) y aparecieron 2 bugs que los tests no veían — `PasswordEntry
+.Notes` y `SecureNote.Title` nunca se habían movido al cifrado client-side junto con sus campos
+hermanos, viajaban y quedaban en texto plano. Arreglados en 2 commits separados (detalle completo,
+incluido el ajuste de `SecureNoteService.ListAsync` que dejó de ordenar por `Title` server-side, en
+`SPRINTS.md`). De paso se encontró y arregló un problema heredado del Sprint 25: el KDF
+(`Rfc2898DeriveBytes`, 600k iteraciones de PBKDF2) corría interpretado en el hilo principal de
+WASM y congelaba la pestaña ~70-90s en cada login/registro — pasó a `crypto.subtle.deriveBits`
+(Web Crypto, nativo) vía `WebCryptoKeyDerivationService`, mismas iteraciones, sin freeze.
+
+**Próximo paso sugerido:** Sprint 27 — compartir vaults vía key-wrapping asimétrico
+(`feature/e2e-vault-sharing`), que sigue siendo la prioridad que marcaba D7. Aparte, sigue
+pendiente la pasada corta de mantenimiento de docs: tildar los ítems del Sprint 20 que ya están
+hechos en el código (ver la nota de desfasaje en `SPRINTS.md`) y arrancar la rama de traducción a
+inglés, que crece con cada sprint.
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra

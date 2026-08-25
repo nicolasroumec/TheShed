@@ -505,12 +505,22 @@
 > auth) — es una derivación **independiente** del mismo master password, que el
 > servidor nunca ve.
 
-- [ ] KDF client-side: `Rfc2898DeriveBytes` (PBKDF2-SHA256, managed, corre en WASM sin
-      interop) deriva una "stretched master key" (256 bits) del master password + un
-      salt del usuario. **Nota ponytail:** no Argon2 client-side por ahora —
-      `Isopoh.Cryptography.Argon2` es nativo (P/Invoke), no corre en WASM sin research
-      aparte; PBKDF2 con ≥600k iteraciones (guía OWASP 2023) es aceptable como punto de
-      partida, upgrade a Argon2id-WASM si aparece una lib que lo soporte
+- [x] KDF client-side: PBKDF2-SHA256 (≥600k iteraciones, guía OWASP 2023) deriva una
+      "stretched master key" (256 bits) del master password + un salt del usuario.
+      **Nota ponytail:** no Argon2 client-side por ahora — `Isopoh.Cryptography.Argon2`
+      es nativo (P/Invoke), no corre en WASM sin research aparte; upgrade a Argon2id-WASM
+      si aparece una lib que lo soporte. **Corrección posterior (2026-08-25, verificado
+      al probar Sprint 26 en un navegador real):** la primera implementación usaba
+      `Rfc2898DeriveBytes` (managed .NET) corriendo directo en el cliente — corre en WASM
+      sin tirar `PlatformNotSupportedException` (a diferencia de RSA/AesGcm, ver nota de
+      abajo), así que los tests nunca lo vieron, pero interpretado (no nativo) las 600k
+      iteraciones congelaban la pestaña ~70-90s en cada login/registro (WASM de un solo
+      hilo — bloquea render e input mientras corre). Mismo arreglo que ya se usó para
+      RSA/AesGcm: `deriveKeyPbkdf2` en `interop.js` delega a `crypto.subtle.deriveBits`
+      (Web Crypto, nativo del navegador) vía `WebCryptoKeyDerivationService`
+      (`TheShed.Client/Services`) — mismas 600k iteraciones, sin bajar la seguridad, pero
+      sin congelar nada. `KeyDerivationService` (managed) queda para servidor/tests, donde
+      corre sobre el runtime real y es rápida sin interop
 - [x] Keypair por usuario al registrar: `RSA` generado en el cliente, clave privada
       cifrada con la stretched master key (AES-GCM, mismo formato que D3) antes de
       subir. El servidor guarda `PublicKey` (texto) y `EncryptedPrivateKey` (blob
@@ -547,20 +557,42 @@
 > como referencia del patrón). El formato de bytes (`nonce(12)||ciphertext||tag(16)`) sí
 > es compatible entre ambos lados, así que el wire format no cambia — solo quién ejecuta
 > el cifrado. `AesEncryptionService` en `Server` queda intacta (ahí `AesGcm` sí anda).
-- [ ] Vault key: al crear un vault, el cliente genera una clave AES-256 aleatoria
+- [x] Vault key: al crear un vault, el cliente genera una clave AES-256 aleatoria
       ("vault key"), la cifra con la stretched master key del dueño y la sube como blob
       opaco (`VaultKeyWrap` por `vaultId`+`userId`, arranca con una fila: el dueño)
-- [ ] `PasswordEntry`/`SecureNote`: el cifrado se mueve al cliente con la vault key
+- [x] `PasswordEntry`/`SecureNote`: el cifrado se mueve al cliente con la vault key
       (mismo formato `nonce||ciphertext||tag` que ya usa `AesEncryptionService`, pero
       ejecutado vía Web Crypto en `Client` — no la clase de `Shared` tal cual, ver
       advertencia arriba). El servidor deja de descifrar: `PasswordEntryService.ToResponse`
       y equivalentes pasan a devolver el blob tal cual
-- [ ] Listado y búsqueda: hoy `PasswordEntryService` filtra server-side por
+- [x] Listado y búsqueda: hoy `PasswordEntryService` filtra server-side por
       nombre/usuario/URL. Pasa a traer todos los items del vault de una vez (blobs),
       descifrar en memoria del cliente y filtrar ahí — mismo patrón que Bitwarden/
       1Password. Válido a la escala de un vault personal (cientos de items, no miles)
-- [ ] Tests: roundtrip end-to-end simulado desde el cliente; confirmar que con lo que
+- [x] Tests: roundtrip end-to-end simulado desde el cliente; confirmar que con lo que
       el servidor tiene guardado **no** puede reconstruir el plaintext
+
+**Verificado en navegador (2026-08-25)** — mismo criterio que Sprint 25 (tests en verde
+no alcanza, hay que probarlo real). Aparecieron 2 bugs que los tests no veían porque el
+campo nunca se comparaba contra texto plano esperado, solo se guardaba y devolvía tal
+cual: **`PasswordEntry.Notes`** y **`SecureNote.Title`** nunca se movieron al cifrado
+client-side junto con sus campos hermanos — viajaban y quedaban guardados en texto plano,
+pese a ser justo el tipo de campo libre donde la gente pone códigos de recuperación o
+respuestas de seguridad. Confirmado con un hook a `window.fetch` inspeccionando el
+payload de red antes y después del fix. Arreglados en 2 commits separados:
+- `Notes`: cifrado/descifrado en `EntriesPanel.razor.cs` igual que Name/Username/Url —
+  cambio puramente client-side, el servidor nunca supo ni le importó que el campo fuera
+  ciphertext.
+- `Title`: igual patrón en `NotesPanel.razor.cs`, pero con más superficie porque el
+  servidor sí dependía de él — `SecureNoteService.ListAsync` ordenaba por `Title`
+  server-side (pasó a ordenar por `Id`, mismo criterio que `PasswordEntryService`, y el
+  orden favorito-then-title se recalcula client-side tras descifrar) y
+  `NoteCreateRequest`/`NoteUpdateRequest` tenían `[MaxLength(200)]` en `Title` (un
+  ciphertext de un título de 200 caracteres supera esa cota — sacado, mismo criterio que
+  ya documentaba `EntryCreateRequest` para sus propios campos).
+
+De paso se encontró y arregló el freeze de PBKDF2 heredado del Sprint 25 — ver la nota
+de ese sprint arriba (`WebCryptoKeyDerivationService`).
 
 ## 🟣 Sprint 27 — Zero-knowledge: compartir vaults (key wrapping) · `feature/e2e-vault-sharing`
 - [ ] Al agregar un `VaultMember`: el dueño pide la public key del nuevo miembro
