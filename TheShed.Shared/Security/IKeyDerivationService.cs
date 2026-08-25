@@ -12,8 +12,10 @@ namespace TheShed.Shared.Security
 
         /// <summary>
         /// Derives a 256-bit key from the master password and salt via PBKDF2-SHA256.
-        /// Deterministic: the same password + salt always produce the same key.
+        /// Deterministic: the same password + salt always produce the same key. Async because
+        /// the client-side implementation goes through JS interop (Web Crypto) rather than
+        /// running 600k iterations synchronously on the WASM main thread.
         /// </summary>
-        byte[] DeriveKey(string password, byte[] salt);
+        Task<byte[]> DeriveKeyAsync(string password, byte[] salt);
     }
 }

@@ -24,7 +24,7 @@ namespace TheShed.Server.Controllers
             return result.Success ? Ok(result.Value) : MapError(result.Error);
         }
 
-        // GET /api/notes/123 — single note with the decrypted content.
+        // GET /api/notes/123 — single note, content as its ciphertext blob (Sprint 26).
         [HttpGet("{id:int}")]
         public async Task<IActionResult> Get(int id, CancellationToken ct)
         {

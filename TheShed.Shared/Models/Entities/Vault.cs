@@ -13,5 +13,6 @@ namespace TheShed.Shared.Models.Entities
         public ICollection<PasswordEntry> PasswordEntries { get; set; } = [];
         public ICollection<SecureNote> SecureNotes { get; set; } = [];
         public ICollection<VaultMember> Members { get; set; } = [];
+        public ICollection<VaultKeyWrap> KeyWraps { get; set; } = [];
     }
 }

@@ -5,16 +5,16 @@ using TheShed.Server.Services;
 using TheShed.Shared.Models.DTOs.Notes;
 using TheShed.Shared.Models.Entities;
 using TheShed.Shared.Models.Enums;
-using TheShed.Shared.Security;
 using Xunit;
 
 namespace TheShed.Tests.Services
 {
+    // Sprint 26: SecureNoteService no longer encrypts/decrypts — Content is whatever ciphertext
+    // blob the caller sends and gets back verbatim, encrypted client-side with the vault key.
+    // These tests use plain strings as stand-ins for that blob; the service is deliberately
+    // content-agnostic about it now (see PasswordEntryServiceTests for the same change).
     public class SecureNoteServiceTests
     {
-        // A fixed 32-byte key keeps encryption deterministic across a test's operations.
-        private static readonly byte[] TestKey = new byte[32];
-
         private const int StrangerId = 9999; // a user with no access to the seeded vault
 
         private static TheShedContext CreateContext() =>
@@ -22,11 +22,8 @@ namespace TheShed.Tests.Services
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options);
 
-        private static SecureNoteService CreateService(TheShedContext db)
-        {
-            var encryption = new AesEncryptionService(TestKey);
-            return new SecureNoteService(db, encryption, new VaultAccessService(db));
-        }
+        private static SecureNoteService CreateService(TheShedContext db) =>
+            new(db, new VaultAccessService(db));
 
         private static async Task<(int ownerId, int vaultId)> SeedVaultAsync(TheShedContext db)
         {
@@ -62,7 +59,7 @@ namespace TheShed.Tests.Services
         };
 
         [Fact]
-        public async Task CreateAsync_Owner_EncryptsAtRestReturnsPlaintext()
+        public async Task CreateAsync_Owner_StoresAndReturnsBlobUnchanged()
         {
             using var db = CreateContext();
             var (ownerId, vaultId) = await SeedVaultAsync(db);
@@ -71,10 +68,10 @@ namespace TheShed.Tests.Services
             var result = await service.CreateAsync(ownerId, SampleCreate(vaultId));
 
             Assert.True(result.Success);
-            Assert.Equal("top-secret-content", result.Value!.Content); // plaintext back to caller
+            Assert.Equal("top-secret-content", result.Value!.Content);
 
             var stored = await db.SecureNotes.SingleAsync();
-            Assert.NotEqual("top-secret-content", stored.ContentEncrypted); // never stored in plaintext
+            Assert.Equal("top-secret-content", stored.ContentEncrypted); // passed through as-is
         }
 
         [Fact]
@@ -107,7 +104,7 @@ namespace TheShed.Tests.Services
         }
 
         [Fact]
-        public async Task GetAsync_ViewerMember_ReturnsDecryptedContent()
+        public async Task GetAsync_ViewerMember_ReturnsStoredBlob()
         {
             using var db = CreateContext();
             var (ownerId, vaultId) = await SeedVaultAsync(db);
@@ -122,7 +119,7 @@ namespace TheShed.Tests.Services
         }
 
         [Fact]
-        public async Task UpdateAsync_EditorMember_ReEncryptsContent()
+        public async Task UpdateAsync_EditorMember_ReplacesContentBlob()
         {
             using var db = CreateContext();
             var (ownerId, vaultId) = await SeedVaultAsync(db);

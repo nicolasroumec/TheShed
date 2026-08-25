@@ -59,6 +59,10 @@
         </details>
     </div>
 </div>
+@if (!string.IsNullOrEmpty(_actionError))
+{
+    <div class="alert alert-danger py-1 px-2 small mt-1" role="alert">@_actionError</div>
+}
 @if (_revealedPassword is not null)
 {
     <div class="mt-2"><code>@_revealedPassword</code></div>
@@ -66,6 +70,6 @@
 @* Mounted unconditionally: an EntryHistoryPanel/EntryAttachmentsPanel instance keeps its
    fetched cache across the toggle above, so reopening never refetches unless the password
    changed under it (see each panel's own OnParametersSetAsync). *@
-<EntryHistoryPanel EntryId="Entry.Id" PasswordChangedAt="Entry.PasswordChangedAt" IsOpen="_historyOpen" />
+<EntryHistoryPanel EntryId="Entry.Id" PasswordChangedAt="Entry.PasswordChangedAt" IsOpen="_historyOpen" VaultKey="VaultKey" />
 <EntryAttachmentsPanel EntryId="Entry.Id" CanWrite="CanWrite" IsOpen="_attachmentsOpen" />
 </div>

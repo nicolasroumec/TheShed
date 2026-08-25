@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
-using TheShed.Shared.Security;
 using TheShed.Shared.Models.DTOs.Entries;
 using TheShed.Shared.Models.DTOs.Tags;
 using TheShed.Shared.Models.Entities;
@@ -11,17 +10,15 @@ namespace TheShed.Server.Services
     public class PasswordEntryService : IPasswordEntryService
     {
         private readonly TheShedContext _db;
-        private readonly IEncryptionService _encryption;
         private readonly IVaultAccessService _access;
 
-        public PasswordEntryService(TheShedContext db, IEncryptionService encryption, IVaultAccessService access)
+        public PasswordEntryService(TheShedContext db, IVaultAccessService access)
         {
             _db = db;
-            _encryption = encryption;
             _access = access;
         }
 
-        public async Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, string? search = null, CancellationToken ct = default)
+        public async Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, CancellationToken ct = default)
         {
             var access = await _access.GetAccessAsync(vaultId, userId, ct);
             if (access == VaultAccess.None)
@@ -35,17 +32,14 @@ namespace TheShed.Server.Services
             {
                 query = query.Where(e => e.Tags.Any(pet => pet.TagId == tagId));
             }
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                query = query.Where(e =>
-                    e.Name.Contains(search) ||
-                    e.Username.Contains(search) ||
-                    (e.Url != null && e.Url.Contains(search)));
-            }
 
+            // Name/Username/Url are ciphertext (Sprint 26) — the server can no longer filter or
+            // sort by them meaningfully. It returns every match for the tag filter (still valid,
+            // TagId isn't encrypted); the caller decrypts and does both search and the final
+            // favorite-then-name sort client-side.
             var items = await query
                 .OrderByDescending(e => e.IsFavorite)
-                .ThenBy(e => e.Name)
+                .ThenBy(e => e.Id)
                 .Select(e => new EntryListItem
                 {
                     Id = e.Id,
@@ -97,7 +91,7 @@ namespace TheShed.Server.Services
                 VaultId = request.VaultId,
                 Name = request.Name.Trim(),
                 Username = request.Username,
-                PasswordEncrypted = _encryption.Encrypt(request.Password),
+                PasswordEncrypted = request.Password,
                 Url = request.Url,
                 Notes = request.Notes,
                 IsFavorite = request.IsFavorite
@@ -118,9 +112,12 @@ namespace TheShed.Server.Services
                 return EntryResult<EntryResponse>.Fail(error);
             }
 
-            if (_encryption.Decrypt(entry.PasswordEncrypted) != request.Password)
+            if (request.PasswordChanged)
             {
-                // Snapshot the outgoing password before it's overwritten.
+                // Snapshot the outgoing password before it's overwritten. Whether it actually
+                // changed is computed client-side (see EntryUpdateRequest.PasswordChanged) — the
+                // server can no longer decrypt to compare, and re-encrypting an unchanged
+                // plaintext still yields a different blob every time (random nonce per operation).
                 // ponytail: no cap on versions kept per entry; purge/limit if the table ever grows enough to matter.
                 _db.EntryHistory.Add(new EntryHistory
                 {
@@ -132,7 +129,7 @@ namespace TheShed.Server.Services
 
             entry.Name = request.Name.Trim();
             entry.Username = request.Username;
-            entry.PasswordEncrypted = _encryption.Encrypt(request.Password);
+            entry.PasswordEncrypted = request.Password;
             entry.Url = request.Url;
             entry.Notes = request.Notes;
             entry.IsFavorite = request.IsFavorite;
@@ -266,7 +263,6 @@ namespace TheShed.Server.Services
                 return EntryResult<EntryHistoryDetail>.Fail(EntryError.NotFound);
             }
 
-            history.Password = _encryption.Decrypt(history.Password);
             return EntryResult<EntryHistoryDetail>.Ok(history);
         }
 
@@ -313,14 +309,15 @@ namespace TheShed.Server.Services
                 .OrderBy(t => t.Name)
                 .ToListAsync(ct);
 
-        /// <summary>Maps an entry to its detail DTO, decrypting the stored password.</summary>
+        /// <summary>Maps an entry to its detail DTO. Password is passed through as stored — the
+        /// server cannot decrypt it (Sprint 26).</summary>
         private EntryResponse ToResponse(PasswordEntry entry, List<TagResponse> tags, DateTime passwordChangedAt) => new()
         {
             Id = entry.Id,
             VaultId = entry.VaultId,
             Name = entry.Name,
             Username = entry.Username,
-            Password = _encryption.Decrypt(entry.PasswordEncrypted),
+            Password = entry.PasswordEncrypted,
             Url = entry.Url,
             Notes = entry.Notes,
             IsFavorite = entry.IsFavorite,

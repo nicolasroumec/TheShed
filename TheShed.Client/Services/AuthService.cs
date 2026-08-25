@@ -18,14 +18,19 @@ namespace TheShed.Client.Services
         private readonly JwtAuthenticationStateProvider _stateProvider;
         private readonly IKeyDerivationService _kdf;
         private readonly IUserKeypairService _keypair;
+        private readonly IStretchedKeyStore _keyStore;
+        private readonly IVaultKeyCache _vaultKeyCache;
 
         public AuthService(HttpClient http, AuthenticationStateProvider stateProvider,
-            IKeyDerivationService kdf, IUserKeypairService keypair)
+            IKeyDerivationService kdf, IUserKeypairService keypair, IStretchedKeyStore keyStore,
+            IVaultKeyCache vaultKeyCache)
         {
             _http = http;
             _stateProvider = (JwtAuthenticationStateProvider)stateProvider;
             _kdf = kdf;
             _keypair = keypair;
+            _keyStore = keyStore;
+            _vaultKeyCache = vaultKeyCache;
         }
 
         public async Task<AuthResult> LoginAsync(LoginRequest request)
@@ -35,13 +40,23 @@ namespace TheShed.Client.Services
             {
                 return AuthResult.Fail(await ReadErrorAsync(response, "Invalid credentials."));
             }
-            return await HandleSuccessAsync(response);
+            // Unlike Register, Login doesn't already have the salt locally — it lives on the
+            // account being logged into — so the response body has to be read here to derive
+            // the stretched master key, not just relied on as a side channel for the cookie.
+            return await HandleSuccessAsync(response, async r =>
+            {
+                var auth = await r.Content.ReadFromJsonAsync<AuthResponse>();
+                if (auth?.KeySalt is not null)
+                {
+                    _keyStore.Set(await _kdf.DeriveKeyAsync(request.Password, Convert.FromBase64String(auth.KeySalt)));
+                }
+            });
         }
 
         public async Task<AuthResult> RegisterAsync(RegisterRequest request)
         {
             var salt = _kdf.GenerateSalt();
-            var stretchedMasterKey = _kdf.DeriveKey(request.Password, salt);
+            var stretchedMasterKey = await _kdf.DeriveKeyAsync(request.Password, salt);
             var keypair = await _keypair.GenerateAsync(stretchedMasterKey);
 
             request.KeySalt = Convert.ToBase64String(salt);
@@ -53,24 +68,33 @@ namespace TheShed.Client.Services
             {
                 return AuthResult.Fail(await ReadErrorAsync(response, "The email is already registered."));
             }
-            return await HandleSuccessAsync(response);
+            return await HandleSuccessAsync(response, _ =>
+            {
+                _keyStore.Set(stretchedMasterKey);
+                return Task.CompletedTask;
+            });
         }
 
         public async Task LogoutAsync()
         {
             await _http.PostAsync("api/auth/logout", null);
+            _keyStore.Clear();
+            _vaultKeyCache.Clear();
             _stateProvider.NotifyLoggedOut();
         }
 
-        private async Task<AuthResult> HandleSuccessAsync(HttpResponseMessage response)
+        private async Task<AuthResult> HandleSuccessAsync(
+            HttpResponseMessage response, Func<HttpResponseMessage, Task> onSuccess)
         {
             if (!response.IsSuccessStatusCode)
             {
                 return AuthResult.Fail(await ReadErrorAsync(response, "Unexpected error. Please try again."));
             }
 
-            // The response body is not read: the session lives in the HttpOnly cookie the
-            // server just set, and RefreshAsync re-reads the user from /api/auth/me.
+            await onSuccess(response);
+
+            // Beyond that, the response body is not read: the session lives in the HttpOnly
+            // cookie the server just set, and RefreshAsync re-reads the user from /api/auth/me.
             await _stateProvider.RefreshAsync();
             return AuthResult.Ok();
         }

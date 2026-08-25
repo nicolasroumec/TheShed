@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using TheShed.Client.Services;
 using TheShed.Shared.Models.DTOs.Entries;
+using TheShed.Shared.Security;
 
 namespace TheShed.Client.Components.Vault;
 
@@ -9,11 +10,14 @@ public partial class EntryHistoryPanel
     [Parameter, EditorRequired] public int EntryId { get; set; }
     [Parameter] public DateTime PasswordChangedAt { get; set; }
     [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public byte[]? VaultKey { get; set; }
 
     [Inject] private EntryClient EntryApi { get; set; } = default!;
+    [Inject] private IAesGcmService AesGcm { get; set; } = default!;
 
     private IReadOnlyList<EntryHistoryItem>? _history;
     private readonly Dictionary<int, string> _revealedHistory = new(); // historyId -> decrypted old password
+    private string? _actionError;
     private DateTime? _lastPasswordChangedAt;
 
     protected override async Task OnParametersSetAsync()
@@ -40,10 +44,17 @@ public partial class EntryHistoryPanel
             return; // was shown, now hidden
         }
 
+        if (VaultKey is null)
+        {
+            _actionError = "Vault key unavailable — log out and log back in.";
+            return;
+        }
+
         var detail = await EntryApi.GetHistoryEntryAsync(EntryId, historyId);
         if (detail is not null)
         {
-            _revealedHistory[historyId] = detail.Password;
+            _actionError = null;
+            _revealedHistory[historyId] = await AesGcm.DecryptAsync(VaultKey, detail.Password);
         }
     }
 }

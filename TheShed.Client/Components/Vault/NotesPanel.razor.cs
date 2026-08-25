@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using TheShed.Client.Services;
 using TheShed.Shared.Models.DTOs.Notes;
+using TheShed.Shared.Security;
 
 namespace TheShed.Client.Components.Vault;
 
@@ -11,6 +12,10 @@ public partial class NotesPanel
 
     [Inject] private NoteClient NoteApi { get; set; } = default!;
     [Inject] private IModalService Modal { get; set; } = default!;
+    [Inject] private IVaultKeyCache VaultKeyCache { get; set; } = default!;
+    [Inject] private IAesGcmService AesGcm { get; set; } = default!;
+
+    private const string MissingVaultKeyError = "Your session is missing this vault's encryption key — log out and log back in.";
 
     private IReadOnlyList<NoteListItem>? _notes;
     private readonly Dictionary<int, string> _revealedNotes = new();
@@ -22,7 +27,32 @@ public partial class NotesPanel
 
     protected override async Task OnInitializedAsync()
     {
-        _notes = await NoteApi.ListAsync(VaultId);
+        await LoadNotesAsync();
+    }
+
+    /// <summary>Fetches the list from the server and decrypts Title in place — the server can no
+    /// longer sort by it (Sprint 26 ciphertext), so it returns notes unordered and the caller
+    /// re-sorts favorite-then-title after decrypting, same as EntriesPanel.</summary>
+    private async Task LoadNotesAsync()
+    {
+        var vaultKey = VaultKeyCache.Get(VaultId);
+        if (vaultKey is null)
+        {
+            _notesListError = MissingVaultKeyError;
+            _notes = [];
+            return;
+        }
+
+        var fetched = await NoteApi.ListAsync(VaultId);
+        foreach (var note in fetched)
+        {
+            note.Title = await AesGcm.DecryptAsync(vaultKey, note.Title);
+        }
+
+        _notes = fetched
+            .OrderByDescending(n => n.IsFavorite)
+            .ThenBy(n => n.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private async Task ToggleRevealNoteAsync(int noteId)
@@ -32,10 +62,18 @@ public partial class NotesPanel
             return; // was shown, now hidden
         }
 
+        var vaultKey = VaultKeyCache.Get(VaultId);
+        if (vaultKey is null)
+        {
+            _notesListError = MissingVaultKeyError;
+            return;
+        }
+
         var note = await NoteApi.GetAsync(noteId);
         if (note is not null)
         {
-            _revealedNotes[noteId] = note.Content;
+            _notesListError = null;
+            _revealedNotes[noteId] = await AesGcm.DecryptAsync(vaultKey, note.Content);
         }
     }
 
@@ -54,13 +92,20 @@ public partial class NotesPanel
             return;
         }
 
+        var vaultKey = VaultKeyCache.Get(VaultId);
+        if (vaultKey is null)
+        {
+            _noteError = MissingVaultKeyError;
+            return;
+        }
+
         _editingNoteId = noteId;
         _noteError = null;
         _noteForm = new NoteCreateRequest
         {
             VaultId = VaultId,
-            Title = note.Title,
-            Content = note.Content,
+            Title = await AesGcm.DecryptAsync(vaultKey, note.Title),
+            Content = await AesGcm.DecryptAsync(vaultKey, note.Content),
             IsFavorite = note.IsFavorite
         };
     }
@@ -79,27 +124,46 @@ public partial class NotesPanel
             return;
         }
 
+        var vaultKey = VaultKeyCache.Get(VaultId);
+        if (vaultKey is null)
+        {
+            _noteError = MissingVaultKeyError;
+            return;
+        }
+
         _noteBusy = true;
         _noteError = null;
         try
         {
+            // Encrypted into local vars, not written back onto _noteForm: a failed save leaves
+            // the form open for retry, and the visible inputs should stay the plaintext the user
+            // typed, not the ciphertext blobs from the failed attempt.
+            var encryptedTitle = await AesGcm.EncryptAsync(vaultKey, _noteForm.Title);
+            var encryptedContent = await AesGcm.EncryptAsync(vaultKey, _noteForm.Content);
+
             if (_editingNoteId is null)
             {
-                await NoteApi.CreateAsync(_noteForm);
+                await NoteApi.CreateAsync(new NoteCreateRequest
+                {
+                    VaultId = _noteForm.VaultId,
+                    Title = encryptedTitle,
+                    Content = encryptedContent,
+                    IsFavorite = _noteForm.IsFavorite
+                });
             }
             else
             {
                 await NoteApi.UpdateAsync(_editingNoteId.Value, new NoteUpdateRequest
                 {
-                    Title = _noteForm.Title,
-                    Content = _noteForm.Content,
+                    Title = encryptedTitle,
+                    Content = encryptedContent,
                     IsFavorite = _noteForm.IsFavorite
                 });
                 _revealedNotes.Remove(_editingNoteId.Value); // stale content if it was shown
             }
 
             CancelNoteForm();
-            _notes = await NoteApi.ListAsync(VaultId);
+            await LoadNotesAsync();
         }
         catch (Exception)
         {
@@ -123,7 +187,7 @@ public partial class NotesPanel
         {
             await NoteApi.DeleteAsync(noteId);
             _revealedNotes.Remove(noteId);
-            _notes = await NoteApi.ListAsync(VaultId);
+            await LoadNotesAsync();
         }
         catch (Exception)
         {

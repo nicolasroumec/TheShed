@@ -27,7 +27,11 @@ builder.Services.AddScoped<TagClient>();
 builder.Services.AddScoped<TrashClient>();
 builder.Services.AddScoped<AttachmentClient>();
 builder.Services.AddScoped<HealthClient>();
-builder.Services.AddScoped<IKeyDerivationService, KeyDerivationService>();
+builder.Services.AddScoped<IKeyDerivationService, WebCryptoKeyDerivationService>();
 builder.Services.AddScoped<IUserKeypairService, WebCryptoUserKeypairService>();
+builder.Services.AddScoped<IStretchedKeyStore, StretchedKeyStore>();
+builder.Services.AddScoped<IVaultKeyService, WebCryptoVaultKeyService>();
+builder.Services.AddScoped<IVaultKeyCache, VaultKeyCache>();
+builder.Services.AddScoped<IAesGcmService, WebCryptoAesGcmService>();
 
 await builder.Build().RunAsync();

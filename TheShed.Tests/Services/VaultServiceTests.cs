@@ -56,13 +56,31 @@ namespace TheShed.Tests.Services
             var userId = await AddUserAsync(db, "ana");
             var service = CreateService(db);
 
-            var vault = await service.CreateAsync(userId, new VaultCreateRequest { Name = "  Work  ", Description = "stuff" });
+            var vault = await service.CreateAsync(userId,
+                new VaultCreateRequest { Name = "  Work  ", Description = "stuff", VaultKeyWrap = "wrapped-key" });
 
             Assert.Equal("Work", vault.Name); // trimmed
             Assert.True(vault.IsOwner);
             Assert.True(vault.CanWrite);
+            Assert.Equal("wrapped-key", vault.WrappedKey);
             var stored = await db.Vaults.SingleAsync();
             Assert.Equal(userId, stored.OwnerId);
+        }
+
+        [Fact]
+        public async Task CreateAsync_StoresVaultKeyWrapForOwner()
+        {
+            using var db = CreateContext();
+            var userId = await AddUserAsync(db, "ana");
+            var service = CreateService(db);
+
+            var vault = await service.CreateAsync(userId,
+                new VaultCreateRequest { Name = "Work", VaultKeyWrap = "wrapped-key" });
+
+            var wrap = await db.VaultKeyWraps.SingleAsync();
+            Assert.Equal(vault.Id, wrap.VaultId);
+            Assert.Equal(userId, wrap.UserId);
+            Assert.Equal("wrapped-key", wrap.WrappedKey);
         }
 
         // --- List ---
@@ -144,6 +162,36 @@ namespace TheShed.Tests.Services
         }
 
         [Fact]
+        public async Task GetAsync_Owner_ReturnsWrappedKey()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            db.VaultKeyWraps.Add(new VaultKeyWrap { VaultId = vaultId, UserId = ownerId, WrappedKey = "wrapped-key" });
+            await db.SaveChangesAsync();
+            var service = CreateService(db);
+
+            var result = await service.GetAsync(ownerId, vaultId);
+
+            Assert.True(result.Success);
+            Assert.Equal("wrapped-key", result.Value!.WrappedKey);
+        }
+
+        [Fact]
+        public async Task GetAsync_ViewerMember_NoWrapYet_ReturnsNullWrappedKey()
+        {
+            // A shared member has no VaultKeyWrap row until Sprint 27 (key wrapping via RSA).
+            using var db = CreateContext();
+            var (_, vaultId) = await SeedVaultAsync(db);
+            var viewerId = await AddMemberAsync(db, vaultId, VaultRole.Viewer);
+            var service = CreateService(db);
+
+            var result = await service.GetAsync(viewerId, vaultId);
+
+            Assert.True(result.Success);
+            Assert.Null(result.Value!.WrappedKey);
+        }
+
+        [Fact]
         public async Task GetAsync_Stranger_ReturnsNotFound()
         {
             using var db = CreateContext();
@@ -170,6 +218,21 @@ namespace TheShed.Tests.Services
             Assert.True(result.Success);
             Assert.Equal("Renamed", result.Value!.Name);
             Assert.Equal("Renamed", (await db.Vaults.SingleAsync()).Name);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_Owner_ReturnsWrappedKey()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            db.VaultKeyWraps.Add(new VaultKeyWrap { VaultId = vaultId, UserId = ownerId, WrappedKey = "wrapped-key" });
+            await db.SaveChangesAsync();
+            var service = CreateService(db);
+
+            var result = await service.UpdateAsync(ownerId, vaultId, new VaultUpdateRequest { Name = "Renamed" });
+
+            Assert.True(result.Success);
+            Assert.Equal("wrapped-key", result.Value!.WrappedKey);
         }
 
         [Fact]

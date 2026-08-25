@@ -44,7 +44,7 @@ namespace TheShed.Tests.Controllers
             };
             var controller = CreateController(fake);
 
-            var result = await controller.List(vaultId: 1, tagId: null, search: null, CancellationToken.None);
+            var result = await controller.List(vaultId: 1, tagId: null, CancellationToken.None);
 
             Assert.IsType<OkObjectResult>(result);
             Assert.Equal(UserId, fake.LastUserId); // controller pulled the id from the JWT claim
@@ -193,7 +193,7 @@ namespace TheShed.Tests.Controllers
             public EntryResult<IReadOnlyList<EntryHistoryItem>> HistoryResult { get; set; } = default!;
             public EntryResult<EntryHistoryDetail> HistoryEntryResult { get; set; } = default!;
 
-            public Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, string? search = null, CancellationToken ct = default)
+            public Task<EntryResult<IReadOnlyList<EntryListItem>>> ListAsync(int userId, int vaultId, int? tagId = null, CancellationToken ct = default)
             {
                 LastUserId = userId;
                 return Task.FromResult(ListResult);

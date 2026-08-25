@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
 using TheShed.Server.Services;
-using TheShed.Shared.Security;
 using TheShed.Shared.Models.DTOs.Entries;
 using TheShed.Shared.Models.Entities;
 using TheShed.Shared.Models.Enums;
@@ -10,11 +9,12 @@ using Xunit;
 
 namespace TheShed.Tests.Services
 {
+    // Sprint 26: PasswordEntryService no longer encrypts/decrypts — the password field is
+    // whatever ciphertext blob the caller sends and gets back verbatim, encrypted client-side
+    // with the vault key. These tests use plain strings as stand-ins for that blob; the service
+    // is deliberately content-agnostic about it now.
     public class PasswordEntryServiceTests
     {
-        // A fixed 32-byte key keeps encryption deterministic across a test's operations.
-        private static readonly byte[] TestKey = new byte[32];
-
         private const int StrangerId = 9999; // a user with no access to the seeded vault
 
         private static TheShedContext CreateContext() =>
@@ -22,11 +22,8 @@ namespace TheShed.Tests.Services
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options);
 
-        private static PasswordEntryService CreateService(TheShedContext db)
-        {
-            var encryption = new AesEncryptionService(TestKey);
-            return new PasswordEntryService(db, encryption, new VaultAccessService(db));
-        }
+        private static PasswordEntryService CreateService(TheShedContext db) =>
+            new(db, new VaultAccessService(db));
 
         // Seeds a user (owner) + an owned vault, returns their ids.
         private static async Task<(int ownerId, int vaultId)> SeedVaultAsync(TheShedContext db)
@@ -68,7 +65,7 @@ namespace TheShed.Tests.Services
         // --- Create ---
 
         [Fact]
-        public async Task CreateAsync_Owner_EncryptsAndReturnsPlaintext()
+        public async Task CreateAsync_Owner_StoresAndReturnsBlobUnchanged()
         {
             using var db = CreateContext();
             var (ownerId, vaultId) = await SeedVaultAsync(db);
@@ -77,10 +74,10 @@ namespace TheShed.Tests.Services
             var result = await service.CreateAsync(ownerId, SampleCreate(vaultId));
 
             Assert.True(result.Success);
-            Assert.Equal("super-secret", result.Value!.Password); // plaintext back to caller
+            Assert.Equal("super-secret", result.Value!.Password);
 
             var stored = await db.PasswordEntries.SingleAsync();
-            Assert.NotEqual("super-secret", stored.PasswordEncrypted); // never stored in plaintext
+            Assert.Equal("super-secret", stored.PasswordEncrypted); // passed through as-is
         }
 
         [Fact]
@@ -114,7 +111,7 @@ namespace TheShed.Tests.Services
         // --- Get ---
 
         [Fact]
-        public async Task GetAsync_Owner_ReturnsDecryptedPassword()
+        public async Task GetAsync_Owner_ReturnsStoredBlob()
         {
             using var db = CreateContext();
             var (ownerId, vaultId) = await SeedVaultAsync(db);
@@ -159,20 +156,24 @@ namespace TheShed.Tests.Services
         // --- List ---
 
         [Fact]
-        public async Task ListAsync_ReturnsMetadataOrderedByName()
+        public async Task ListAsync_ReturnsMetadataInCreationOrder()
         {
+            // Sprint 26: Name/Username/Url are ciphertext, so the server can no longer sort
+            // alphabetically by them — that responsibility moved to the client, which decrypts
+            // and re-sorts (see EntriesPanel.RecomputeVisible). The server's own order is just
+            // creation order (Id), a stable tiebreaker behind the favorite-first sort.
             using var db = CreateContext();
             var (ownerId, vaultId) = await SeedVaultAsync(db);
             var service = CreateService(db);
-            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Zelda", Username = "z", Password = "p" });
-            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Amazon", Username = "a", Password = "p" });
+            var zelda = await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Zelda", Username = "z", Password = "p" });
+            var amazon = await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Amazon", Username = "a", Password = "p" });
 
             var result = await service.ListAsync(ownerId, vaultId);
 
             Assert.True(result.Success);
             Assert.Collection(result.Value!,
-                first => Assert.Equal("Amazon", first.Name),
-                second => Assert.Equal("Zelda", second.Name));
+                first => Assert.Equal(zelda.Value!.Id, first.Id),
+                second => Assert.Equal(amazon.Value!.Id, second.Id));
         }
 
         [Fact]
@@ -200,34 +201,19 @@ namespace TheShed.Tests.Services
             var result = await service.ListAsync(ownerId, vaultId);
 
             Assert.Collection(result.Value!,
-                first => Assert.Equal("Zelda", first.Name),   // favorite, despite sorting after "Amazon" alphabetically
+                first => Assert.Equal("Zelda", first.Name),    // favorite, despite being created after "Amazon"
                 second => Assert.Equal("Amazon", second.Name));
         }
 
-        [Fact]
-        public async Task ListAsync_Search_FiltersByNameUsernameOrUrl()
-        {
-            using var db = CreateContext();
-            var (ownerId, vaultId) = await SeedVaultAsync(db);
-            var service = CreateService(db);
-            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Gmail", Username = "ana", Password = "p", Url = "https://gmail.com" });
-            await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Amazon", Username = "shopper", Password = "p", Url = "https://amazon.com" });
-
-            var byName = await service.ListAsync(ownerId, vaultId, search: "gmail");
-            var byUsername = await service.ListAsync(ownerId, vaultId, search: "shopper");
-            var byUrl = await service.ListAsync(ownerId, vaultId, search: "amazon.com");
-            var noMatch = await service.ListAsync(ownerId, vaultId, search: "nope");
-
-            Assert.Equal("Gmail", Assert.Single(byName.Value!).Name);
-            Assert.Equal("Amazon", Assert.Single(byUsername.Value!).Name);
-            Assert.Equal("Amazon", Assert.Single(byUrl.Value!).Name);
-            Assert.Empty(noMatch.Value!);
-        }
+        // No more ListAsync_Search_* here: Name/Username/Url are ciphertext (Sprint 26), so
+        // there's no search param left on the server to test — EntriesPanel filters client-side
+        // after decrypting (see EntriesPanel.RecomputeVisible; no automated coverage for it,
+        // this codebase has no Razor component test harness — verified manually in-browser).
 
         // --- Update ---
 
         [Fact]
-        public async Task UpdateAsync_EditorMember_ReEncryptsPassword()
+        public async Task UpdateAsync_EditorMember_ReplacesPasswordBlob()
         {
             using var db = CreateContext();
             var (ownerId, vaultId) = await SeedVaultAsync(db);
@@ -240,6 +226,7 @@ namespace TheShed.Tests.Services
                 Name = "Gmail",
                 Username = "ana@gmail.com",
                 Password = "new-secret",
+                PasswordChanged = true,
                 IsFavorite = false
             });
 
@@ -379,6 +366,7 @@ namespace TheShed.Tests.Services
                 Name = "Gmail",
                 Username = "ana@gmail.com",
                 Password = "new-secret",
+                PasswordChanged = true,
                 IsFavorite = false
             });
 
@@ -387,12 +375,14 @@ namespace TheShed.Tests.Services
             Assert.Equal(ownerId, (await db.EntryHistory.FirstAsync()).ChangedByUserId);
 
             var detail = await service.GetHistoryEntryAsync(ownerId, created.Value!.Id, item.Id);
-            Assert.Equal("super-secret", detail.Value!.Password); // the old password, decrypted
+            Assert.Equal("super-secret", detail.Value!.Password); // the old password blob
         }
 
         [Fact]
-        public async Task UpdateAsync_PasswordUnchanged_DoesNotSnapshot()
+        public async Task UpdateAsync_PasswordChangedFalse_DoesNotSnapshot()
         {
+            // The server takes PasswordChanged as given — it can no longer decrypt to check for
+            // itself. This asserts the flag is what actually gates the snapshot.
             using var db = CreateContext();
             var (ownerId, vaultId) = await SeedVaultAsync(db);
             var service = CreateService(db);
@@ -403,6 +393,7 @@ namespace TheShed.Tests.Services
                 Name = "Gmail renamed",
                 Username = "ana@gmail.com",
                 Password = "super-secret", // unchanged
+                PasswordChanged = false,
                 IsFavorite = false
             });
 
@@ -418,8 +409,8 @@ namespace TheShed.Tests.Services
             var service = CreateService(db);
             var created = await service.CreateAsync(ownerId, SampleCreate(vaultId)); // password: super-secret
 
-            await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "second-secret" });
-            await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "third-secret" });
+            await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "second-secret", PasswordChanged = true });
+            await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "third-secret", PasswordChanged = true });
 
             var history = await service.GetHistoryAsync(ownerId, created.Value!.Id);
 
@@ -449,7 +440,7 @@ namespace TheShed.Tests.Services
             var viewerId = await AddMemberAsync(db, vaultId, VaultRole.Viewer);
             var service = CreateService(db);
             var created = await service.CreateAsync(ownerId, SampleCreate(vaultId));
-            await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "new-secret" });
+            await service.UpdateAsync(ownerId, created.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "new-secret", PasswordChanged = true });
             var historyId = (await service.GetHistoryAsync(ownerId, created.Value!.Id)).Value!.Single().Id;
 
             var result = await service.GetHistoryEntryAsync(viewerId, created.Value!.Id, historyId);
@@ -466,7 +457,7 @@ namespace TheShed.Tests.Services
             var service = CreateService(db);
             var entryA = await service.CreateAsync(ownerId, SampleCreate(vaultId));
             var entryB = await service.CreateAsync(ownerId, new EntryCreateRequest { VaultId = vaultId, Name = "Other", Username = "b", Password = "b-pass" });
-            await service.UpdateAsync(ownerId, entryA.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "new-secret" });
+            await service.UpdateAsync(ownerId, entryA.Value!.Id, new EntryUpdateRequest { Name = "Gmail", Username = "ana@gmail.com", Password = "new-secret", PasswordChanged = true });
             var historyId = (await service.GetHistoryAsync(ownerId, entryA.Value!.Id)).Value!.Single().Id;
 
             var result = await service.GetHistoryEntryAsync(ownerId, entryB.Value!.Id, historyId);
@@ -502,7 +493,8 @@ namespace TheShed.Tests.Services
             {
                 Name = "Gmail",
                 Username = "ana@gmail.com",
-                Password = "new-secret"
+                Password = "new-secret",
+                PasswordChanged = true
             });
 
             var historySnapshot = (await service.GetHistoryAsync(ownerId, created.Value!.Id)).Value!.Single();

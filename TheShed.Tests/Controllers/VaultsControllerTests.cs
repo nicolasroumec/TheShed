@@ -63,10 +63,22 @@ namespace TheShed.Tests.Controllers
             var fake = new FakeVaultService { CreateResult = SampleResponse() };
             var controller = CreateController(fake);
 
-            var result = await controller.Create(new VaultCreateRequest { Name = "Personal" }, CancellationToken.None);
+            var result = await controller.Create(
+                new VaultCreateRequest { Name = "Personal", VaultKeyWrap = "wrapped-key" }, CancellationToken.None);
 
             var created = Assert.IsType<CreatedAtActionResult>(result);
             Assert.IsType<VaultResponse>(created.Value);
+        }
+
+        [Fact]
+        public async Task Create_MissingVaultKeyWrap_Returns400()
+        {
+            var fake = new FakeVaultService { CreateResult = SampleResponse() };
+            var controller = CreateController(fake);
+
+            var result = await controller.Create(new VaultCreateRequest { Name = "Personal" }, CancellationToken.None);
+
+            Assert.IsType<BadRequestObjectResult>(result);
         }
 
         [Fact]
