@@ -9,8 +9,15 @@ public partial class NavMenu
     [Inject] private IAuthService AuthService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
+    // MinVer pins AssemblyVersion (GetName().Version) to a fixed low value to avoid binding-redirect
+    // churn on every build — the real semver MinVer computes from git tags lives in
+    // AssemblyInformationalVersion instead. That also carries a "+<sha>" build-metadata suffix,
+    // trimmed here since it's noise for a navbar label.
     private static readonly string AppVersion =
-        Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "dev";
+        Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            .Split('+')[0]
+        ?? "dev";
 
     private bool _collapseNavMenu = true;
 
