@@ -82,6 +82,7 @@ public partial class EntriesPanel
         var plaintextUsername = await AesGcm.DecryptAsync(vaultKey, entry.Username);
         var plaintextUrl = string.IsNullOrEmpty(entry.Url) ? entry.Url : await AesGcm.DecryptAsync(vaultKey, entry.Url);
         var plaintextPassword = await AesGcm.DecryptAsync(vaultKey, entry.Password);
+        var plaintextNotes = string.IsNullOrEmpty(entry.Notes) ? entry.Notes : await AesGcm.DecryptAsync(vaultKey, entry.Notes);
 
         _editingId = entryId;
         _error = null;
@@ -98,7 +99,7 @@ public partial class EntriesPanel
             Username = plaintextUsername,
             Password = plaintextPassword,
             Url = plaintextUrl,
-            Notes = entry.Notes,
+            Notes = plaintextNotes,
             IsFavorite = entry.IsFavorite
         };
     }
@@ -303,6 +304,7 @@ public partial class EntriesPanel
             var encryptedUsername = await AesGcm.EncryptAsync(vaultKey, _form.Username);
             var encryptedUrl = string.IsNullOrEmpty(_form.Url) ? _form.Url : await AesGcm.EncryptAsync(vaultKey, _form.Url);
             var encryptedPassword = await AesGcm.EncryptAsync(vaultKey, _form.Password);
+            var encryptedNotes = string.IsNullOrEmpty(_form.Notes) ? _form.Notes : await AesGcm.EncryptAsync(vaultKey, _form.Notes);
 
             if (_editingId is null)
             {
@@ -313,7 +315,7 @@ public partial class EntriesPanel
                     Username = encryptedUsername,
                     Password = encryptedPassword,
                     Url = encryptedUrl,
-                    Notes = _form.Notes,
+                    Notes = encryptedNotes,
                     IsFavorite = _form.IsFavorite
                 });
             }
@@ -326,7 +328,7 @@ public partial class EntriesPanel
                     Password = encryptedPassword,
                     PasswordChanged = _form.Password != _editingOriginalPassword,
                     Url = encryptedUrl,
-                    Notes = _form.Notes,
+                    Notes = encryptedNotes,
                     IsFavorite = _form.IsFavorite
                 });
                 // Stale reveal/history caches are now handled by EntryRow, which invalidates

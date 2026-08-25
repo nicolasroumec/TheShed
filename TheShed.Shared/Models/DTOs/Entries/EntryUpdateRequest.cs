@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace TheShed.Shared.Models.DTOs.Entries
 {
     /// <summary>Data to edit an existing entry. Does not include VaultId: an entry does not
-    /// change vault when edited. Name, Username, Password and Url are ciphertext (see
+    /// change vault when edited. Name, Username, Password, Url and Notes are ciphertext (see
     /// EntryCreateRequest) and each replaces the previous blob.</summary>
     public class EntryUpdateRequest
     {

@@ -2,8 +2,8 @@ using TheShed.Shared.Models.DTOs.Tags;
 
 namespace TheShed.Shared.Models.DTOs.Entries
 {
-    /// <summary>Detail of a single entry. Name, Username, Password and Url are all AES-256-GCM
-    /// ciphertext blobs as stored (vault key) — the server cannot decrypt any of them
+    /// <summary>Detail of a single entry. Name, Username, Password, Url and Notes are all
+    /// AES-256-GCM ciphertext blobs as stored (vault key) — the server cannot decrypt any of them
     /// (Sprint 26); the caller unwraps each client-side. Returned only when requesting an
     /// individual entry (GET /api/entries/{id}), never in listings.</summary>
     public class EntryResponse
