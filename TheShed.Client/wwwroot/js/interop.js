@@ -63,3 +63,16 @@ window.decryptAesGcm = async (keyBase64, ciphertextBase64) => {
     const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, sealed);
     return bytesToB64(new Uint8Array(plaintext));
 };
+
+// Rfc2898DeriveBytes.Pbkdf2 (the managed .NET implementation) also runs on browser-wasm, unlike
+// RSA/AesGcm — but interpreted, not native, so 600k iterations there froze the tab for ~70-90s
+// (single-threaded WASM blocks rendering and input while it's running). Web Crypto's PBKDF2 is
+// native in the browser: same iteration count, no freeze.
+window.deriveKeyPbkdf2 = async (password, saltBase64, iterations, keyLengthBits) => {
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+    const derived = await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', salt: b64ToBytes(saltBase64), iterations, hash: 'SHA-256' },
+        keyMaterial, keyLengthBits);
+    return bytesToB64(new Uint8Array(derived));
+};

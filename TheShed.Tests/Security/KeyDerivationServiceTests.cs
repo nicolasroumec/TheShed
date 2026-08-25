@@ -7,26 +7,26 @@ namespace TheShed.Tests.Security
         private readonly KeyDerivationService _sut = new();
 
         [Fact]
-        public void DeriveKey_SamePasswordAndSalt_ReturnsSameKey()
+        public async Task DeriveKey_SamePasswordAndSalt_ReturnsSameKey()
         {
             var salt = _sut.GenerateSalt();
-            var key1 = _sut.DeriveKey("correct horse battery staple", salt);
-            var key2 = _sut.DeriveKey("correct horse battery staple", salt);
+            var key1 = await _sut.DeriveKeyAsync("correct horse battery staple", salt);
+            var key2 = await _sut.DeriveKeyAsync("correct horse battery staple", salt);
             Assert.Equal(key1, key2);
         }
 
         [Fact]
-        public void DeriveKey_DifferentSalt_ReturnsDifferentKey()
+        public async Task DeriveKey_DifferentSalt_ReturnsDifferentKey()
         {
-            var key1 = _sut.DeriveKey("same password", _sut.GenerateSalt());
-            var key2 = _sut.DeriveKey("same password", _sut.GenerateSalt());
+            var key1 = await _sut.DeriveKeyAsync("same password", _sut.GenerateSalt());
+            var key2 = await _sut.DeriveKeyAsync("same password", _sut.GenerateSalt());
             Assert.NotEqual(key1, key2);
         }
 
         [Fact]
-        public void DeriveKey_ReturnsThirtyTwoBytes()
+        public async Task DeriveKey_ReturnsThirtyTwoBytes()
         {
-            var key = _sut.DeriveKey("password", _sut.GenerateSalt());
+            var key = await _sut.DeriveKeyAsync("password", _sut.GenerateSalt());
             Assert.Equal(32, key.Length);
         }
     }

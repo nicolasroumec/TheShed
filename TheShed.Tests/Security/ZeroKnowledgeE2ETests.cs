@@ -37,7 +37,7 @@ namespace TheShed.Tests.Security
             // Never sent to the server — only KeySalt is. ---
             const string masterPassword = "correct horse battery staple";
             var keySalt = kdf.GenerateSalt();
-            var stretchedMasterKey = kdf.DeriveKey(masterPassword, keySalt);
+            var stretchedMasterKey = await kdf.DeriveKeyAsync(masterPassword, keySalt);
 
             var user = new User
             {
@@ -92,7 +92,7 @@ namespace TheShed.Tests.Security
             // the salt (public) and what's in the database (also, by assumption, in the
             // attacker's or the operator's hands) — proving the round trip is real, not just
             // "the plaintext never touched the wire" by accident.
-            var rederivedStretchedKey = kdf.DeriveKey(masterPassword, Convert.FromBase64String(user.KeySalt!));
+            var rederivedStretchedKey = await kdf.DeriveKeyAsync(masterPassword, Convert.FromBase64String(user.KeySalt!));
             var recoveredVaultKey = new AesEncryptionService(rederivedStretchedKey)
                 .DecryptBytes(Convert.FromBase64String(storedWrap.WrappedKey));
             Assert.Equal(vaultKey, recoveredVaultKey);
@@ -108,7 +108,7 @@ namespace TheShed.Tests.Security
             // VaultService and PasswordEntryService take no IEncryptionService dependency any
             // more (see their constructors) — there's nothing left on the server that could even
             // attempt this.
-            var wrongStretchedKey = kdf.DeriveKey("wrong password", Convert.FromBase64String(user.KeySalt!));
+            var wrongStretchedKey = await kdf.DeriveKeyAsync("wrong password", Convert.FromBase64String(user.KeySalt!));
             var wrongUnwrapper = new AesEncryptionService(wrongStretchedKey);
             Assert.Throws<AuthenticationTagMismatchException>(() =>
                 wrongUnwrapper.DecryptBytes(Convert.FromBase64String(storedWrap.WrappedKey)));

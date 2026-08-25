@@ -48,7 +48,7 @@ namespace TheShed.Client.Services
                 var auth = await r.Content.ReadFromJsonAsync<AuthResponse>();
                 if (auth?.KeySalt is not null)
                 {
-                    _keyStore.Set(_kdf.DeriveKey(request.Password, Convert.FromBase64String(auth.KeySalt)));
+                    _keyStore.Set(await _kdf.DeriveKeyAsync(request.Password, Convert.FromBase64String(auth.KeySalt)));
                 }
             });
         }
@@ -56,7 +56,7 @@ namespace TheShed.Client.Services
         public async Task<AuthResult> RegisterAsync(RegisterRequest request)
         {
             var salt = _kdf.GenerateSalt();
-            var stretchedMasterKey = _kdf.DeriveKey(request.Password, salt);
+            var stretchedMasterKey = await _kdf.DeriveKeyAsync(request.Password, salt);
             var keypair = await _keypair.GenerateAsync(stretchedMasterKey);
 
             request.KeySalt = Convert.ToBase64String(salt);
