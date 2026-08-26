@@ -20,10 +20,11 @@ namespace TheShed.Client.Services
         private readonly IUserKeypairService _keypair;
         private readonly IStretchedKeyStore _keyStore;
         private readonly IVaultKeyCache _vaultKeyCache;
+        private readonly IOwnKeypairCache _ownKeypairCache;
 
         public AuthService(HttpClient http, AuthenticationStateProvider stateProvider,
             IKeyDerivationService kdf, IUserKeypairService keypair, IStretchedKeyStore keyStore,
-            IVaultKeyCache vaultKeyCache)
+            IVaultKeyCache vaultKeyCache, IOwnKeypairCache ownKeypairCache)
         {
             _http = http;
             _stateProvider = (JwtAuthenticationStateProvider)stateProvider;
@@ -31,6 +32,7 @@ namespace TheShed.Client.Services
             _keypair = keypair;
             _keyStore = keyStore;
             _vaultKeyCache = vaultKeyCache;
+            _ownKeypairCache = ownKeypairCache;
         }
 
         public async Task<AuthResult> LoginAsync(LoginRequest request)
@@ -50,6 +52,7 @@ namespace TheShed.Client.Services
                 {
                     _keyStore.Set(await _kdf.DeriveKeyAsync(request.Password, Convert.FromBase64String(auth.KeySalt)));
                 }
+                _ownKeypairCache.Set(auth?.PublicKey, auth?.EncryptedPrivateKey);
             });
         }
 
@@ -71,6 +74,7 @@ namespace TheShed.Client.Services
             return await HandleSuccessAsync(response, _ =>
             {
                 _keyStore.Set(stretchedMasterKey);
+                _ownKeypairCache.Set(keypair.PublicKeyPem, keypair.EncryptedPrivateKey);
                 return Task.CompletedTask;
             });
         }
@@ -80,6 +84,7 @@ namespace TheShed.Client.Services
             await _http.PostAsync("api/auth/logout", null);
             _keyStore.Clear();
             _vaultKeyCache.Clear();
+            _ownKeypairCache.Clear();
             _stateProvider.NotifyLoggedOut();
         }
 

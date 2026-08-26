@@ -184,6 +184,14 @@ namespace TheShed.Server.Services
                 UserId = target.Id,
                 Role = request.Role
             });
+            // RSA-OAEP-wrapped for the target's public key, client-side — the server only ever
+            // sees the opaque blob, same as the owner's AES-wrapped VaultKeyWrap (Sprint 27).
+            _db.VaultKeyWraps.Add(new VaultKeyWrap
+            {
+                VaultId = vaultId,
+                UserId = target.Id,
+                WrappedKey = request.VaultKeyWrap
+            });
             await _db.SaveChangesAsync(ct);
 
             return EntryResult<VaultMemberItem>.Ok(new VaultMemberItem

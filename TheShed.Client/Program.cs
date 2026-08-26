@@ -21,6 +21,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ModalService>();
 builder.Services.AddScoped<IModalService>(sp => sp.GetRequiredService<ModalService>());
 builder.Services.AddScoped<VaultClient>();
+builder.Services.AddScoped<UserClient>();
 builder.Services.AddScoped<EntryClient>();
 builder.Services.AddScoped<NoteClient>();
 builder.Services.AddScoped<TagClient>();
@@ -32,6 +33,7 @@ builder.Services.AddScoped<IUserKeypairService, WebCryptoUserKeypairService>();
 builder.Services.AddScoped<IStretchedKeyStore, StretchedKeyStore>();
 builder.Services.AddScoped<IVaultKeyService, WebCryptoVaultKeyService>();
 builder.Services.AddScoped<IVaultKeyCache, VaultKeyCache>();
+builder.Services.AddScoped<IOwnKeypairCache, OwnKeypairCache>();
 builder.Services.AddScoped<IAesGcmService, WebCryptoAesGcmService>();
 
 await builder.Build().RunAsync();
