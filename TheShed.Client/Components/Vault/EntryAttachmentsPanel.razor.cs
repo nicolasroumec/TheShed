@@ -11,6 +11,9 @@ public partial class EntryAttachmentsPanel
     [Parameter, EditorRequired] public int EntryId { get; set; }
     [Parameter] public bool CanWrite { get; set; }
     [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public byte[]? VaultKey { get; set; }
+
+    private const string MissingVaultKeyError = "Vault key unavailable — log out and log back in.";
 
     [Inject] private AttachmentClient AttachmentApi { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
@@ -34,11 +37,17 @@ public partial class EntryAttachmentsPanel
 
     private async Task UploadAttachmentAsync(InputFileChangeEventArgs e)
     {
+        if (VaultKey is null)
+        {
+            _error = MissingVaultKeyError;
+            return;
+        }
+
         _error = null;
         _busy = true;
         try
         {
-            var response = await AttachmentApi.UploadAsync(EntryId, e.File);
+            var response = await AttachmentApi.UploadAsync(EntryId, e.File, VaultKey);
             if (!response.IsSuccessStatusCode)
             {
                 _error = "Could not upload the file. Check the size (max 5 MB) and type (.pdf, .jpg, .jpeg, .png, .txt).";
@@ -58,7 +67,13 @@ public partial class EntryAttachmentsPanel
 
     private async Task DownloadAttachmentAsync(AttachmentResponse file)
     {
-        var (fileName, content) = await AttachmentApi.DownloadAsync(EntryId, file.Id);
+        if (VaultKey is null)
+        {
+            _error = MissingVaultKeyError;
+            return;
+        }
+
+        var (fileName, content) = await AttachmentApi.DownloadAsync(EntryId, file.Id, VaultKey);
         await JS.InvokeVoidAsync("downloadFile", fileName, content);
     }
 

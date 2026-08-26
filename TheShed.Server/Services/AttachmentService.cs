@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
-using TheShed.Shared.Security;
 using TheShed.Shared.Models.DTOs.Attachments;
 using TheShed.Shared.Models.Entities;
 using TheShed.Shared.Models.Enums;
@@ -15,16 +14,14 @@ namespace TheShed.Server.Services
         private static readonly string[] AllowedExtensions = [".pdf", ".jpg", ".jpeg", ".png", ".txt"];
 
         private readonly TheShedContext _db;
-        private readonly IEncryptionService _encryption;
         private readonly IVaultAccessService _access;
         private readonly IAttachmentStorage _storage;
         private readonly long _maxFileSizeBytes;
 
-        public AttachmentService(TheShedContext db, IEncryptionService encryption, IVaultAccessService access,
+        public AttachmentService(TheShedContext db, IVaultAccessService access,
             IAttachmentStorage storage, IOptions<AttachmentSettings> settings)
         {
             _db = db;
-            _encryption = encryption;
             _access = access;
             _storage = storage;
             _maxFileSizeBytes = settings.Value.MaxFileSizeBytes;
@@ -76,7 +73,9 @@ namespace TheShed.Server.Services
                 FileSizeBytes = content.Length
             };
 
-            await _storage.SaveAsync(attachment.StoragePath, _encryption.EncryptBytes(content), ct);
+            // content is already AES-GCM ciphertext under the vault key — encrypted client-side
+            // (Sprint 27), same as PasswordEntry/SecureNote fields since Sprint 26. Stored as-is.
+            await _storage.SaveAsync(attachment.StoragePath, content, ct);
             _db.Attachments.Add(attachment);
             await _db.SaveChangesAsync(ct);
 
@@ -97,13 +96,14 @@ namespace TheShed.Server.Services
                 return EntryResult<(string, byte[])>.Fail(error);
             }
 
-            var encrypted = await _storage.ReadAsync(attachment.StoragePath, ct);
-            if (encrypted is null)
+            var content = await _storage.ReadAsync(attachment.StoragePath, ct);
+            if (content is null)
             {
                 return EntryResult<(string, byte[])>.Fail(EntryError.NotFound);
             }
 
-            return EntryResult<(string, byte[])>.Ok((attachment.FileName, _encryption.DecryptBytes(encrypted)));
+            // Ciphertext, returned as-is — the client decrypts it with the vault key (Sprint 27).
+            return EntryResult<(string, byte[])>.Ok((attachment.FileName, content));
         }
 
         public async Task<EntryResult<bool>> DeleteAsync(int userId, int entryId, int attachmentId, CancellationToken ct = default)
