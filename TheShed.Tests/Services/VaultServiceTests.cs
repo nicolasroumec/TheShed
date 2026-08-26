@@ -439,6 +439,22 @@ namespace TheShed.Tests.Services
         }
 
         [Fact]
+        public async Task RemoveMemberAsync_Owner_RemovesTheMembersVaultKeyWrap()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var memberId = await AddMemberAsync(db, vaultId, VaultRole.Viewer);
+            db.VaultKeyWraps.Add(new VaultKeyWrap { VaultId = vaultId, UserId = memberId, WrappedKey = "rsa-wrapped-key" });
+            await db.SaveChangesAsync();
+            var service = CreateService(db);
+
+            var result = await service.RemoveMemberAsync(ownerId, vaultId, memberId);
+
+            Assert.True(result.Success);
+            Assert.False(await db.VaultKeyWraps.AnyAsync(w => w.VaultId == vaultId && w.UserId == memberId));
+        }
+
+        [Fact]
         public async Task RemoveMemberAsync_NonOwner_ReturnsForbidden()
         {
             using var db = CreateContext();

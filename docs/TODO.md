@@ -183,11 +183,32 @@ incluido el ajuste de `SecureNoteService.ListAsync` que dejó de ordenar por `Ti
 WASM y congelaba la pestaña ~70-90s en cada login/registro — pasó a `crypto.subtle.deriveBits`
 (Web Crypto, nativo) vía `WebCryptoKeyDerivationService`, mismas iteraciones, sin freeze.
 
-**Próximo paso sugerido:** Sprint 27 — compartir vaults vía key-wrapping asimétrico
-(`feature/e2e-vault-sharing`), que sigue siendo la prioridad que marcaba D7. Aparte, sigue
-pendiente la pasada corta de mantenimiento de docs: tildar los ítems del Sprint 20 que ya están
-hechos en el código (ver la nota de desfasaje en `SPRINTS.md`) y arrancar la rama de traducción a
-inglés, que crece con cada sprint.
+**Sprint 27 cerrado (`feature/e2e-vault-sharing`).** Compartir vaults vía key-wrapping
+asimétrico: al agregar un miembro, el dueño pide su public key (`GET /api/users/public-key`),
+envuelve la vault key con RSA-OAEP y sube un `VaultKeyWrap` para ese usuario; el miembro
+desenvuelve su private key propia (AES, con su stretched master key) y con eso la vault key
+(`IUserKeypairService.UnwrapKeyAsMemberAsync`) — verificado en navegador compartiendo un vault
+entre dos cuentas reales. De paso, dos cosas que la investigación del sprint destapó:
+- **Adjuntos** todavía cifraban server-side con la key global vieja (`IEncryptionService`) —
+  quedó movido al mismo patrón client-side que entradas/notas desde el Sprint 26. Verificado
+  subiendo y bajando un archivo entre las dos cuentas (byte a byte idéntico al original).
+- **El reporte de salud de contraseñas estaba roto**, no solo desactualizado: desde el Sprint 26
+  intentaba `_encryption.Decrypt` sobre `PasswordEntry.Password`, que ya es ciphertext
+  client-side — nunca podía funcionar. Se eliminó `PasswordHealthService`/`HealthController`
+  server-side y `Health.razor.cs` ahora corre `PasswordHealthChecker` (`Shared`) client-side,
+  con unwrap eager de todos los vaults accesibles (`IVaultKeyResolver`, nuevo, compartido con
+  `VaultDetail` para no duplicar la rama owner/member). Verificado con ambas cuentas.
+
+Limitación conocida y aceptada (M1/D7): remover un miembro no rota la vault key — sí se borra
+su `VaultKeyWrap` al removerlo (higiene, no rotación real). Migrar los vaults creados antes de
+este sprint queda para el Sprint 28, que también es donde se apaga `Encryption:Key`/
+`AesEncryptionService` del lado servidor (siguen vivos hasta entonces, para esa migración).
+
+**Próximo paso sugerido:** Sprint 28 — migración de datos existentes al modelo zero-knowledge
+(`feature/e2e-migration`), el sprint que hace real todo lo de 25-27 para los vaults que ya
+existen. Aparte, sigue pendiente la pasada corta de mantenimiento de docs: tildar los ítems del
+Sprint 20 que ya están hechos en el código (ver la nota de desfasaje en `SPRINTS.md`) y arrancar
+la rama de traducción a inglés, que crece con cada sprint.
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra
