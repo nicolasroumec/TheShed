@@ -115,9 +115,6 @@ builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection(
 builder.Services.AddSingleton<IAttachmentStorage, LocalFileAttachmentStorage>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 
-// Application services — password health (Scoped: depends on TheShedContext)
-builder.Services.AddScoped<IPasswordHealthService, PasswordHealthService>();
-
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
