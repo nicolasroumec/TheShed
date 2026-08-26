@@ -39,6 +39,37 @@ window.generateRsaKeypair = async (modulusLength) => {
     };
 };
 
+// Strips the PEM header/footer/newlines generateRsaKeypair's caller wraps the public key in
+// (see WebCryptoUserKeypairService.FormatPublicKeyPem) back down to raw SPKI DER, base64.
+function pemToSpkiBase64(pem) {
+    return pem
+        .replace('-----BEGIN PUBLIC KEY-----', '')
+        .replace('-----END PUBLIC KEY-----', '')
+        .replace(/\s/g, '');
+}
+
+// Wraps an AES vault key with a member's RSA public key so only they can unwrap it (Sprint 27
+// vault sharing). publicKeyPem is what the server hands back from GET /api/users/public-key —
+// PEM text, unlike the private key below which stays raw PKCS8 base64 throughout (it's never
+// PEM-wrapped — see WebCryptoUserKeypairService.GenerateAsync).
+window.wrapKeyRsaOaep = async (publicKeyPem, keyBase64) => {
+    const key = await crypto.subtle.importKey(
+        'spki', b64ToBytes(pemToSpkiBase64(publicKeyPem)),
+        { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
+    const wrapped = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, key, b64ToBytes(keyBase64));
+    return bytesToB64(new Uint8Array(wrapped));
+};
+
+// Inverse of wrapKeyRsaOaep, run by the member unwrapping their own copy of the vault key.
+// privateKeyPkcs8Base64 comes from decryptAesGcm-ing the user's EncryptedPrivateKey.
+window.unwrapKeyRsaOaep = async (privateKeyPkcs8Base64, wrappedKeyBase64) => {
+    const key = await crypto.subtle.importKey(
+        'pkcs8', b64ToBytes(privateKeyPkcs8Base64),
+        { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['decrypt']);
+    const unwrapped = await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, key, b64ToBytes(wrappedKeyBase64));
+    return bytesToB64(new Uint8Array(unwrapped));
+};
+
 // AesGcm also throws PlatformNotSupportedException on browser-wasm, same reason as RSA.
 // Output layout matches TheShed.Shared.Security.AesEncryptionService (nonce(12) || ciphertext
 // || tag(16)): Web Crypto appends the tag to the ciphertext by default, so this is just
