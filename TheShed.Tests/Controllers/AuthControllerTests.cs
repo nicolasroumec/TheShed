@@ -137,25 +137,31 @@ namespace TheShed.Tests.Controllers
         }
 
         [Fact]
-        public void Me_Devuelve200ConLosClaims()
+        public async Task Me_Devuelve200ConLosClaimsYElKeypairPropio()
         {
             var expiresAt = DateTimeOffset.UtcNow.AddHours(1);
             var identity = new ClaimsIdentity(new[]
             {
+                new Claim("sub", "1"),
                 new Claim("username", "ana"),
                 new Claim(ClaimTypes.Email, "ana@test.com"),
                 new Claim("exp", expiresAt.ToUnixTimeSeconds().ToString())
             }, "test");
-            var controller = CreateController(new FakeAuthService());
+            var controller = CreateController(new FakeAuthService
+            {
+                KeypairResult = ("pem", "blob")
+            });
             controller.ControllerContext.HttpContext.User = new ClaimsPrincipal(identity);
 
-            var result = controller.Me();
+            var result = await controller.Me(CancellationToken.None);
 
             var ok = Assert.IsType<OkObjectResult>(result);
             var response = Assert.IsType<AuthResponse>(ok.Value);
             Assert.Equal("ana", response.Username);
             Assert.Equal("ana@test.com", response.Email);
             Assert.Equal(expiresAt.UtcDateTime, response.ExpiresAt, TimeSpan.FromSeconds(1));
+            Assert.Equal("pem", response.PublicKey);
+            Assert.Equal("blob", response.EncryptedPrivateKey);
         }
 
         [Fact]
@@ -176,12 +182,16 @@ namespace TheShed.Tests.Controllers
         {
             public AuthResult RegisterResult { get; set; } = default!;
             public AuthResult LoginResult { get; set; } = default!;
+            public (string? PublicKey, string? EncryptedPrivateKey) KeypairResult { get; set; }
 
             public Task<AuthResult> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
                 => Task.FromResult(RegisterResult);
 
             public Task<AuthResult> LoginAsync(LoginRequest request, CancellationToken ct = default)
                 => Task.FromResult(LoginResult);
+
+            public Task<(string? PublicKey, string? EncryptedPrivateKey)> GetKeypairAsync(int userId, CancellationToken ct = default)
+                => Task.FromResult(KeypairResult);
         }
     }
 }

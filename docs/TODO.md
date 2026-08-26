@@ -104,31 +104,10 @@ De paso aparecieron 3 bugs sin relación con mobile, corregidos en el mismo tram
 Evaluada la idea de un bottom tab bar para mobile en vez del off-canvas actual — descartada por
 ahora, se mantiene el menú desplegable.
 
-**Próximo paso — reemplazar `window.confirm` por un modal propio.** 6 call-sites usan
-`JS.InvokeAsync<bool>("confirm", ...)` (Trash, `EntriesPanel` borrar tag, `EntryRow` borrar
-entrada, `EntryAttachmentsPanel` borrar archivo, `MembersPanel` sacar miembro, `NotesPanel`
-borrar nota) — diálogo nativo del navegador, rompe el tema oscuro. Servicio genérico en
-nombre y parámetros, no en contenido: se evaluó un modal con `RenderFragment` arbitrario
-(formularios, etc.) pero eso solo se arma limpio desde markup `.razor`, y los 6 call-sites
-actuales llaman desde `.razor.cs` puro (sin markup) — se agrega soporte a contenido arbitrario
-el día que haya un caso concreto que lo pida, no antes. Planificado en 2 commits:
-- [ ] Increment 1 — infraestructura + primer uso real: `Services/ModalService.cs` (scoped,
-      `Task<bool> ConfirmAsync(string message, string title = "Confirm", string confirmText = "Confirm", string confirmVariant = "danger")`
-      con `TaskCompletionSource`, async en vez del bloqueo de `window.confirm`; nombre e
-      interfaz genéricos para poder sumar `AlertAsync(...)` u otros al lado con la misma
-      cañería el día que haga falta). `Components/ModalHost.razor`+`.razor.cs` (modal
-      Bootstrap, ya hereda el tema vía el remap de `--bs-body-bg` etc. que ya existe en
-      `app.css`); registro en `Program.cs` + un solo `<ModalHost />` montado en
-      `MainLayout.razor`; convertir `EntryRow` (delete entry) en el mismo incremento para
-      probar el mecanismo con un uso real.
-- [ ] Increment 2 — resto de call-sites (mecánico, mismo patrón que el 1): `NotesPanel`,
-      `MembersPanel`, `EntryAttachmentsPanel`, `EntriesPanel` (delete tag), `Trash`. Sacar
-      `IJSRuntime JS` donde ya no queda usándose para nada más (Trash, `EntriesPanel`,
-      `MembersPanel`, `NotesPanel` — lo inyectaban solo para el `confirm`); se mantiene en
-      `EntryAttachmentsPanel` (downloadFile) y `EntryRow` (copyToClipboard).
-
-Después de esto, volver al orden del roadmap: Sprint 17 — Importar/Exportar CSV
-(`feature/import-export`).
+**Modal de confirmación:** `window.confirm` reemplazado por `ModalService`/`ModalHost` propio en
+los 6 call-sites (Trash, `EntriesPanel` borrar tag, `EntryRow` borrar entrada,
+`EntryAttachmentsPanel` borrar archivo, `MembersPanel` sacar miembro, `NotesPanel` borrar nota).
+Cerrado, sin `window.confirm` restante en el cliente.
 
 **Auditoría de seguridad (2026-08-13, `docs/AUDITORIA.md`):** base criptográfica sólida
 (Argon2, AES-256-GCM, JWT en cookie `HttpOnly`, control de acceso centralizado), pero un

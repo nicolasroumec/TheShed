@@ -55,18 +55,21 @@ namespace TheShed.Server.Controllers
 
         [Authorize]
         [HttpGet("me")]
-        public IActionResult Me()
+        public async Task<IActionResult> Me(CancellationToken ct)
         {
             var username = User.FindFirstValue("username");
             var email = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue(JwtRegisteredClaimNames.Email);
             var exp = long.Parse(User.FindFirstValue("exp")!);
+            var (publicKey, encryptedPrivateKey) = await _auth.GetKeypairAsync(CurrentUserId, ct);
 
             return Ok(new AuthResponse
             {
                 Username = username!,
                 Email = email!,
                 ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime,
-                KeySalt = User.FindFirstValue("keySalt")
+                KeySalt = User.FindFirstValue("keySalt"),
+                PublicKey = publicKey,
+                EncryptedPrivateKey = encryptedPrivateKey
             });
         }
 
@@ -76,6 +79,11 @@ namespace TheShed.Server.Controllers
             Response.Cookies.Delete("authToken", new CookieOptions { Path = "/" });
             return Ok();
         }
+
+        private int CurrentUserId =>
+            int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
+                      ?? User.FindFirstValue("sub")
+                      ?? throw new InvalidOperationException("Missing user id claim."));
 
         private void SetAuthCookie(AuthResult result)
         {

@@ -67,6 +67,60 @@ namespace TheShed.Tests.Services
             Assert.Equal(1, await db.Users.CountAsync()); // no se creó un segundo usuario
         }
 
+        [Fact]
+        public async Task RegisterAsync_ConKeypair_LoDevuelveEnLaRespuesta()
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+
+            var result = await service.RegisterAsync(new RegisterRequest
+            {
+                Username = "Ana",
+                Email = "ana@test.com",
+                Password = "Sup3rSecret!",
+                PublicKey = "pem",
+                EncryptedPrivateKey = "blob"
+            });
+
+            Assert.Equal("pem", result.Response!.PublicKey);
+            Assert.Equal("blob", result.Response!.EncryptedPrivateKey);
+        }
+
+        // --- GetKeypairAsync ---
+
+        [Fact]
+        public async Task GetKeypairAsync_UsuarioExistente_DevuelvePublicKeyYPrivateKeyCifrada()
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+            await service.RegisterAsync(new RegisterRequest
+            {
+                Username = "Ana",
+                Email = "ana@test.com",
+                Password = "Sup3rSecret!",
+                PublicKey = "pem",
+                EncryptedPrivateKey = "blob"
+            });
+            var userId = (await db.Users.SingleAsync()).Id;
+
+            var (publicKey, encryptedPrivateKey) = await service.GetKeypairAsync(userId);
+
+            Assert.Equal("pem", publicKey);
+            Assert.Equal("blob", encryptedPrivateKey);
+        }
+
+        [Fact]
+        public async Task GetKeypairAsync_UsuarioInexistente_DevuelveNulls()
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+
+            var (publicKey, encryptedPrivateKey) = await service.GetKeypairAsync(999);
+
+            Assert.Null(publicKey);
+            Assert.Null(encryptedPrivateKey);
+        }
+
         // --- Login ---
 
         [Fact]

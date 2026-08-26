@@ -91,6 +91,9 @@ builder.Services.AddRateLimiter(options =>
 // Servicios de aplicación — autenticación (Scoped: depende de TheShedContext)
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// Application services — user lookups (public key by email, Sprint 27; Scoped: depends on TheShedContext)
+builder.Services.AddScoped<IUserService, UserService>();
+
 // Application services — vault access (Scoped: depends on TheShedContext)
 builder.Services.AddScoped<IVaultAccessService, VaultAccessService>();
 
