@@ -3,21 +3,20 @@ using System.Security.Cryptography;
 namespace TheShed.Shared.Security
 {
     /// <summary>
-    /// Implementación de <see cref="IEncryptionService"/> con AES-256-GCM.
-    /// Genera un nonce aleatorio por operación y devuelve
-    /// <c>base64(nonce(12) || ciphertext || tag(16))</c>.
-    /// La clave (32 bytes) se recibe ya resuelta — este tipo no sabe de dónde viene
-    /// (config del servidor, D3; o una stretched master key / vault key derivada en el cliente).
+    /// AES-256-GCM síncrono. Genera un nonce aleatorio por operación y devuelve
+    /// <c>base64(nonce(12) || ciphertext || tag(16))</c>. La clave (32 bytes) se recibe ya
+    /// resuelta — este tipo no sabe de dónde viene.
     /// <para>
-    /// <b>Solo corre en <c>TheShed.Server</c></b>: <see cref="AesGcm"/> tira
-    /// <see cref="PlatformNotSupportedException"/> en browser-wasm (sin backend nativo de
-    /// crypto ahí, igual que RSA). El lado <c>TheShed.Client</c> tiene que cifrar/descifrar
-    /// AES-GCM vía Web Crypto (interop JS, ver <c>WebCryptoUserKeypairService</c> en
-    /// <c>TheShed.Client.Services</c>) en vez de esta clase, manteniendo el mismo layout de
-    /// bytes (nonce||ciphertext||tag) para que ambos lados sean compatibles.
+    /// Ya no corre en producción (D3, superseded por D7 — el modelo zero-knowledge no usa una
+    /// clave de servidor). Queda como utilidad de test: <see cref="AesGcm"/> tira
+    /// <see cref="PlatformNotSupportedException"/> en browser-wasm, así que el cliente real
+    /// cifra/descifra vía Web Crypto (interop JS, ver <c>WebCryptoUserKeypairService</c> en
+    /// <c>TheShed.Client.Services</c>) — esta clase sirve para simular ese lado en tests que
+    /// corren sobre el runtime normal (<c>ZeroKnowledgeE2ETests</c>), con el mismo layout de
+    /// bytes (nonce||ciphertext||tag).
     /// </para>
     /// </summary>
-    public class AesEncryptionService : IEncryptionService
+    public class AesEncryptionService
     {
         private const int KeySize = 32;   // AES-256
         private const int NonceSize = 12; // 96 bits, recomendado para GCM

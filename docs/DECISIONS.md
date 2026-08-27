@@ -100,9 +100,13 @@ modelo actual no alcanza.
 **Se mantiene sin cambios:** D1 (Argon2 sigue siendo el hash de autenticación — es un
 derivado distinto del master password, no la clave de cifrado) y D2 (JWT en cookie
 httpOnly).
-**Reemplaza:** D3 queda **superseded** — ver nota en esa entrada. La clave de servidor
-sigue viva únicamente durante la migración (Sprint 28), para descifrar por última vez
-los datos existentes.
+**Reemplaza:** D3 queda **superseded** — ver nota en esa entrada. El plan original preveía
+mantener la clave de servidor viva durante la migración (Sprint 28), para descifrar por
+última vez los datos existentes. **Ajuste (2026-08-27):** los vaults previos al Sprint 26
+eran todos datos de prueba, así que se decidió no migrarlos — se descartan. Sprint 28 quedó
+reducido a apagar esa superficie de cifrado (`IEncryptionService`/`EncryptionSettings`/
+`Encryption:Key`, sin consumidores reales desde el Sprint 26/27) sin ningún paso de
+migración.
 **Riesgo aceptado explícitamente (no resuelto en este alcance):** remover un miembro de
 un vault compartido no rota la vault key (Sprint 27, increment 2) — un ex-miembro que
 guardó una copia del key-wrap podría en teoría seguir descifrando datos posteriores a su

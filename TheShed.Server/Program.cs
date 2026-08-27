@@ -3,12 +3,10 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using TheShed.Server.Data;
 using TheShed.Server.Security;
 using TheShed.Server.Services;
-using TheShed.Shared.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,21 +16,6 @@ builder.Services.AddDbContext<TheShedContext>(options =>
 
 // Seguridad — hashing de la contraseña maestra (Argon2)
 builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
-
-// Seguridad — cifrado de entradas (AES-256-GCM). El servicio en sí vive en TheShed.Shared
-// (Sprint 25+ lo reusa del lado cliente con una clave derivada); acá solo se resuelve la
-// clave desde configuración.
-builder.Services.Configure<EncryptionSettings>(builder.Configuration.GetSection("Encryption"));
-builder.Services.AddSingleton<IEncryptionService>(sp =>
-{
-    var raw = sp.GetRequiredService<IOptions<EncryptionSettings>>().Value.Key;
-    if (string.IsNullOrWhiteSpace(raw))
-    {
-        throw new InvalidOperationException(
-            "Falta la clave de cifrado (Encryption:Key). Configurarla por User Secrets o variables de entorno.");
-    }
-    return new AesEncryptionService(Convert.FromBase64String(raw));
-});
 
 // Seguridad — autenticación JWT (access token, HMAC-SHA256)
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
