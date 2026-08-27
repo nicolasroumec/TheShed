@@ -615,22 +615,24 @@ de ese sprint arriba (`WebCryptoKeyDerivationService`).
       compartido con `VaultDetail`)
 - [x] Tests + PR a `main`
 
-## 🟣 Sprint 28 — Zero-knowledge: migración de datos existentes · `feature/e2e-migration`
-> El sprint que hace real todo lo anterior para los vaults que ya existen — sin esto,
-> Sprint 25-27 solo aplican a cuentas nuevas.
-- [ ] Endpoint de migración: con la clave global vieja de D3 (que se mantiene viva
-      **solo** para esto), el servidor descifra una última vez el contenido de un vault
-      y lo expone por HTTPS a una llamada autenticada del propio dueño; el cliente lo
-      vuelve a cifrar con la vault key nueva y sube los blobs nuevos; el servidor no
-      persiste el valor descifrado en ningún punto intermedio
-- [ ] Bandera de estado por vault (`EncryptionVersion` o similar) para distinguir
-      "todavía con clave de servidor" de "ya migrado" mientras conviven ambos modelos
-- [ ] Una vez confirmado el 100% de los vaults migrados (medido, no asumido): apagar
-      `Encryption:Key`/`EncryptionSettings` y borrar `AesEncryptionService` del lado
-      `Server`
-- [ ] Increment opcional, a decidir si el producto lo pide: recovery key — generarla y
-      mostrarla una única vez al usuario (para guardar offline) como mitigación del
-      costo de UX aceptado en D7 (olvidar la master password = pérdida total sin esto)
+## ✅ Sprint 28 — Zero-knowledge: baja del cifrado legacy del servidor · `feature/e2e-migration`
+> Alcance recortado por decisión del usuario (2026-08-27): los vaults que existían antes
+> del Sprint 26 eran todos datos de prueba, así que no hace falta migrarlos — se
+> descartan sin más. El sprint queda reducido a apagar la superficie de cifrado
+> server-side que D3 dejó viva, que de todos modos ya no tenía ningún consumidor real
+> desde que los Sprints 26/27 movieron el cifrado de entries/notes/attachments al
+> cliente.
+- [x] Sacado el wiring de `IEncryptionService`/`EncryptionSettings`/`Encryption:Key` de
+      `Program.cs` y `appsettings.Example.json`
+- [x] Borrados `TheShed.Server/Security/EncryptionSettings.cs` e
+      `TheShed.Shared/Security/IEncryptionService.cs` (interfaz de un solo consumidor,
+      que ya ni siquiera tenía ese consumidor). `AesEncryptionService` (Shared) se
+      mantiene como clase concreta — la siguen usando `ZeroKnowledgeE2ETests` y
+      `AesEncryptionServiceTests` para simular el lado cliente sin necesitar un
+      navegador real
+- [x] Build + suite completa (**211/211**) en verde tras el cleanup
+- [ ] ~~Endpoint de migración, bandera `EncryptionVersion`, recovery key~~ — no aplican,
+      no hay datos reales que migrar
 - [ ] PR a `main`
 
 ## 🔵 Sprint 17 — Importar / Exportar (CSV) · `feature/import-export`

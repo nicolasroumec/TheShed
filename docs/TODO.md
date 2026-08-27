@@ -204,11 +204,20 @@ su `VaultKeyWrap` al removerlo (higiene, no rotación real). Migrar los vaults c
 este sprint queda para el Sprint 28, que también es donde se apaga `Encryption:Key`/
 `AesEncryptionService` del lado servidor (siguen vivos hasta entonces, para esa migración).
 
-**Próximo paso sugerido:** Sprint 28 — migración de datos existentes al modelo zero-knowledge
-(`feature/e2e-migration`), el sprint que hace real todo lo de 25-27 para los vaults que ya
-existen. Aparte, sigue pendiente la pasada corta de mantenimiento de docs: tildar los ítems del
-Sprint 20 que ya están hechos en el código (ver la nota de desfasaje en `SPRINTS.md`) y arrancar
-la rama de traducción a inglés, que crece con cada sprint.
+**Sprint 28 cerrado con alcance recortado (2026-08-27, `feature/e2e-migration`).** Decisión del
+usuario: los vaults que existían antes del Sprint 26 eran todos datos de prueba, así que no
+hacía falta migrarlos — se descartan. El sprint quedó reducido a apagar la superficie de
+cifrado server-side que D3 había dejado viva (ya sin ningún consumidor real desde que los
+Sprints 26/27 movieron el cifrado de entries/notes/attachments al cliente): sacado el wiring de
+`IEncryptionService`/`EncryptionSettings`/`Encryption:Key` de `Program.cs` y
+`appsettings.Example.json`, borrados ambos archivos (`EncryptionSettings.cs`,
+`IEncryptionService.cs`). `AesEncryptionService` (Shared) se mantiene como clase concreta —
+la siguen usando `ZeroKnowledgeE2ETests`/`AesEncryptionServiceTests` para simular el lado
+cliente sin navegador. Build + suite completa (**211/211**) en verde.
+
+**Próximo paso sugerido:** la pasada corta de mantenimiento de docs que venía pendiente:
+tildar los ítems del Sprint 20 que ya están hechos en el código (ver la nota de desfasaje en
+`SPRINTS.md`) y arrancar la rama de traducción a inglés, que crece con cada sprint.
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra
