@@ -10,5 +10,10 @@ namespace TheShed.Shared.Models.DTOs.Vaults
         public string Email { get; set; } = string.Empty;
 
         public VaultRole Role { get; set; } = VaultRole.Viewer;
+
+        // Generated client-side (RSA-OAEP-wrapped vault key for the target's public key, Sprint
+        // 27) — no [Required] here so the EditForm's validator doesn't block submission before
+        // it's filled in. VaultsController rejects a request that reaches it empty.
+        public string VaultKeyWrap { get; set; } = string.Empty;
     }
 }

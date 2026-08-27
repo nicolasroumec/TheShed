@@ -9,5 +9,9 @@ namespace TheShed.Server.Services
     {
         Task<AuthResult> RegisterAsync(RegisterRequest request, CancellationToken ct = default);
         Task<AuthResult> LoginAsync(LoginRequest request, CancellationToken ct = default);
+
+        /// <summary>The current user's own keypair (Sprint 27), for Me() — too large to carry
+        /// as JWT claims, unlike KeySalt. (null, null) if the user no longer exists.</summary>
+        Task<(string? PublicKey, string? EncryptedPrivateKey)> GetKeypairAsync(int userId, CancellationToken ct = default);
     }
 }

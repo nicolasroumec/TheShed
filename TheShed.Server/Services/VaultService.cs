@@ -184,6 +184,14 @@ namespace TheShed.Server.Services
                 UserId = target.Id,
                 Role = request.Role
             });
+            // RSA-OAEP-wrapped for the target's public key, client-side — the server only ever
+            // sees the opaque blob, same as the owner's AES-wrapped VaultKeyWrap (Sprint 27).
+            _db.VaultKeyWraps.Add(new VaultKeyWrap
+            {
+                VaultId = vaultId,
+                UserId = target.Id,
+                WrappedKey = request.VaultKeyWrap
+            });
             await _db.SaveChangesAsync(ct);
 
             return EntryResult<VaultMemberItem>.Ok(new VaultMemberItem
@@ -239,6 +247,18 @@ namespace TheShed.Server.Services
             }
 
             _db.VaultMembers.Remove(member);
+
+            // Not key rotation — the vault key itself doesn't change, so anything the ex-member
+            // already decrypted is still technically recoverable from what they saw (M1 in
+            // AUDITORIA.md, accepted risk per D7). This just stops their wrap from ever being
+            // handed back out through GetWrappedKeyAsync/AddMemberAsync's re-add path.
+            var wrap = await _db.VaultKeyWraps
+                .FirstOrDefaultAsync(w => w.VaultId == vaultId && w.UserId == memberUserId, ct);
+            if (wrap is not null)
+            {
+                _db.VaultKeyWraps.Remove(wrap);
+            }
+
             await _db.SaveChangesAsync(ct);
 
             return EntryResult<bool>.Ok(true);

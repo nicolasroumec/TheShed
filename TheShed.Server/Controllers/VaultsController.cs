@@ -72,6 +72,12 @@ namespace TheShed.Server.Controllers
         [HttpPost("{id:int}/members")]
         public async Task<IActionResult> AddMember(int id, VaultMemberAddRequest request, CancellationToken ct)
         {
+            // Generated client-side (see VaultMemberAddRequest) — same guard as Create.
+            if (string.IsNullOrEmpty(request.VaultKeyWrap))
+            {
+                return BadRequest(new { message = "Missing client-generated vault key." });
+            }
+
             var result = await _vaults.AddMemberAsync(CurrentUserId, id, request, ct);
             return result.Success ? Ok(result.Value) : MapError(result.Error);
         }

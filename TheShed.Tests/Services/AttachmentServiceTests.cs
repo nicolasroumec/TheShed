@@ -5,14 +5,12 @@ using TheShed.Server.Enums;
 using TheShed.Server.Services;
 using TheShed.Shared.Models.Entities;
 using TheShed.Shared.Models.Enums;
-using TheShed.Shared.Security;
 using Xunit;
 
 namespace TheShed.Tests.Services
 {
     public class AttachmentServiceTests
     {
-        private static readonly byte[] TestKey = new byte[32];
         private const int StrangerId = 9999; // a user with no access to the seeded vault
         private const long DefaultMaxSize = 5 * 1024 * 1024;
 
@@ -23,10 +21,9 @@ namespace TheShed.Tests.Services
 
         private static (AttachmentService Service, InMemoryAttachmentStorage Storage) CreateService(TheShedContext db, long maxSize = DefaultMaxSize)
         {
-            var encryption = new AesEncryptionService(TestKey);
             var storage = new InMemoryAttachmentStorage();
             var settings = Options.Create(new AttachmentSettings { MaxFileSizeBytes = maxSize });
-            return (new AttachmentService(db, encryption, new VaultAccessService(db), storage, settings), storage);
+            return (new AttachmentService(db, new VaultAccessService(db), storage, settings), storage);
         }
 
         private static async Task<(int ownerId, int vaultId, int entryId)> SeedEntryAsync(TheShedContext db)
@@ -61,11 +58,13 @@ namespace TheShed.Tests.Services
         // --- Upload ---
 
         [Fact]
-        public async Task UploadAsync_Owner_EncryptsAndStores()
+        public async Task UploadAsync_Owner_StoresContentAsIs()
         {
             using var db = CreateContext();
             var (ownerId, _, entryId) = await SeedEntryAsync(db);
             var (service, storage) = CreateService(db);
+            // Already AES-GCM ciphertext under the vault key by the time it reaches the server
+            // (Sprint 27) — the server has no key to encrypt it with even if it wanted to.
             var content = new byte[] { 1, 2, 3, 4 };
 
             var result = await service.UploadAsync(ownerId, entryId, "card.png", content);
@@ -75,8 +74,7 @@ namespace TheShed.Tests.Services
             Assert.Equal(content.Length, result.Value.FileSizeBytes);
 
             var stored = await storage.ReadAsync(storage.LastKey!);
-            Assert.NotNull(stored);
-            Assert.NotEqual(content, stored); // encrypted at rest, not the plaintext bytes
+            Assert.Equal(content, stored);
         }
 
         [Theory]
@@ -167,7 +165,7 @@ namespace TheShed.Tests.Services
         // --- Download ---
 
         [Fact]
-        public async Task DownloadAsync_ReturnsDecryptedContent()
+        public async Task DownloadAsync_ReturnsStoredContentAsIs()
         {
             using var db = CreateContext();
             var (ownerId, _, entryId) = await SeedEntryAsync(db);

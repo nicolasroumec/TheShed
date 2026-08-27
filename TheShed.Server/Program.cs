@@ -91,6 +91,9 @@ builder.Services.AddRateLimiter(options =>
 // Servicios de aplicación — autenticación (Scoped: depende de TheShedContext)
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// Application services — user lookups (public key by email, Sprint 27; Scoped: depends on TheShedContext)
+builder.Services.AddScoped<IUserService, UserService>();
+
 // Application services — vault access (Scoped: depends on TheShedContext)
 builder.Services.AddScoped<IVaultAccessService, VaultAccessService>();
 
@@ -111,9 +114,6 @@ builder.Services.AddHostedService<TrashPurgeService>();
 builder.Services.Configure<AttachmentSettings>(builder.Configuration.GetSection("Attachments"));
 builder.Services.AddSingleton<IAttachmentStorage, LocalFileAttachmentStorage>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
-
-// Application services — password health (Scoped: depends on TheShedContext)
-builder.Services.AddScoped<IPasswordHealthService, PasswordHealthService>();
 
 // Add services to the container.
 builder.Services.AddControllers();

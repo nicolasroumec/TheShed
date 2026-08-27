@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 using TheShed.Client.Services;
 using TheShed.Shared.Models.DTOs.Vaults;
 using TheShed.Shared.Models.Enums;
+using TheShed.Shared.Security;
 
 namespace TheShed.Client.Components.Vault;
 
@@ -10,7 +11,10 @@ public partial class MembersPanel
     [Parameter] public int VaultId { get; set; }
 
     [Inject] private VaultClient VaultApi { get; set; } = default!;
+    [Inject] private UserClient UserApi { get; set; } = default!;
     [Inject] private IModalService Modal { get; set; } = default!;
+    [Inject] private IVaultKeyCache VaultKeyCache { get; set; } = default!;
+    [Inject] private IUserKeypairService UserKeypair { get; set; } = default!;
 
     private IReadOnlyList<VaultMemberItem>? _members;
     private string _memberEmail = string.Empty;
@@ -34,10 +38,28 @@ public partial class MembersPanel
         _memberBusy = true;
         try
         {
+            var vaultKey = VaultKeyCache.Get(VaultId);
+            if (vaultKey is null)
+            {
+                _memberError = "Vault key unavailable — reopen the vault and try again.";
+                return;
+            }
+
+            var email = _memberEmail.Trim();
+            var target = await UserApi.GetPublicKeyAsync(email);
+            if (target is null)
+            {
+                _memberError = "No user with that email, or they haven't set up sharing yet.";
+                return;
+            }
+
+            var wrappedKey = await UserKeypair.WrapKeyForMemberAsync(vaultKey, target.PublicKey);
+
             var error = await VaultApi.AddMemberAsync(VaultId, new VaultMemberAddRequest
             {
-                Email = _memberEmail.Trim(),
-                Role = _memberRole
+                Email = email,
+                Role = _memberRole,
+                VaultKeyWrap = wrappedKey
             });
 
             if (error is not null)

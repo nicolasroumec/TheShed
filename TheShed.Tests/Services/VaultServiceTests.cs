@@ -314,12 +314,27 @@ namespace TheShed.Tests.Services
             var service = CreateService(db);
 
             var result = await service.AddMemberAsync(ownerId, vaultId,
-                new VaultMemberAddRequest { Email = "bob@test.com", Role = VaultRole.Editor });
+                new VaultMemberAddRequest { Email = "bob@test.com", Role = VaultRole.Editor, VaultKeyWrap = "rsa-wrapped-key" });
 
             Assert.True(result.Success);
             Assert.Equal(targetId, result.Value!.UserId);
             Assert.Equal(VaultRole.Editor, result.Value!.Role);
             Assert.True(await db.VaultMembers.AnyAsync(m => m.VaultId == vaultId && m.UserId == targetId));
+        }
+
+        [Fact]
+        public async Task AddMemberAsync_Owner_PersistsVaultKeyWrapForTarget()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var targetId = await AddUserWithEmailAsync(db, "bob", "bob@test.com");
+            var service = CreateService(db);
+
+            await service.AddMemberAsync(ownerId, vaultId,
+                new VaultMemberAddRequest { Email = "bob@test.com", VaultKeyWrap = "rsa-wrapped-key" });
+
+            var wrap = await db.VaultKeyWraps.SingleAsync(w => w.VaultId == vaultId && w.UserId == targetId);
+            Assert.Equal("rsa-wrapped-key", wrap.WrappedKey);
         }
 
         [Fact]
@@ -421,6 +436,22 @@ namespace TheShed.Tests.Services
 
             Assert.True(result.Success);
             Assert.Equal(0, await db.VaultMembers.CountAsync());
+        }
+
+        [Fact]
+        public async Task RemoveMemberAsync_Owner_RemovesTheMembersVaultKeyWrap()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var memberId = await AddMemberAsync(db, vaultId, VaultRole.Viewer);
+            db.VaultKeyWraps.Add(new VaultKeyWrap { VaultId = vaultId, UserId = memberId, WrappedKey = "rsa-wrapped-key" });
+            await db.SaveChangesAsync();
+            var service = CreateService(db);
+
+            var result = await service.RemoveMemberAsync(ownerId, vaultId, memberId);
+
+            Assert.True(result.Success);
+            Assert.False(await db.VaultKeyWraps.AnyAsync(w => w.VaultId == vaultId && w.UserId == memberId));
         }
 
         [Fact]

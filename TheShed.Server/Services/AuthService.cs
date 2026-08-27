@@ -61,6 +61,15 @@ namespace TheShed.Server.Services
             return Success(user);
         }
 
+        public async Task<(string? PublicKey, string? EncryptedPrivateKey)> GetKeypairAsync(int userId, CancellationToken ct = default)
+        {
+            var user = await _db.Users
+                .Where(u => u.Id == userId)
+                .Select(u => new { u.PublicKey, u.EncryptedPrivateKey })
+                .FirstOrDefaultAsync(ct);
+            return user is null ? (null, null) : (user.PublicKey, user.EncryptedPrivateKey);
+        }
+
         private AuthResult Success(User user)
         {
             var (token, expiresAt) = _jwt.GenerateToken(user);
@@ -69,7 +78,9 @@ namespace TheShed.Server.Services
                 ExpiresAt = expiresAt,
                 Username = user.Username,
                 Email = user.Email,
-                KeySalt = user.KeySalt
+                KeySalt = user.KeySalt,
+                PublicKey = user.PublicKey,
+                EncryptedPrivateKey = user.EncryptedPrivateKey
             }, token);
         }
     }

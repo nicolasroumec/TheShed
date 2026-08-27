@@ -36,6 +36,24 @@ namespace TheShed.Client.Services
         public static string FormatPublicKeyPem(string publicKeySpkiBase64) =>
             PemEncoding.WriteString("PUBLIC KEY", Convert.FromBase64String(publicKeySpkiBase64));
 
+        public async Task<string> WrapKeyForMemberAsync(byte[] vaultKey, string memberPublicKeyPem)
+        {
+            ArgumentNullException.ThrowIfNull(vaultKey);
+            return await _js.InvokeAsync<string>(
+                "wrapKeyRsaOaep", memberPublicKeyPem, Convert.ToBase64String(vaultKey));
+        }
+
+        public async Task<byte[]> UnwrapKeyAsMemberAsync(byte[] stretchedMasterKey, string encryptedPrivateKey, string wrappedVaultKey)
+        {
+            ArgumentNullException.ThrowIfNull(stretchedMasterKey);
+
+            var privateKeyPkcs8Base64 = await _js.InvokeAsync<string>(
+                "decryptAesGcm", Convert.ToBase64String(stretchedMasterKey), encryptedPrivateKey);
+            var vaultKeyBase64 = await _js.InvokeAsync<string>(
+                "unwrapKeyRsaOaep", privateKeyPkcs8Base64, wrappedVaultKey);
+            return Convert.FromBase64String(vaultKeyBase64);
+        }
+
         private record RawRsaKeyPair(string PublicKeySpkiBase64, string PrivateKeyPkcs8Base64);
     }
 }

@@ -109,7 +109,8 @@ namespace TheShed.Tests.Controllers
             var fake = new FakeVaultService { AddMemberResult = EntryResult<VaultMemberItem>.Fail(EntryError.UserNotFound) };
             var controller = CreateController(fake);
 
-            var result = await controller.AddMember(id: 1, new VaultMemberAddRequest { Email = "x@y.com" }, CancellationToken.None);
+            var result = await controller.AddMember(id: 1,
+                new VaultMemberAddRequest { Email = "x@y.com", VaultKeyWrap = "rsa-wrapped-key" }, CancellationToken.None);
 
             Assert.IsType<NotFoundObjectResult>(result);
         }
@@ -120,9 +121,21 @@ namespace TheShed.Tests.Controllers
             var fake = new FakeVaultService { AddMemberResult = EntryResult<VaultMemberItem>.Fail(EntryError.AlreadyMember) };
             var controller = CreateController(fake);
 
-            var result = await controller.AddMember(id: 1, new VaultMemberAddRequest { Email = "x@y.com" }, CancellationToken.None);
+            var result = await controller.AddMember(id: 1,
+                new VaultMemberAddRequest { Email = "x@y.com", VaultKeyWrap = "rsa-wrapped-key" }, CancellationToken.None);
 
             Assert.IsType<ConflictObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task AddMember_MissingVaultKeyWrap_Returns400()
+        {
+            var fake = new FakeVaultService { AddMemberResult = EntryResult<VaultMemberItem>.Ok(new VaultMemberItem()) };
+            var controller = CreateController(fake);
+
+            var result = await controller.AddMember(id: 1, new VaultMemberAddRequest { Email = "x@y.com" }, CancellationToken.None);
+
+            Assert.IsType<BadRequestObjectResult>(result);
         }
 
         [Fact]

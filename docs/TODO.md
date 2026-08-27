@@ -104,31 +104,10 @@ De paso aparecieron 3 bugs sin relación con mobile, corregidos en el mismo tram
 Evaluada la idea de un bottom tab bar para mobile en vez del off-canvas actual — descartada por
 ahora, se mantiene el menú desplegable.
 
-**Próximo paso — reemplazar `window.confirm` por un modal propio.** 6 call-sites usan
-`JS.InvokeAsync<bool>("confirm", ...)` (Trash, `EntriesPanel` borrar tag, `EntryRow` borrar
-entrada, `EntryAttachmentsPanel` borrar archivo, `MembersPanel` sacar miembro, `NotesPanel`
-borrar nota) — diálogo nativo del navegador, rompe el tema oscuro. Servicio genérico en
-nombre y parámetros, no en contenido: se evaluó un modal con `RenderFragment` arbitrario
-(formularios, etc.) pero eso solo se arma limpio desde markup `.razor`, y los 6 call-sites
-actuales llaman desde `.razor.cs` puro (sin markup) — se agrega soporte a contenido arbitrario
-el día que haya un caso concreto que lo pida, no antes. Planificado en 2 commits:
-- [ ] Increment 1 — infraestructura + primer uso real: `Services/ModalService.cs` (scoped,
-      `Task<bool> ConfirmAsync(string message, string title = "Confirm", string confirmText = "Confirm", string confirmVariant = "danger")`
-      con `TaskCompletionSource`, async en vez del bloqueo de `window.confirm`; nombre e
-      interfaz genéricos para poder sumar `AlertAsync(...)` u otros al lado con la misma
-      cañería el día que haga falta). `Components/ModalHost.razor`+`.razor.cs` (modal
-      Bootstrap, ya hereda el tema vía el remap de `--bs-body-bg` etc. que ya existe en
-      `app.css`); registro en `Program.cs` + un solo `<ModalHost />` montado en
-      `MainLayout.razor`; convertir `EntryRow` (delete entry) en el mismo incremento para
-      probar el mecanismo con un uso real.
-- [ ] Increment 2 — resto de call-sites (mecánico, mismo patrón que el 1): `NotesPanel`,
-      `MembersPanel`, `EntryAttachmentsPanel`, `EntriesPanel` (delete tag), `Trash`. Sacar
-      `IJSRuntime JS` donde ya no queda usándose para nada más (Trash, `EntriesPanel`,
-      `MembersPanel`, `NotesPanel` — lo inyectaban solo para el `confirm`); se mantiene en
-      `EntryAttachmentsPanel` (downloadFile) y `EntryRow` (copyToClipboard).
-
-Después de esto, volver al orden del roadmap: Sprint 17 — Importar/Exportar CSV
-(`feature/import-export`).
+**Modal de confirmación:** `window.confirm` reemplazado por `ModalService`/`ModalHost` propio en
+los 6 call-sites (Trash, `EntriesPanel` borrar tag, `EntryRow` borrar entrada,
+`EntryAttachmentsPanel` borrar archivo, `MembersPanel` sacar miembro, `NotesPanel` borrar nota).
+Cerrado, sin `window.confirm` restante en el cliente.
 
 **Auditoría de seguridad (2026-08-13, `docs/AUDITORIA.md`):** base criptográfica sólida
 (Argon2, AES-256-GCM, JWT en cookie `HttpOnly`, control de acceso centralizado), pero un
@@ -204,11 +183,32 @@ incluido el ajuste de `SecureNoteService.ListAsync` que dejó de ordenar por `Ti
 WASM y congelaba la pestaña ~70-90s en cada login/registro — pasó a `crypto.subtle.deriveBits`
 (Web Crypto, nativo) vía `WebCryptoKeyDerivationService`, mismas iteraciones, sin freeze.
 
-**Próximo paso sugerido:** Sprint 27 — compartir vaults vía key-wrapping asimétrico
-(`feature/e2e-vault-sharing`), que sigue siendo la prioridad que marcaba D7. Aparte, sigue
-pendiente la pasada corta de mantenimiento de docs: tildar los ítems del Sprint 20 que ya están
-hechos en el código (ver la nota de desfasaje en `SPRINTS.md`) y arrancar la rama de traducción a
-inglés, que crece con cada sprint.
+**Sprint 27 cerrado (`feature/e2e-vault-sharing`).** Compartir vaults vía key-wrapping
+asimétrico: al agregar un miembro, el dueño pide su public key (`GET /api/users/public-key`),
+envuelve la vault key con RSA-OAEP y sube un `VaultKeyWrap` para ese usuario; el miembro
+desenvuelve su private key propia (AES, con su stretched master key) y con eso la vault key
+(`IUserKeypairService.UnwrapKeyAsMemberAsync`) — verificado en navegador compartiendo un vault
+entre dos cuentas reales. De paso, dos cosas que la investigación del sprint destapó:
+- **Adjuntos** todavía cifraban server-side con la key global vieja (`IEncryptionService`) —
+  quedó movido al mismo patrón client-side que entradas/notas desde el Sprint 26. Verificado
+  subiendo y bajando un archivo entre las dos cuentas (byte a byte idéntico al original).
+- **El reporte de salud de contraseñas estaba roto**, no solo desactualizado: desde el Sprint 26
+  intentaba `_encryption.Decrypt` sobre `PasswordEntry.Password`, que ya es ciphertext
+  client-side — nunca podía funcionar. Se eliminó `PasswordHealthService`/`HealthController`
+  server-side y `Health.razor.cs` ahora corre `PasswordHealthChecker` (`Shared`) client-side,
+  con unwrap eager de todos los vaults accesibles (`IVaultKeyResolver`, nuevo, compartido con
+  `VaultDetail` para no duplicar la rama owner/member). Verificado con ambas cuentas.
+
+Limitación conocida y aceptada (M1/D7): remover un miembro no rota la vault key — sí se borra
+su `VaultKeyWrap` al removerlo (higiene, no rotación real). Migrar los vaults creados antes de
+este sprint queda para el Sprint 28, que también es donde se apaga `Encryption:Key`/
+`AesEncryptionService` del lado servidor (siguen vivos hasta entonces, para esa migración).
+
+**Próximo paso sugerido:** Sprint 28 — migración de datos existentes al modelo zero-knowledge
+(`feature/e2e-migration`), el sprint que hace real todo lo de 25-27 para los vaults que ya
+existen. Aparte, sigue pendiente la pasada corta de mantenimiento de docs: tildar los ítems del
+Sprint 20 que ya están hechos en el código (ver la nota de desfasaje en `SPRINTS.md`) y arrancar
+la rama de traducción a inglés, que crece con cada sprint.
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra

@@ -594,20 +594,26 @@ payload de red antes y después del fix. Arreglados en 2 commits separados:
 De paso se encontró y arregló el freeze de PBKDF2 heredado del Sprint 25 — ver la nota
 de ese sprint arriba (`WebCryptoKeyDerivationService`).
 
-## 🟣 Sprint 27 — Zero-knowledge: compartir vaults (key wrapping) · `feature/e2e-vault-sharing`
-- [ ] Al agregar un `VaultMember`: el dueño pide la public key del nuevo miembro
-      (`GET /api/users/{id}/public-key`), envuelve la vault key con ella (RSA-OAEP) y
+## 🟣 Sprint 27 — Zero-knowledge: compartir vaults (key wrapping) · `feature/e2e-vault-sharing` (cerrado)
+- [x] Al agregar un `VaultMember`: el dueño pide la public key del nuevo miembro
+      (`GET /api/users/public-key?email=`), envuelve la vault key con ella (RSA-OAEP) y
       sube un nuevo `VaultKeyWrap` para ese `userId`. El miembro, al loguear, desenvuelve
       su privada con su stretched master key y con eso desenvuelve la vault key
-- [ ] Remover un miembro: **no rota la vault key** en este increment — limitación
-      conocida y documentada (D7, riesgo aceptado), no fingir que remover es
-      retroactivamente seguro sin rotación (M1)
-- [ ] Historial y adjuntos: mismo patrón que entradas/notas (Sprint 26) — cifrados con
-      la vault key, cifrado/descifrado movido al cliente
-- [ ] `PasswordHealthService` pasa a `PasswordHealthChecker` (ya vive en `Shared`)
-      corriendo client-side sobre el vault ya descifrado en memoria — el endpoint deja
-      de necesitar descifrar todo server-side para armar el reporte
-- [ ] Tests + PR a `main`
+      (`IUserKeypairService.UnwrapKeyAsMemberAsync`). Verificado en navegador con dos
+      cuentas reales
+- [x] Remover un miembro: **no rota la vault key** — limitación conocida y documentada
+      (D7, riesgo aceptado), no fingir que remover es retroactivamente seguro sin
+      rotación (M1). Sí se borra el `VaultKeyWrap` del ex-miembro (higiene, no rotación)
+- [x] Adjuntos: mismo patrón que entradas/notas (Sprint 26) — cifrados con la vault key,
+      cifrado/descifrado movido al cliente. (Historial ya estaba hecho desde el Sprint 26:
+      `PasswordEntryService` solo copia el ciphertext del cliente a `EntryHistory`, sin
+      tocarlo — la línea original de este ítem estaba desactualizada)
+- [x] `PasswordHealthService` (server) eliminado — corría roto desde el Sprint 26
+      (`_encryption.Decrypt` sobre ciphertext client-side que ya no podía descifrar).
+      Reemplazado por `Health.razor.cs` corriendo `PasswordHealthChecker` (`Shared`)
+      client-side, con unwrap eager de todos los vaults accesibles (`IVaultKeyResolver`,
+      compartido con `VaultDetail`)
+- [x] Tests + PR a `main`
 
 ## 🟣 Sprint 28 — Zero-knowledge: migración de datos existentes · `feature/e2e-migration`
 > El sprint que hace real todo lo anterior para los vaults que ya existen — sin esto,

@@ -19,5 +19,16 @@ namespace TheShed.Shared.Security
         /// <see cref="IEncryptionService"/>).
         /// </summary>
         Task<UserKeypair> GenerateAsync(byte[] stretchedMasterKey);
+
+        /// <summary>Wraps <paramref name="vaultKey"/> (RSA-OAEP) with a member's public key, so
+        /// the owner can share a vault with them (Sprint 27) — the server only ever stores the
+        /// result as an opaque <c>VaultKeyWrap.WrappedKey</c> blob.</summary>
+        Task<string> WrapKeyForMemberAsync(byte[] vaultKey, string memberPublicKeyPem);
+
+        /// <summary>Reverses <see cref="WrapKeyForMemberAsync"/> from the member's side: decrypts
+        /// their own <paramref name="encryptedPrivateKey"/> with <paramref name="stretchedMasterKey"/>
+        /// (same wrap <see cref="GenerateAsync"/> produced), then RSA-OAEP-decrypts
+        /// <paramref name="wrappedVaultKey"/> with it.</summary>
+        Task<byte[]> UnwrapKeyAsMemberAsync(byte[] stretchedMasterKey, string encryptedPrivateKey, string wrappedVaultKey);
     }
 }
