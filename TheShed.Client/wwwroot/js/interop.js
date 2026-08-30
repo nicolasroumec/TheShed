@@ -11,6 +11,53 @@ window.downloadFile = (fileName, bytes) => {
     URL.revokeObjectURL(url);
 };
 
+// Idle auto-lock (Sprint 30). The timer and the activity events live here rather than in .NET:
+// the browser already owns them, and routing every keystroke through interop to reset a WASM
+// timer would be a hop per event. .NET only hears about it once — when the session should lock.
+let idleRef = null;
+let idleTimer = null;
+let idleTimeoutMs = 0;
+let idleLastActivity = 0;
+
+function idleLock() {
+    if (idleRef) idleRef.invokeMethodAsync('OnIdle');
+}
+
+// Only real user activity counts. Notably absent: visibilitychange — coming back to the tab
+// after two hours away is not a reason to grant another full timeout.
+function idleReset() {
+    idleLastActivity = Date.now();
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(idleLock, idleTimeoutMs);
+}
+
+// setTimeout is throttled in a background tab and frozen outright in a suspended PWA, so the
+// timer alone cannot be trusted to have fired while the app was away. On the way back, compare
+// wall clocks instead.
+function idleOnVisibilityChange() {
+    if (document.visibilityState === 'visible' && Date.now() - idleLastActivity >= idleTimeoutMs) {
+        idleLock();
+    }
+}
+
+window.startIdleWatch = (dotNetRef, timeoutMs) => {
+    idleRef = dotNetRef;
+    idleTimeoutMs = timeoutMs;
+    // Capture phase: a handler that stops propagation further down must not blind the lock.
+    document.addEventListener('pointerdown', idleReset, true);
+    document.addEventListener('keydown', idleReset, true);
+    document.addEventListener('visibilitychange', idleOnVisibilityChange);
+    idleReset();
+};
+
+window.stopIdleWatch = () => {
+    clearTimeout(idleTimer);
+    document.removeEventListener('pointerdown', idleReset, true);
+    document.removeEventListener('keydown', idleReset, true);
+    document.removeEventListener('visibilitychange', idleOnVisibilityChange);
+    idleRef = null;
+};
+
 function bytesToB64(bytes) {
     let bin = '';
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);

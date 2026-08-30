@@ -14,6 +14,7 @@ public partial class Health
     [Inject] private IAesGcmService AesGcm { get; set; } = default!;
 
     private IReadOnlyList<PasswordHealthItem>? _items;
+    private int _unreadableVaults;
 
     protected override async Task OnInitializedAsync()
     {
@@ -27,14 +28,19 @@ public partial class Health
             var vault = await VaultApi.GetAsync(vaultItem.Id);
             if (vault is null)
             {
+                _unreadableVaults++;
                 continue;
             }
 
-            // No key available this session (e.g. a page reload wiped the in-memory stretched
-            // key/keypair) — skip rather than show a report that's silently missing a vault.
+            // No key for this vault — a member whose VaultKeyWrap is missing, or one shared before
+            // Sprint 27. Sprint 30's unlock prompt covers the common cause (a reload wiping the
+            // in-memory keys), so what is left here is rare but not impossible. Counted rather than
+            // swallowed: a skipped vault does not just shorten the report, it corrupts it, because
+            // reuse is compared across every vault at once.
             var vaultKey = await KeyResolver.ResolveAsync(vault);
             if (vaultKey is null)
             {
+                _unreadableVaults++;
                 continue;
             }
 

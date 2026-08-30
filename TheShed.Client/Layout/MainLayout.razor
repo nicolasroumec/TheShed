@@ -7,7 +7,12 @@
     <main>
         <article class="content px-4">
             <ErrorBoundary @ref="_errorBoundary">
-                <ChildContent>@Body</ChildContent>
+                <ChildContent>
+                    @* Gates every routed page: a session with a valid cookie but no in-memory
+                       encryption key gets the unlock prompt instead of a page that cannot
+                       decrypt anything (Sprint 30). *@
+                    <Unlock>@Body</Unlock>
+                </ChildContent>
                 <ErrorContent>
                     <div class="alert alert-danger" role="alert">
                         Something broke on this page. Your data is safe — reload to try again.

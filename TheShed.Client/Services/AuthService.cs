@@ -21,10 +21,11 @@ namespace TheShed.Client.Services
         private readonly IStretchedKeyStore _keyStore;
         private readonly IVaultKeyCache _vaultKeyCache;
         private readonly IOwnKeypairCache _ownKeypairCache;
+        private readonly IAesGcmService _aesGcm;
 
         public AuthService(HttpClient http, AuthenticationStateProvider stateProvider,
             IKeyDerivationService kdf, IUserKeypairService keypair, IStretchedKeyStore keyStore,
-            IVaultKeyCache vaultKeyCache, IOwnKeypairCache ownKeypairCache)
+            IVaultKeyCache vaultKeyCache, IOwnKeypairCache ownKeypairCache, IAesGcmService aesGcm)
         {
             _http = http;
             _stateProvider = (JwtAuthenticationStateProvider)stateProvider;
@@ -33,6 +34,7 @@ namespace TheShed.Client.Services
             _keyStore = keyStore;
             _vaultKeyCache = vaultKeyCache;
             _ownKeypairCache = ownKeypairCache;
+            _aesGcm = aesGcm;
         }
 
         public async Task<AuthResult> LoginAsync(LoginRequest request)
@@ -79,12 +81,56 @@ namespace TheShed.Client.Services
             });
         }
 
-        public async Task LogoutAsync()
+        public async Task<AuthResult> UnlockAsync(string masterPassword)
         {
-            await _http.PostAsync("api/auth/logout", null);
+            AuthResponse? me;
+            try
+            {
+                me = await _http.GetFromJsonAsync<AuthResponse>("api/auth/me");
+            }
+            catch (HttpRequestException)
+            {
+                // The cookie expired while the tab sat open: there is no session left to unlock.
+                return AuthResult.Fail("Your session expired. Sign in again.");
+            }
+
+            if (me?.KeySalt is null || me.EncryptedPrivateKey is null)
+            {
+                return AuthResult.Fail("This account has no encryption keys on the server. Sign in again.");
+            }
+
+            var stretchedMasterKey = await _kdf.DeriveKeyAsync(masterPassword, Convert.FromBase64String(me.KeySalt));
+
+            // The server could confirm the password — it Argon2-verifies it on login — but asking it
+            // would put the master password back on the wire and burn the login rate limit on every
+            // unlock, and unlocking happens far more often than signing in. The check comes free from
+            // the crypto instead: a key derived from the wrong password fails the AES-GCM auth tag on
+            // the account's own wrapped private key. Nothing extra is stored to make this work.
+            try
+            {
+                await _aesGcm.DecryptAsync(stretchedMasterKey, me.EncryptedPrivateKey);
+            }
+            catch (Exception)
+            {
+                return AuthResult.Fail("Incorrect master password.");
+            }
+
+            _keyStore.Set(stretchedMasterKey);
+            _ownKeypairCache.Set(me.PublicKey, me.EncryptedPrivateKey);
+            return AuthResult.Ok();
+        }
+
+        public void Lock()
+        {
             _keyStore.Clear();
             _vaultKeyCache.Clear();
             _ownKeypairCache.Clear();
+        }
+
+        public async Task LogoutAsync()
+        {
+            await _http.PostAsync("api/auth/logout", null);
+            Lock();
             _stateProvider.NotifyLoggedOut();
         }
 

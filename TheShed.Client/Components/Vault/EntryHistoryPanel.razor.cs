@@ -14,6 +14,7 @@ public partial class EntryHistoryPanel
 
     [Inject] private EntryClient EntryApi { get; set; } = default!;
     [Inject] private IAesGcmService AesGcm { get; set; } = default!;
+    [Inject] private IReauthGate Reauth { get; set; } = default!;
 
     private IReadOnlyList<EntryHistoryItem>? _history;
     private readonly Dictionary<int, string> _revealedHistory = new(); // historyId -> decrypted old password
@@ -47,6 +48,12 @@ public partial class EntryHistoryPanel
         if (VaultKey is null)
         {
             _actionError = "Vault key unavailable — log out and log back in.";
+            return;
+        }
+
+        // An old password is as sensitive as the current one: people reuse them elsewhere.
+        if (!await Reauth.EnsureAsync())
+        {
             return;
         }
 
