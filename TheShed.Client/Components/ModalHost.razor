@@ -15,13 +15,20 @@
                     {
                         <input type="password" class="form-control" id="modal-host-password"
                                aria-label="Master password" autocomplete="current-password"
+                               disabled="@_busy"
                                @ref="_passwordInput" @bind="_password" @bind:event="oninput"
                                @onkeydown="HandlePasswordKeyDown" />
+                        @if (_busy)
+                        {
+                            @* Checking the answer means a ~1s PBKDF2 derivation. Without this the
+                               dialog would close onto nothing and read as a dead button. *@
+                            <Loading Text="Checking…" Class="small mt-2 mb-0" />
+                        }
                     }
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-link" @onclick="Cancel">Cancel</button>
-                    <button type="button" class="btn btn-@_request.ConfirmVariant" @onclick="Confirm">@_request.ConfirmText</button>
+                    <button type="button" class="btn btn-link" disabled="@_busy" @onclick="Cancel">Cancel</button>
+                    <button type="button" class="btn btn-@_request.ConfirmVariant" disabled="@_busy" @onclick="Confirm">@_request.ConfirmText</button>
                 </div>
             </div>
         </div>

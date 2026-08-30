@@ -1312,10 +1312,22 @@ de ese sprint arriba (`WebCryptoKeyDerivationService`).
         reveal prompts, cancel reveals nothing and opens no window, a wrong answer re-prompts in
         place; a second reveal inside the window does not prompt; the idle timer locks on its own,
         stays locked, clears the revealed plaintext and keeps the URL
-- [ ] **Measured, decision pending:** the PBKDF2 derivation takes **~1000 ms** on this desktop, not
-      the sub-second guessed above, and the reauth modal closes before it with no busy indicator.
-      On an older phone that is several seconds of an apparently dead button. Recommendation: keep
-      the modal open with a busy state (~10 lines in `ModalHost`)
+- [x] Busy state on the reauth prompt. `ModalHost` no longer closes on a password confirm: it goes
+      busy (spinner, input and both buttons inert) and the caller decides what follows — prompt
+      again, or `Close()`. Verified in the browser: busy renders 3 ms after the click, the buttons
+      are inert throughout, and the prompt stays open and returns to the retry message
+      - **Correction on the measurement that motivated this.** The "~1000 ms" recorded above was a
+        cold first derivation sampled on a 250 ms polling loop. Re-measured warm at 20 ms
+        granularity, the whole confirm-to-answer cycle is **~85 ms**, at which the spinner is
+        imperceptible. The busy state is kept anyway, for the cold first derivation of a session
+        and for slower phones — and because a dialog that closes onto a still-pending async
+        operation is wrong regardless of how fast it usually resolves. It is not load-bearing
+- [x] **Third instance of the same infinite-prompt bug**, found while adding the above: the session
+      can lock *while the prompt is open*, after which every answer compares against a missing key
+      and the dialog insists the right master password is the wrong one, forever. The keystore is
+      now checked at the top of every loop iteration rather than once before the loop. Pinned by
+      `Assert.Equal(1, modal.Closes)`, which also fails if an accepted answer never dismisses the
+      spinner
 - [ ] PR to `main`
 
 ### Out of scope (P4 — measure before building)

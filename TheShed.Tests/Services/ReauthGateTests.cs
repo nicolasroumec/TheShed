@@ -23,6 +23,9 @@ namespace TheShed.Tests.Services
 
             // The point of the window: revealing three entries in a row is one prompt, not three.
             Assert.Equal(1, modal.Prompts);
+            // The prompt stays open and spinning through the ~1s derivation, so an accepted answer
+            // has to dismiss it explicitly. Without this it spins forever.
+            Assert.Equal(1, modal.Closes);
         }
 
         [Fact]
@@ -54,6 +57,7 @@ namespace TheShed.Tests.Services
 
             Assert.False(await gate.EnsureAsync());
             Assert.Equal(0, modal.Prompts);
+            Assert.Equal(1, modal.Closes); // nothing was opened, but a stale busy prompt is dismissed
         }
 
         private static (ReauthGate Gate, FakeModal Modal) Build(bool locked, params string?[] answers)
@@ -85,6 +89,9 @@ namespace TheShed.Tests.Services
             private int _next;
 
             public int Prompts { get; private set; }
+            public int Closes { get; private set; }
+
+            public void Close() => Closes++;
 
             public Task<bool> ConfirmAsync(string message, string title = "Confirm", string confirmText = "Confirm", string confirmVariant = "danger") =>
                 throw new InvalidOperationException("the gate prompts for a password, never a plain confirm");

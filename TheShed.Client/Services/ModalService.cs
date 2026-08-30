@@ -6,6 +6,7 @@ namespace TheShed.Client.Services
     public class ModalService : IModalService
     {
         public event Action<ModalRequest>? OnShow;
+        public event Action? OnClose;
 
         // One pending result for both shapes: a confirm resolves with an empty string for yes,
         // a password prompt with what was typed, and either resolves null when cancelled.
@@ -25,5 +26,7 @@ namespace TheShed.Client.Services
         }
 
         public void Resolve(string? result) => _pending?.TrySetResult(result);
+
+        public void Close() => OnClose?.Invoke();
     }
 }
