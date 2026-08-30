@@ -15,6 +15,14 @@ namespace TheShed.Client.Services
     {
         Task<AuthResult> LoginAsync(LoginRequest request);
         Task<AuthResult> RegisterAsync(RegisterRequest request);
+
+        /// <summary>
+        /// Re-derives the stretched master key for a session whose cookie is still valid but
+        /// whose in-memory keys are gone — a page reload, or the idle lock (Sprint 30). Does not
+        /// touch the JWT cookie: locking is not signing out.
+        /// </summary>
+        Task<AuthResult> UnlockAsync(string masterPassword);
+
         Task LogoutAsync();
     }
 }

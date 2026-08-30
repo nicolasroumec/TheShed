@@ -1200,10 +1200,141 @@ de ese sprint arriba (`WebCryptoKeyDerivationService`).
 
 ---
 
+## 🔵 Sprint 30 — Session lock and unlock · `feature/session-lock`
+> Written in English on purpose: CLAUDE.md requires English for `docs/`, and new content in
+> English is content the `feature/i18n-english` branch will not have to translate later.
+>
+> **Root cause (found 2026-08-30, not in `AUDITORIA.md` — that audit predates the
+> zero-knowledge migration).** `StretchedKeyStore` holds the stretched master key in a plain
+> field (`StretchedKeyStore.cs:6`), and `OwnKeypairCache`/`VaultKeyCache` do the same for the
+> keypair and the unwrapped vault keys. None of them survive a page reload, but the JWT lives in
+> an HttpOnly cookie that does. So after F5 the app renders as authenticated while every
+> decryption path is dead: `VaultKeyResolver.ResolveAsync` returns `null`
+> (`VaultKeyResolver.cs:34-37`), opening a vault shows *"Your session is missing this vault's
+> encryption key — log out and log back in"* (`EntriesPanel.razor.cs:23`), creating one shows the
+> same (`Vaults.razor.cs:40`), and the health report silently drops the vault
+> (`Health.razor.cs:36-39`). Today the only recovery is a full logout/login.
+>
+> **This is a prerequisite for Sprint 31 (PWA), not a nice-to-have.** An installed PWA is killed
+> and relaunched by the mobile OS constantly; without an unlock screen the app is unusable there.
+>
+> **The fix is not to persist the key.** Rejected outright: keeping the stretched master key in
+> `localStorage`/`sessionStorage`. It is readable by any XSS, and it does not even solve the PWA
+> case — when the OS kills the installed app, `sessionStorage` goes with it. The correct answer
+> is the one every password manager uses: re-derive the key from the master password behind a
+> lock screen.
+
+### Increment 1 — Unlock screen (P0)
+- [ ] `Unlock` component (code-behind, per CLAUDE.md) rendered whenever the user is
+      authenticated but `IStretchedKeyStore.Get()` is `null`. Wraps the routed page rather than
+      being a route of its own, so the URL the user was on survives the unlock
+- [ ] Asks for the master password only — no email, no server round trip for identity. Everything
+      needed is already on the wire: `GET api/auth/me` returns `KeySalt`, `PublicKey` and
+      `EncryptedPrivateKey` (`AuthController.cs:70-72`). No new server surface
+- [ ] On submit: `IKeyDerivationService.DeriveKeyAsync(password, keySalt)` →
+      `IStretchedKeyStore.Set` + `IOwnKeypairCache.Set`, same two calls `AuthService.LoginAsync`
+      already makes (`AuthService.cs:50-55`) — extract that pair so login and unlock share it
+- [ ] Wrong-password check comes free from the crypto: unwrapping `EncryptedPrivateKey` with a
+      wrong derived key fails on the AES-GCM auth tag. Verify by attempting the unwrap, no extra
+      endpoint and no password verifier stored anywhere
+- [ ] Expect the same PBKDF2 cost as login (600k iterations via `crypto.subtle.deriveBits`) —
+      show the existing `Loading` component while deriving, this is not instant
+
+### Increment 2 — Idle auto-lock (P1, closes AUDITORIA A2)
+- [ ] Inactivity timer on the client; on expiry `IStretchedKeyStore.Clear()` +
+      `IVaultKeyCache.Clear()` + `IOwnKeypairCache.Clear()`, which drops straight into the
+      Increment 1 screen. The JWT cookie is deliberately left alone — locking is not logging out
+- [ ] Reset on the usual activity events (pointer/key/visibility), configurable timeout as a
+      constant to start with. Without this increment the unlock screen exists but never fires on
+      its own, and The Shed is still a password manager that never locks itself
+
+### Increment 3 — Health report stops failing silently (P2)
+- [ ] `Health.razor.cs:33-39` skips any vault whose key it cannot resolve, and its own comment
+      claims the opposite ("skip rather than show a report that's silently missing a vault").
+      Count the skipped vaults and surface them ("N vaults could not be read"). Increment 1 makes
+      this rare, not impossible — a member vault with no `VaultKeyWrap` still resolves to `null`
+
+### Increment 4 — Reauthentication for sensitive actions (P3, closes AUDITORIA A1)
+- [ ] Reuse the Increment 1 prompt before Reveal/Copy of a password and before opening a history
+      version, with a short unlocked window (~5 min) so it is not asked on every click
+
+### Increment 5 — Tests + PR
+- [ ] Tests: derive-and-restore round trip, wrong password rejected via the failed unwrap, the
+      idle timer clearing all three caches. No bUnit for the component itself
+- [ ] Verify in the browser (the standing rule since Sprint 25 — a green suite is not enough):
+      log in, F5, unlock, open a vault and read an entry; leave it idle past the timeout and
+      confirm it locks
+- [ ] PR to `main`
+
+### Out of scope (P4 — measure before building)
+> Storing the derived key as a **non-extractable `CryptoKey`** in IndexedDB, behind an explicit
+> "keep this device unlocked" opt-in. Web Crypto can structured-clone a key with
+> `extractable: false`, so XSS could use it while the page is open but never read its bytes —
+> materially better than `localStorage`, and materially more work: the stretched key is a
+> `byte[]` passed to `interop.js` today, and would have to become an opaque handle everywhere.
+> Only worth it if typing the master password after a reload turns out to be annoying in real use.
+
+## 🔵 Sprint 31 — PWA: installable app · `feature/pwa`
+> **Depends on Sprint 30.** Without the unlock screen, an installed PWA demands a full
+> logout/login every time the OS reclaims it.
+>
+> **What this actually buys:** installability (home-screen icon, standalone window) and a faster
+> cold start from the cached WASM payload. **What it does not buy:** reading vaults offline —
+> every byte of data comes from the API. Do not present it as an offline app.
+
+### Increment 1 — Manifest and icons
+- [ ] `wwwroot/manifest.webmanifest`: `display: standalone`, `start_url`/`scope` `/`,
+      `theme_color`/`background_color` taken from the tokens in `css/theme.css` so the splash
+      matches the app instead of flashing white
+- [ ] Icons at 192 and 512 (only `favicon.png` exists today), one with `purpose: "maskable"`,
+      plus an `apple-touch-icon`
+- [ ] `<link rel="manifest">` and `<meta name="theme-color">` in `index.html`
+- [ ] `manifest-src` needs no CSP entry — it falls back to `default-src 'self'`, already set
+
+### Increment 2 — Service worker
+- [ ] `TheShed.Client.csproj`: `<ServiceWorkerAssetsManifest>service-worker-assets.js</…>` and
+      `<ServiceWorker Include="wwwroot\service-worker.js"
+      PublishedContent="wwwroot\service-worker.published.js" />`. Use Blazor's stock service
+      worker as-is; do not hand-roll one
+- [ ] **Known blocker, same class as the D8 fingerprinting issue:** the stock template registers
+      the worker from an inline `<script>`, which our CSP blocks (`script-src 'self'`, no
+      `'unsafe-inline'`). Put the `navigator.serviceWorker.register` call inside
+      `wwwroot/js/interop.js`, which is already an external file and already loaded
+- [ ] One guard on top of the stock file: an early `return` for any request under `/api/`. The
+      template already only serves cached content for `mode === 'navigate'`, so API responses are
+      not cached today — but in a password manager that stays explicit, not incidental
+- [ ] `worker-src` needs no CSP entry either (falls back through `child-src` to `default-src`)
+- [ ] Note for whoever tests this: the service worker only runs from `dotnet publish -c Release`,
+      never from `dotnet run`
+
+### Increment 3 — Offline and update behaviour
+- [ ] Offline: a `navigator.onLine` banner ("The Shed needs a connection to open your vaults").
+      Nothing more — no offline data layer
+- [ ] Updates: with a service worker, a freshly deployed version is not picked up until every tab
+      is closed. Accept and document it for now; add a "new version available, reload" prompt only
+      if it actually gets in the way
+
+### Increment 4 — Verification + PR
+- [ ] `dotnet publish -c Release`, serve it, run the Lighthouse PWA audit, install on desktop and
+      Android
+- [ ] Airplane mode: the shell loads and the offline banner shows
+- [ ] Kill and relaunch the installed app: it must land on Sprint 30's unlock screen, not on a
+      broken vault
+- [ ] iOS caveat to document, not fix: an installed PWA gets its own cookie jar, so the first
+      launch asks for a full login even if the browser is logged in
+- [ ] PR to `main`
+
+### Out of scope (each its own sprint if ever wanted)
+> Offline vault reading (an IndexedDB cache of ciphertext), push notifications, background sync,
+> biometric unlock via WebAuthn.
+
+---
+
 ## 🔵 Transversal — Traducir a inglés · `feature/i18n-english`
 > **Hacerla pronto** (no bloquea features pero la deuda crece con cada sprint). CLAUDE.md
 > exige inglés en código/comentarios/docs. Pasar `docs/*.md` y los comentarios viejos de
 > auth/encryption a inglés. Rama independiente, mergeable en cualquier momento.
 
-> **Fuera de scope (post-roadmap):** modelo zero-knowledge (clave derivada del master /
-> clave por vault, ver D3/D4), refresh tokens (D2), app móvil, extensión de navegador, offline.
+> **Fuera de scope (post-roadmap):** refresh tokens (D2), app móvil nativa, extensión de
+> navegador, lectura de vaults offline. (El modelo zero-knowledge salió de esta lista: se hizo
+> en los Sprints 25-28. La app instalable pasó al Sprint 31 — no cubre offline de datos.)

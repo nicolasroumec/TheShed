@@ -1,0 +1,55 @@
+@* Session lock (Sprint 30). The stretched master key lives only in memory, so a page reload —
+   or the mobile OS reclaiming an installed PWA — leaves a valid JWT cookie behind with nothing
+   to decrypt with. Rather than render a page that can only report "log out and log back in",
+   this gate stands in front of it and re-derives the key from the master password. Locked is
+   not signed out: the cookie is left alone. *@
+
+<AuthorizeView>
+    @* Named context: EditForm below brings its own 'context', which would collide. *@
+    <Authorized Context="auth">
+        @if (KeyStore.Get() is null)
+        {
+            <div class="auth-card">
+                <h1>Locked</h1>
+                <p class="text-muted">
+                    Signed in as @auth.User.FindFirst("username")?.Value. Your master password
+                    unlocks this session — it never leaves this device.
+                </p>
+
+                <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+                    @if (!string.IsNullOrEmpty(_error))
+                    {
+                        <div class="alert alert-danger" role="alert">@_error</div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label" for="master-password">Master password</label>
+                        <InputText id="master-password" type="password" class="form-control"
+                                   @bind-Value="_model.Password" autocomplete="current-password" />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100" disabled="@_busy">
+                        @(_busy ? "Unlocking…" : "Unlock")
+                    </button>
+                </EditForm>
+
+                @if (_busy)
+                {
+                    <Loading Text="Rebuilding your key — this takes a few seconds." Class="small mt-3 mb-0" />
+                }
+
+                <p class="mt-3 text-center">
+                    <button type="button" class="btn btn-link p-0" @onclick="SignOutAsync">Sign out instead</button>
+                </p>
+            </div>
+        }
+        else
+        {
+            @ChildContent
+        }
+    </Authorized>
+    <NotAuthorized>
+        @* Anonymous pages (login, register) render untouched — there is no session to lock. *@
+        @ChildContent
+    </NotAuthorized>
+</AuthorizeView>

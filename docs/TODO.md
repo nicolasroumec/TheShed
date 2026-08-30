@@ -215,9 +215,35 @@ Sprints 26/27 movieron el cifrado de entries/notes/attachments al cliente): saca
 la siguen usando `ZeroKnowledgeE2ETests`/`AesEncryptionServiceTests` para simular el lado
 cliente sin navegador. Build + suite completa (**211/211**) en verde.
 
-**Próximo paso sugerido:** la pasada corta de mantenimiento de docs que venía pendiente:
-tildar los ítems del Sprint 20 que ya están hechos en el código (ver la nota de desfasaje en
-`SPRINTS.md`) y arrancar la rama de traducción a inglés, que crece con cada sprint.
+**Auditoría general (2026-08-30).** Suite en verde (211/211), build limpio, `v0.4.0`. El
+zero-knowledge quedó cerrado end-to-end (Sprints 25-28) y la base de seguridad es sólida
+(Argon2, AES-256-GCM client-side, JWT en cookie `HttpOnly`, CSP estricta, rate limiting, CI +
+versionado por tag). Lo que falta, por orden de daño:
+
+1. 🔴 **Un F5 rompe la sesión.** La stretched master key vive solo en memoria
+   (`StretchedKeyStore.cs:6`) pero la cookie JWT sobrevive al reload: la app te muestra
+   logueado y ninguna ruta de descifrado funciona hasta hacer logout/login. Es el peor bug de
+   UX del proyecto y bloquea la PWA. → **Sprint 30**, con el análisis completo y la razón por
+   la que persistir la clave *no* es la solución.
+2. 🟠 **Sin auto-lock ni reautenticación** (A1/A2). Mismo componente que el punto 1 →
+   Sprint 30, increments 2 y 4.
+3. 🟠 **Antiforgery (A4)** sigue abierto, como se decidió en el Sprint 21+22.
+4. 🟡 **El plan del Sprint 17 (import/export) quedó obsoleto**: está escrito sobre
+   `IEncryptionService`, que el Sprint 28 borró. Hay que reescribirlo client-side. Es la
+   feature que más falta — sin export, un gestor zero-knowledge no tiene salida de emergencia.
+5. 🟡 **No hay tests de integración.** Los 211 son unitarios sobre EF InMemory; cero
+   `WebApplicationFactory`, cero bUnit. Los tres bugs más caros del proyecto (`AesGcm` en WASM,
+   `PasswordEntry.Notes` y `SecureNote.Title` viajando en claro) los encontró el navegador, no
+   la suite.
+6. 🟡 **Deuda de idioma**: `docs/*.md` y los comentarios de `Program.cs` en español, contra el
+   propio CLAUDE.md. Los Sprints 30 y 31 ya se escribieron en inglés para no agrandarla.
+7. 🟢 `Login.razor`, `Register.razor` y `Auth/RedirectToLogin.razor` siguen con `@code` inline.
+   Sprint 23 (adjuntos huérfanos, caracteres ambiguos en el generador) sin tocar.
+
+**Próximo paso:** Sprint 30 (`feature/session-lock`) → Sprint 31 (PWA) → reescribir el
+Sprint 17 client-side → antiforgery → rama de traducción. La pasada de mantenimiento de docs
+que venía pendiente (tildar los ítems del Sprint 20 ya hechos en el código) se puede colar en
+cualquier momento.
 
 ### Fase 4 — Seguridad (cerrada)
 - [x] Argon2 para hash de contraseña maestra
