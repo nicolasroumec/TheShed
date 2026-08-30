@@ -120,12 +120,17 @@ namespace TheShed.Client.Services
             return AuthResult.Ok();
         }
 
-        public async Task LogoutAsync()
+        public void Lock()
         {
-            await _http.PostAsync("api/auth/logout", null);
             _keyStore.Clear();
             _vaultKeyCache.Clear();
             _ownKeypairCache.Clear();
+        }
+
+        public async Task LogoutAsync()
+        {
+            await _http.PostAsync("api/auth/logout", null);
+            Lock();
             _stateProvider.NotifyLoggedOut();
         }
 
