@@ -10,7 +10,14 @@
                     <button type="button" class="btn-close" aria-label="Close" @onclick="Cancel"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="mb-0">@_request.Message</p>
+                    <p class="@(_request.RequiresPassword ? "mb-2" : "mb-0")">@_request.Message</p>
+                    @if (_request.RequiresPassword)
+                    {
+                        <input type="password" class="form-control" id="modal-host-password"
+                               aria-label="Master password" autocomplete="current-password"
+                               @ref="_passwordInput" @bind="_password" @bind:event="oninput"
+                               @onkeydown="HandlePasswordKeyDown" />
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-link" @onclick="Cancel">Cancel</button>

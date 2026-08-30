@@ -7,15 +7,23 @@ namespace TheShed.Client.Services
     {
         public event Action<ModalRequest>? OnShow;
 
-        private TaskCompletionSource<bool>? _pending;
+        // One pending result for both shapes: a confirm resolves with an empty string for yes,
+        // a password prompt with what was typed, and either resolves null when cancelled.
+        private TaskCompletionSource<string?>? _pending;
 
-        public Task<bool> ConfirmAsync(string message, string title = "Confirm", string confirmText = "Confirm", string confirmVariant = "danger")
+        public async Task<bool> ConfirmAsync(string message, string title = "Confirm", string confirmText = "Confirm", string confirmVariant = "danger") =>
+            await ShowAsync(new ModalRequest(title, message, confirmText, confirmVariant)) is not null;
+
+        public Task<string?> PromptPasswordAsync(string message, string title = "Confirm it's you", string confirmText = "Confirm") =>
+            ShowAsync(new ModalRequest(title, message, confirmText, "primary", RequiresPassword: true));
+
+        private Task<string?> ShowAsync(ModalRequest request)
         {
-            _pending = new TaskCompletionSource<bool>();
-            OnShow?.Invoke(new ModalRequest(title, message, confirmText, confirmVariant));
+            _pending = new TaskCompletionSource<string?>();
+            OnShow?.Invoke(request);
             return _pending.Task;
         }
 
-        public void Resolve(bool result) => _pending?.TrySetResult(result);
+        public void Resolve(string? result) => _pending?.TrySetResult(result);
     }
 }

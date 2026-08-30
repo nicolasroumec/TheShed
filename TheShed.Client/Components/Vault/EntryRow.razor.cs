@@ -19,6 +19,7 @@ public partial class EntryRow
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private IModalService Modal { get; set; } = default!;
     [Inject] private IAesGcmService AesGcm { get; set; } = default!;
+    [Inject] private IReauthGate Reauth { get; set; } = default!;
 
     private const string MissingVaultKeyError = "Vault key unavailable — log out and log back in.";
 
@@ -69,6 +70,13 @@ public partial class EntryRow
             return;
         }
 
+        // Checked after the vault key, so a vault that could not be read never prompts for a
+        // password only to fail anyway.
+        if (!await Reauth.EnsureAsync())
+        {
+            return;
+        }
+
         var entry = await EntryApi.GetAsync(Entry.Id);
         if (entry is not null)
         {
@@ -82,6 +90,11 @@ public partial class EntryRow
         if (VaultKey is null)
         {
             _actionError = MissingVaultKeyError;
+            return;
+        }
+
+        if (!await Reauth.EnsureAsync())
+        {
             return;
         }
 

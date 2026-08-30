@@ -34,6 +34,7 @@ builder.Services.AddScoped<IVaultKeyService, WebCryptoVaultKeyService>();
 builder.Services.AddScoped<IVaultKeyCache, VaultKeyCache>();
 builder.Services.AddScoped<IOwnKeypairCache, OwnKeypairCache>();
 builder.Services.AddScoped<IVaultKeyResolver, VaultKeyResolver>();
+builder.Services.AddScoped<IReauthGate, ReauthGate>();
 builder.Services.AddScoped<IAesGcmService, WebCryptoAesGcmService>();
 
 await builder.Build().RunAsync();
