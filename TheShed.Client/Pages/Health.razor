@@ -12,27 +12,41 @@
 {
     <Loading />
 }
-else if (_items.Count == 0)
-{
-    <p class="text-muted"><span class="bi bi-shield-check me-2" aria-hidden="true"></span>Nothing to inspect yet — add an entry first.</p>
-}
 else
 {
-    <div class="row-list">
-        @foreach (var item in _items)
-        {
-            <div class="row-item">
-                <div class="d-flex justify-content-between align-items-center">
-                    <a href="@($"vaults/{item.VaultId}")">@item.EntryName</a>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="chip @StrengthChipClass(item.Strength)">@item.Strength</span>
-                        @if (item.IsReused)
-                        {
-                            <span class="chip reused">Reused</span>
-                        }
+    @* alert-danger on purpose, not a new alert-warning: an incomplete report is a wrong report,
+       and danger is the only alert style this app has already proven against the theme. *@
+    @if (_unreadableVaults > 0)
+    {
+        <div class="alert alert-danger" role="alert">
+            @_unreadableVaults @(_unreadableVaults == 1 ? "vault" : "vaults") could not be read, so this
+            report is incomplete. Reuse is compared across all your vaults at once, so a password
+            shown as unique here may in fact be repeated in one of them.
+        </div>
+    }
+
+    @if (_items.Count == 0 && _unreadableVaults == 0)
+    {
+        <p class="text-muted"><span class="bi bi-shield-check me-2" aria-hidden="true"></span>Nothing to inspect yet — add an entry first.</p>
+    }
+    else if (_items.Count > 0)
+    {
+        <div class="row-list">
+            @foreach (var item in _items)
+            {
+                <div class="row-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="@($"vaults/{item.VaultId}")">@item.EntryName</a>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="chip @StrengthChipClass(item.Strength)">@item.Strength</span>
+                            @if (item.IsReused)
+                            {
+                                <span class="chip reused">Reused</span>
+                            }
+                        </div>
                     </div>
                 </div>
-            </div>
-        }
-    </div>
+            }
+        </div>
+    }
 }
