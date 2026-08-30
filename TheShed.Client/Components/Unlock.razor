@@ -24,8 +24,14 @@
 
                     <div class="mb-3">
                         <label class="form-label" for="master-password">Master password</label>
-                        <InputText id="master-password" type="password" class="form-control"
-                                   @bind-Value="_model.Password" autocomplete="current-password" />
+                        @* A plain input rather than InputText, bound on oninput: the default
+                           onchange only fires on blur, so submitting with Enter would derive from
+                           a stale empty value. `@@bind:event` is an element-only modifier —
+                           InputText is a component, and hanging it off one passes ChangeEventArgs
+                           to a callback expecting string. Same shape as ModalHost's field. *@
+                        <input type="password" id="master-password" class="form-control"
+                               autocomplete="current-password"
+                               @bind="_model.Password" @bind:event="oninput" />
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100" disabled="@_busy">

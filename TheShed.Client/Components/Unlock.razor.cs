@@ -47,6 +47,15 @@ public partial class Unlock : IAsyncDisposable
 
     private async Task HandleSubmit()
     {
+        // The form has no validator, so an empty submit reaches the KDF, which rejects an empty
+        // password with an ArgumentException — an unhandled crash on a plain "pressed Unlock too
+        // early". Cheaper to refuse it here than to hang a DataAnnotations model off one field.
+        if (string.IsNullOrEmpty(_model.Password))
+        {
+            _error = "Enter your master password.";
+            return;
+        }
+
         _busy = true;
         _error = null;
 

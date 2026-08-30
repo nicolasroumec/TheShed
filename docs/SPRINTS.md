@@ -1225,45 +1225,97 @@ de ese sprint arriba (`WebCryptoKeyDerivationService`).
 > lock screen.
 
 ### Increment 1 — Unlock screen (P0)
-- [ ] `Unlock` component (code-behind, per CLAUDE.md) rendered whenever the user is
-      authenticated but `IStretchedKeyStore.Get()` is `null`. Wraps the routed page rather than
-      being a route of its own, so the URL the user was on survives the unlock
-- [ ] Asks for the master password only — no email, no server round trip for identity. Everything
-      needed is already on the wire: `GET api/auth/me` returns `KeySalt`, `PublicKey` and
-      `EncryptedPrivateKey` (`AuthController.cs:70-72`). No new server surface
-- [ ] On submit: `IKeyDerivationService.DeriveKeyAsync(password, keySalt)` →
-      `IStretchedKeyStore.Set` + `IOwnKeypairCache.Set`, same two calls `AuthService.LoginAsync`
-      already makes (`AuthService.cs:50-55`) — extract that pair so login and unlock share it
-- [ ] Wrong-password check comes free from the crypto: unwrapping `EncryptedPrivateKey` with a
-      wrong derived key fails on the AES-GCM auth tag. Verify by attempting the unwrap, no extra
-      endpoint and no password verifier stored anywhere
-- [ ] Expect the same PBKDF2 cost as login (600k iterations via `crypto.subtle.deriveBits`) —
-      show the existing `Loading` component while deriving, this is not instant
+- [x] `Unlock` component (`Components/Unlock.razor` + code-behind) gating `@Body` from
+      `MainLayout`, so the URL survives the unlock. Anonymous pages fall through its
+      `<NotAuthorized>` branch untouched
+- [x] Asks for the master password only. `GET api/auth/me` already carried `KeySalt`, `PublicKey`
+      and `EncryptedPrivateKey`, so this shipped with **no new server surface at all**
+- [x] `AuthService.UnlockAsync` derives and restores `IStretchedKeyStore` + `IOwnKeypairCache`.
+      **Adjustment on the plan:** the shared helper was not extracted — it is two lines, and
+      login's extra `KeySalt is null` branch made the helper longer than the duplication
+- [x] Wrong-password check by trial decryption of `EncryptedPrivateKey`, no verifier stored.
+      Re-posting the login was considered and rejected: it would put the master password back on
+      the wire and burn the 10-per-5-min auth rate limit on an action done far more often than
+      signing in
+- [x] `Loading` shown while deriving
+      → commit `feat: unlock a reloaded session by re-deriving the master key`
 
 ### Increment 2 — Idle auto-lock (P1, closes AUDITORIA A2)
-- [ ] Inactivity timer on the client; on expiry `IStretchedKeyStore.Clear()` +
-      `IVaultKeyCache.Clear()` + `IOwnKeypairCache.Clear()`, which drops straight into the
-      Increment 1 screen. The JWT cookie is deliberately left alone — locking is not logging out
-- [ ] Reset on the usual activity events (pointer/key/visibility), configurable timeout as a
-      constant to start with. Without this increment the unlock screen exists but never fires on
-      its own, and The Shed is still a password manager that never locks itself
+- [x] 15-minute timer, cookie untouched. The three `Clear()` calls became `IAuthService.Lock()`,
+      which `LogoutAsync` now calls too — the extraction earns its place here, because forgetting
+      one of the three leaves a decrypted vault key alive behind a locked screen
+- [x] Timer and activity listeners live in `interop.js` (the browser already owns those events; a
+      WASM timer would need an interop hop per keystroke). .NET is called once, on expiry
+- [x] **Correction on the plan, which said to reset on "pointer/key/visibility":**
+      `visibilitychange` must NOT reset the timer — returning to a tab after two hours away is no
+      reason to grant a fresh 15 minutes. It is listened to for the opposite purpose: `setTimeout`
+      is throttled in a background tab and frozen in a suspended PWA, so on the way back the wall
+      clock is compared and a lock the timer never fired happens then. Without this the auto-lock
+      would be weakest in exactly the mobile scenario Sprint 31 exists for
+      → commit `feat: lock the session after 15 minutes of inactivity`
 
 ### Increment 3 — Health report stops failing silently (P2)
-- [ ] `Health.razor.cs:33-39` skips any vault whose key it cannot resolve, and its own comment
-      claims the opposite ("skip rather than show a report that's silently missing a vault").
-      Count the skipped vaults and surface them ("N vaults could not be read"). Increment 1 makes
-      this rare, not impossible — a member vault with no `VaultKeyWrap` still resolves to `null`
+- [x] Both skip paths counted into `_unreadableVaults` and surfaced, with the misleading comment
+      corrected. The warning names the real damage, which is worse than a short report: `IsReused`
+      is computed across every vault at once, so a skipped vault makes a repeated password read as
+      unique
+- [x] Fixed a second lie found on the way: with every vault unreadable the page showed the empty
+      state ("Nothing to inspect yet — add an entry first")
+- [x] Reused `alert-danger` rather than introducing `alert-warning`: it is the only alert style
+      this app has proven against the Workshop theme, and an untested Bootstrap yellow is the same
+      trap as the disabled-button bug in Sprint 20's Increment 14
+      → commit `fix: report vaults the health check could not read`
 
 ### Increment 4 — Reauthentication for sensitive actions (P3, closes AUDITORIA A1)
-- [ ] Reuse the Increment 1 prompt before Reveal/Copy of a password and before opening a history
-      version, with a short unlocked window (~5 min) so it is not asked on every click
+- [x] `IReauthGate`/`ReauthGate` with a 5-minute window, wired into reveal and copy (`EntryRow`)
+      and revealing an old password (`EntryHistoryPanel` — as sensitive as the current one, people
+      reuse them elsewhere). The gate runs after the vault-key check, so an unreadable vault never
+      prompts only to fail anyway
+- [x] **Adjustment on the plan:** it does not reuse the Increment 1 screen. That screen replaces
+      the whole page, which would throw away the state of the vault being read in order to reveal
+      one field. `ModalHost`/`ModalService` grew a password variant instead (autofocus, Enter to
+      submit, one `TaskCompletionSource<string?>` for both shapes: null cancels, "" confirms)
+- [x] Cheaper check than the unlock: this session already holds the right key, so the typed
+      password is derived and compared with `CryptographicOperations.FixedTimeEquals` — no
+      decryption, nothing asked of the server
+- [x] A wrong password re-prompts with the reason inside the dialog instead of reporting through
+      the caller: every call site stays one line, and a typo cannot look like a dead button
+      → commit `feat: require the master password again before revealing a password`
 
 ### Increment 5 — Tests + PR
-- [ ] Tests: derive-and-restore round trip, wrong password rejected via the failed unwrap, the
-      idle timer clearing all three caches. No bUnit for the component itself
-- [ ] Verify in the browser (the standing rule since Sprint 25 — a green suite is not enough):
-      log in, F5, unlock, open a vault and read an entry; leave it idle past the timeout and
-      confirm it locks
+- [x] `ClientAuthServiceTests` (unlock round trip, wrong password leaving nothing behind, an
+      account with no server-side keys failing without spending a derivation, expired cookie,
+      `Lock()` clearing all three caches) and `ReauthGateTests` (one prompt per window, re-prompt
+      on a wrong password, cancel opening no window). Hand-rolled fakes — the project has no
+      mocking library and does not need one. **220/220**
+- [x] **Bug found by writing the tests:** if the session locked while the reauth dialog was open,
+      `MatchesAsync` returned false for every answer and the dialog insisted the correct master
+      password was the wrong one, forever. The store is now checked before the prompt loop rather
+      than inside it
+- [x] Mutation-checked rather than assumed: breaking `Lock()` to clear only one cache does fail
+      `Lock_ClearsEveryDecryptionKeyTheSessionHolds`
+- [x] Verified in the browser (2026-08-30). The standing rule since Sprint 25 paid for itself
+      again: **the suite was green and three real bugs were still waiting.**
+      - **The local database was three migrations behind** (`AddUserKeySalt`, `AddUserKeypair`,
+        `AddVaultKeyWrap`, from Sprints 25-27 — never applied here). Every login died on
+        `Invalid column name 'EncryptedPrivateKey'`. Not a Sprint 30 bug, but it blocked all
+        verification until applied
+      - **An empty master password crashed the app.** The unlock form has no validator, so
+        pressing Unlock on an empty field reached the KDF, which rejects an empty string with
+        `ArgumentException` → straight into the `ErrorBoundary`. Guarded in `HandleSubmit`
+      - **The field did not bind what was typed, and the first fix made it worse.**
+        `@bind-Value:event="oninput"` is invalid on `InputText`: the modifier is element-only, and
+        on a component Blazor ends up passing `ChangeEventArgs` to a callback expecting `string`.
+        Replaced with a plain `<input>` + `@bind`/`@bind:event`, the shape `ModalHost` already used
+      - Confirmed working: reload lands on Locked with the URL preserved; unlock restores a key
+        good enough to create a vault (wrapping a fresh vault key) and to round-trip an entry;
+        reveal prompts, cancel reveals nothing and opens no window, a wrong answer re-prompts in
+        place; a second reveal inside the window does not prompt; the idle timer locks on its own,
+        stays locked, clears the revealed plaintext and keeps the URL
+- [ ] **Measured, decision pending:** the PBKDF2 derivation takes **~1000 ms** on this desktop, not
+      the sub-second guessed above, and the reauth modal closes before it with no busy indicator.
+      On an older phone that is several seconds of an apparently dead button. Recommendation: keep
+      the modal open with a busy state (~10 lines in `ModalHost`)
 - [ ] PR to `main`
 
 ### Out of scope (P4 — measure before building)

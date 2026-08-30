@@ -35,6 +35,14 @@ namespace TheShed.Client.Services
                 return true;
             }
 
+            // Before prompting, not inside the loop below: with no key to compare against, every
+            // attempt would come back wrong and the dialog would insist the right password is the
+            // wrong one, forever. The unlock prompt is what this session actually needs.
+            if (_keyStore.Get() is null)
+            {
+                return false;
+            }
+
             // A wrong password re-prompts with the reason in the dialog the user is already
             // looking at, rather than reporting it through the caller — which keeps every call
             // site a single line and stops a typo from looking like a button that does nothing.
@@ -65,7 +73,7 @@ namespace TheShed.Client.Services
             var current = _keyStore.Get();
             if (current is null)
             {
-                return false; // locked from under us; the unlock prompt takes it from here
+                return false; // locked between the prompt opening and the answer coming back
             }
 
             var me = await _http.GetFromJsonAsync<AuthResponse>("api/auth/me");
