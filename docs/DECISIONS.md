@@ -153,4 +153,30 @@ quedaba colgada en "Loading" en cualquier `dotnet publish -c Release` real. Nadi
 porque nadie había publicado en Release desde que este decision se tomó: `dotnet run` resuelve el
 placeholder por otro camino (el pipeline de static web assets de Development) y lo tapaba. Fix:
 `BlazorFingerprintBlazorJs=false` explícito + `index.html` apunta directo al nombre de archivo
-ya determinístico, sin placeholder. Ver `docs/SPRINTS.md` Sprint 31 Increment 4 para el detalle.
+ya determinístico, sin placeholder.
+
+## D9 — Session lock: re-derivar la clave, no persistirla
+**Decisión:** al recargar la página (F5, o el SO matando y relanzando una PWA instalada), la
+stretched master key y el keypair descifrado **no se guardan en ningún storage del navegador**.
+La app pasa a una pantalla `Locked` que solo pide la master password de nuevo y re-deriva la
+clave (mismo camino que el login, sin round-trip al servidor salvo `GET /api/auth/me` que ya
+existía).
+**Contexto:** con el cifrado zero-knowledge (D7) la stretched master key vive solo en memoria
+(`StretchedKeyStore`), pero la cookie JWT (D6) sobrevive al reload — la app se mostraba logueada
+con toda ruta de descifrado muerta hasta un logout/login completo. Sprint 31 (PWA) lo convertía
+en bloqueante: una PWA instalada es matada y relanzada por el SO constantemente.
+**Alternativa descartada — persistir la clave en `localStorage`/`sessionStorage`:** legible por
+cualquier XSS (mismo motivo que D6), y tampoco resuelve el caso PWA — `sessionStorage` muere
+con el proceso cuando el SO mata la app instalada.
+**Fuera de alcance, no descartada — `CryptoKey` no extraíble en IndexedDB:** Web Crypto permite
+guardar una clave con `extractable: false`; un XSS podría *usarla* mientras la página está abierta
+pero nunca leer sus bytes. Materialmente mejor que `localStorage`, materialmente más trabajo (la
+stretched key es hoy un `byte[]` pasado a `interop.js`, pasaría a ser un handle opaco en todos
+lados). Vale la pena solo si escribir la master password tras cada reload resulta molesto en uso
+real — ver "Out of scope (P4)" en `docs/SPRINTS.md`.
+**Implementación:** `Unlock.razor` + `AuthService.UnlockAsync` (verificación por descifrado de
+prueba de `EncryptedPrivateKey`, sin verifier separado — reenviar el login habría vuelto a mandar
+la master password por la red y gastado el rate limit de auth en una acción mucho más frecuente
+que iniciar sesión). Junto con esto: auto-lock por 15 min de inactividad y reautenticación (misma
+pantalla de password, sin re-derivar) antes de revelar/copiar una contraseña — cierran A2/A1 de
+`AUDITORIA.md`. Detalle completo en `docs/SPRINTS.md` Sprint 30 (shipped).
