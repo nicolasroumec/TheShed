@@ -1347,13 +1347,15 @@ de ese sprint arriba (`WebCryptoKeyDerivationService`).
 > every byte of data comes from the API. Do not present it as an offline app.
 
 ### Increment 1 — Manifest and icons
-- [ ] `wwwroot/manifest.webmanifest`: `display: standalone`, `start_url`/`scope` `/`,
+- [x] `wwwroot/manifest.webmanifest`: `display: standalone`, `start_url`/`scope` `/`,
       `theme_color`/`background_color` taken from the tokens in `css/theme.css` so the splash
       matches the app instead of flashing white
-- [ ] Icons at 192 and 512 (only `favicon.png` exists today), one with `purpose: "maskable"`,
-      plus an `apple-touch-icon`
-- [ ] `<link rel="manifest">` and `<meta name="theme-color">` in `index.html`
-- [ ] `manifest-src` needs no CSP entry — it falls back to `default-src 'self'`, already set
+- [x] Icons at 192 and 512 (only `favicon.png` existed before, a 32x32 generic envelope that
+      didn't match the theme), both `purpose: "any maskable"`, plus an `apple-touch-icon`.
+      Placeholder glyph (accent "S" on `--bg`) generated with `System.Drawing`, no real logo yet —
+      regenerate `TheShed.Client/wwwroot/icons/*.png` when there is one
+- [x] `<link rel="manifest">` and `<meta name="theme-color">` in `index.html`
+- [x] `manifest-src` needs no CSP entry — it falls back to `default-src 'self'`, already set
 
 ### Increment 2 — Service worker
 - [ ] `TheShed.Client.csproj`: `<ServiceWorkerAssetsManifest>service-worker-assets.js</…>` and
