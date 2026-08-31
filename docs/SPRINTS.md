@@ -1358,20 +1358,23 @@ de ese sprint arriba (`WebCryptoKeyDerivationService`).
 - [x] `manifest-src` needs no CSP entry — it falls back to `default-src 'self'`, already set
 
 ### Increment 2 — Service worker
-- [ ] `TheShed.Client.csproj`: `<ServiceWorkerAssetsManifest>service-worker-assets.js</…>` and
+- [x] `TheShed.Client.csproj`: `<ServiceWorkerAssetsManifest>service-worker-assets.js</…>` and
       `<ServiceWorker Include="wwwroot\service-worker.js"
-      PublishedContent="wwwroot\service-worker.published.js" />`. Use Blazor's stock service
-      worker as-is; do not hand-roll one
-- [ ] **Known blocker, same class as the D8 fingerprinting issue:** the stock template registers
+      PublishedContent="wwwroot\service-worker.published.js" />`. Blazor's stock service worker
+      as-is (copied from a scratch `dotnet new blazorwasm --pwa`), not hand-rolled
+- [x] **Known blocker, same class as the D8 fingerprinting issue:** the stock template registers
       the worker from an inline `<script>`, which our CSP blocks (`script-src 'self'`, no
-      `'unsafe-inline'`). Put the `navigator.serviceWorker.register` call inside
-      `wwwroot/js/interop.js`, which is already an external file and already loaded
-- [ ] One guard on top of the stock file: an early `return` for any request under `/api/`. The
-      template already only serves cached content for `mode === 'navigate'`, so API responses are
-      not cached today — but in a password manager that stays explicit, not incidental
-- [ ] `worker-src` needs no CSP entry either (falls back through `child-src` to `default-src`)
-- [ ] Note for whoever tests this: the service worker only runs from `dotnet publish -c Release`,
-      never from `dotnet run`
+      `'unsafe-inline'`). The `navigator.serviceWorker.register` call lives in
+      `wwwroot/js/interop.js` instead, which is already an external file and already loaded
+- [x] One guard on top of the stock file: an early `return` for any request under `/api/` in
+      `service-worker.published.js`'s `onFetch`. The template already only serves cached content
+      for `mode === 'navigate'`, so API responses were not cached today either — but in a
+      password manager that stays explicit, not incidental
+- [x] `worker-src` needs no CSP entry either (falls back through `child-src` to `default-src`)
+- [x] Note for whoever tests this: the service worker only runs from `dotnet publish -c Release`,
+      never from `dotnet run`. Verified with a throwaway `dotnet publish -c Release`: published
+      `wwwroot/service-worker.js` is the caching version with the `/api/` guard intact, and
+      `service-worker-assets.js` is generated
 
 ### Increment 3 — Offline and update behaviour
 - [ ] Offline: a `navigator.onLine` banner ("The Shed needs a connection to open your vaults").

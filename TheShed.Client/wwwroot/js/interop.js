@@ -1,5 +1,13 @@
 window.copyToClipboard = (text) => navigator.clipboard.writeText(text);
 
+// Inline registration (the stock PWA template's approach) is blocked by our CSP (script-src
+// 'self', no 'unsafe-inline'), so it lives here instead — this file is already external and
+// already loaded. No-op in dev: service-worker.js there is the empty stub, swapped for
+// service-worker.published.js only by `dotnet publish`.
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });
+}
+
 window.downloadFile = (fileName, bytes) => {
     const url = URL.createObjectURL(new Blob([bytes]));
     const a = document.createElement('a');

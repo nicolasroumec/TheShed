@@ -13,6 +13,7 @@
          carries content hashes, so the runtime revalidates). To get it back, compute the SHA-256
          of the rendered import map per response and add it to script-src as an SRI hash. -->
     <WasmFingerprintAssets>false</WasmFingerprintAssets>
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +24,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TheShed.Shared\TheShed.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
   </ItemGroup>
 
 </Project>
