@@ -142,3 +142,15 @@ renderizado por respuesta y sumarlo a `script-src` como hash SRI. Vale la pena r
 fingerprinting llega a importar.
 **Limitación conocida:** `style-src` conserva `'unsafe-inline'` — 8 componentes usan atributos
 `style=""`. Es una superficie mucho menor que la de scripts; sacarlo es moverlos a clases.
+
+**Addendum (2026-08-31, Sprint 31 Increment 4):** `WasmFingerprintAssets=false` no alcanzaba —
+cubre el payload WASM pero no `blazor.webassembly.js`, que tiene su propio switch
+(`BlazorFingerprintBlazorJs`, gateado por `OverrideHtmlAssetPlaceholders` en los targets del SDK).
+Con ese switch en su default, `index.html` quedaba con el placeholder literal
+`_framework/blazor.webassembly#[.{fingerprint}].js` sin nada que lo resolviera (esta app no usa
+`MapStaticAssets`), y el navegador interpreta todo desde el `#` como fragmento de URL — la app
+quedaba colgada en "Loading" en cualquier `dotnet publish -c Release` real. Nadie lo había visto
+porque nadie había publicado en Release desde que este decision se tomó: `dotnet run` resuelve el
+placeholder por otro camino (el pipeline de static web assets de Development) y lo tapaba. Fix:
+`BlazorFingerprintBlazorJs=false` explícito + `index.html` apunta directo al nombre de archivo
+ya determinístico, sin placeholder. Ver `docs/SPRINTS.md` Sprint 31 Increment 4 para el detalle.
