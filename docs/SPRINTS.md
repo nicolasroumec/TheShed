@@ -1377,11 +1377,15 @@ de ese sprint arriba (`WebCryptoKeyDerivationService`).
       `service-worker-assets.js` is generated
 
 ### Increment 3 — Offline and update behaviour
-- [ ] Offline: a `navigator.onLine` banner ("The Shed needs a connection to open your vaults").
-      Nothing more — no offline data layer
-- [ ] Updates: with a service worker, a freshly deployed version is not picked up until every tab
-      is closed. Accept and document it for now; add a "new version available, reload" prompt only
-      if it actually gets in the way
+- [x] Offline: a `navigator.onLine` banner ("The Shed needs a connection to open your vaults").
+      `OfflineBanner` (`Components/`) in `MainLayout`, above `Unlock` so it shows even before a
+      session unlocks. `startConnectivityWatch`/`stopConnectivityWatch` in `interop.js` follow the
+      same `DotNetObjectReference` + module-scoped-`let` pattern as Sprint 30's idle watch,
+      listening for `online`/`offline` on `window`. Verified in-browser: dispatching synthetic
+      `online`/`offline` events toggles the banner correctly. Nothing more — no offline data layer
+- [x] Updates: with a service worker, a freshly deployed version is not picked up until every tab
+      is closed. Accepted and documented as-is; no "new version available, reload" prompt added —
+      revisit only if it actually gets in the way
 
 ### Increment 4 — Verification + PR
 - [ ] `dotnet publish -c Release`, serve it, run the Lighthouse PWA audit, install on desktop and

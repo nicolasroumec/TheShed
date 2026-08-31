@@ -66,6 +66,27 @@ window.stopIdleWatch = () => {
     idleRef = null;
 };
 
+// Connectivity banner (Sprint 31 PWA). Every byte of vault data comes from the API, so offline
+// just means "tell the user", not an offline data layer.
+let connectivityRef = null;
+
+function connectivityReport() {
+    if (connectivityRef) connectivityRef.invokeMethodAsync('OnConnectivityChange', navigator.onLine);
+}
+
+window.startConnectivityWatch = (dotNetRef) => {
+    connectivityRef = dotNetRef;
+    window.addEventListener('online', connectivityReport);
+    window.addEventListener('offline', connectivityReport);
+    connectivityReport();
+};
+
+window.stopConnectivityWatch = () => {
+    window.removeEventListener('online', connectivityReport);
+    window.removeEventListener('offline', connectivityReport);
+    connectivityRef = null;
+};
+
 function bytesToB64(bytes) {
     let bin = '';
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
