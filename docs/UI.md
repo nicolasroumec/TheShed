@@ -60,10 +60,9 @@ pegboard textures, no wood grain.
 Bootstrap's own component classes (`.card`, `.list-group-item`, `.btn-group`,
 `.badge`, `.modal-content`) read as generic once merely recolored — a
 "reskinned admin panel" look. Replaced everywhere by a small set of custom
-classes in `components.css` (see `docs/UI-REFACTOR.md` for the increment
-history), built around **one repeated motif**: a 3px accent bar (left edge on
-vertical elements, top edge on the modal) instead of a uniform border + solid
-hover fill.
+classes in `components.css`, built around **one repeated motif**: a 3px
+accent bar (left edge on vertical elements, top edge on the modal) instead
+of a uniform border + solid hover fill.
 
 - [x] `.row-item` — replaces `.list-group-item`. Flush against the page, left
       accent bar + `surface-2` fill on hover/focus.
@@ -110,8 +109,7 @@ hover fill.
   for the record since it explains why treatment alone was the starting point.
 - **One repeated accent-bar motif, not per-component tweaks** — replaced Bootstrap's
   component classes surface by surface (§5) with a single recurring shape (3px accent bar)
-  so the pieces read as one family instead of six unrelated redesigns. See
-  `docs/UI-REFACTOR.md` for the full rationale and increment history.
+  so the pieces read as one family instead of six unrelated redesigns.
 
 ## Token block (target `:root`)
 

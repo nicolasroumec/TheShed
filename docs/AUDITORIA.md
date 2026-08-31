@@ -1,5 +1,6 @@
 # Auditoría de seguridad y features — The Shed
-Fecha: 2026-08-13
+Fecha: 2026-08-13 (hallazgos críticos y altos resueltos desde entonces — ver las notas
+"✅ Resuelto" en cada uno, y el resumen actualizado en "Próximos pasos sugeridos" al final)
 Alcance revisado: `TheShed.Server/Security/*`, `TheShed.Server/Services/*`, `TheShed.Server/Controllers/*`,
 `TheShed.Server/Data/TheShedContext.cs`, `TheShed.Server/Program.cs`, `TheShed.Client/Program.cs`,
 `TheShed.Client/Auth/JwtAuthenticationStateProvider.cs`, `TheShed.Client/Services/AuthService.cs`,
@@ -55,6 +56,14 @@ pasaría a almacenar y servir blobs opacos, sin poder nunca descifrarlos. Es un 
 grande (afecta compartir vaults, búsqueda server-side, historial, adjuntos), por eso se marca como
 hallazgo crítico y no como tarea suelta: amerita una decisión explícita del producto, no un parche.
 
+**✅ Resuelto (2026-08-14 a 2026-08-27, Sprints 25-28, decisión D7 en `DECISIONS.md`).** Migrado a
+zero-knowledge real: derivación de clave (PBKDF2 vía Web Crypto) y keypair RSA por usuario
+(Sprint 25), vault key + cifrado de entradas/notas/adjuntos client-side (Sprint 26/27), compartir
+vía key-wrapping asimétrico (Sprint 27), baja del cifrado legacy del servidor (Sprint 28).
+Verificado en navegador en cada sprint inspeccionando el payload de red: el servidor nunca recibe
+ni guarda texto plano. **Riesgo residual aceptado (no C1, ver M1):** remover un miembro de un vault
+compartido no rota la vault key todavía.
+
 ## Hallazgos altos 🟠
 
 ### A1 — Sin reautenticación para acciones sensibles
@@ -68,6 +77,11 @@ o, como mínimo, un desbloqueo de sesión reciente. Con la sesión abierta (ej. 
 un XSS futuro, o un token robado), un atacante tiene acceso irrestricto a todo el vault sin fricción
 adicional.
 
+**✅ Resuelto (2026-08-30, Sprint 30, ver D9 en `DECISIONS.md`).** `IReauthGate`/`ReauthGate` con
+ventana de 5 minutos, wireado en reveal/copy (`EntryRow`) y en revelar una versión del historial
+(`EntryHistoryPanel`). Chequeo barato: la sesión ya tiene la clave correcta, se deriva la contraseña
+tipeada y se compara con `CryptographicOperations.FixedTimeEquals` — no hay round-trip al servidor.
+
 ### A2 — Sin auto-bloqueo por inactividad
 **Ubicación:** no encontrado en `TheShed.Client/Layout/MainLayout.razor.cs` ni en ningún otro componente;
 `docs/PRODUCT.md:17` lo lista como funcionalidad prevista ("Cierre automático de sesión por inactividad").
@@ -75,6 +89,13 @@ adicional.
 La única expiración de sesión es el JWT de 60 minutos. No hay temporizador de inactividad en el cliente,
 ni un segundo "lock" de UI que pida de nuevo la contraseña maestra tras N minutos sin actividad, como sí
 tienen Bitwarden/1Password. Feature planeada, no implementada — ver también sección "Features faltantes".
+
+**✅ Resuelto (2026-08-30, Sprint 30, ver D9 en `DECISIONS.md`).** Timer de 15 minutos de
+inactividad (listeners de actividad en `interop.js`) que llama `IAuthService.Lock()` — limpia
+stretched key, keypair y vault keys cacheadas, sin tocar la cookie. De paso resolvió el problema
+más grande del proyecto en ese momento: un F5 dejaba la app "logueada" con toda ruta de descifrado
+muerta (la clave stretched vive solo en memoria); ahora aterriza en una pantalla `Locked` que solo
+pide la master password y re-deriva.
 
 ### A3 — Sin rate limiting ni bloqueo progresivo en login
 **Ubicación:** `TheShed.Server/Services/AuthService.cs:45-59`, `TheShed.Server/Program.cs` (no hay
@@ -193,18 +214,19 @@ Cubierto por `TheShed.Tests/Security/AuthRequestValidationTests.cs`.
 | Indicador de fortaleza de contraseña | Completo (heurístico, ver M4) | Baja |
 | Detección de contraseñas duplicadas/reusadas | Completo (`PasswordHealthService.cs:34-38`) | — |
 | Detección de contraseñas débiles guardadas | Completo | — |
-| Auto-bloqueo por inactividad | Ausente (ver A2) | Alta |
-| Reautenticación para acciones sensibles | Ausente (ver A1) | Alta |
+| Auto-bloqueo por inactividad | Completo (Sprint 30, ver A2 arriba) | — |
+| Reautenticación para acciones sensibles | Completo (Sprint 30, ver A1 arriba) | — |
 | Rate limiting / bloqueo progresivo en login | Completo — por IP, no por email (ver A3) | — |
-| 2FA/MFA para desbloquear la app | Ausente — campos `TwoFactorEnabled`/`TwoFactorSecret` existen en `User` (`TheShed.Shared/Models/Entities/User.cs:13-14`) pero sin ninguna lógica que los use | Alta |
-| TOTP integrado (generador/lector para las cuentas guardadas) | Ausente | Media |
-| Alertas de brechas (Have I Been Pwned, k-anonimato) | Ausente | Media |
+| 2FA/MFA para desbloquear la app | Ausente — campos `TwoFactorEnabled`/`TwoFactorSecret` existen en `User` (`TheShed.Shared/Models/Entities/User.cs:13-14`) pero sin ninguna lógica que los use | Alta — planeado en Sprint 18 |
+| TOTP integrado (generador/lector para las cuentas guardadas) | Ausente | Media — Sprint 24 |
+| Alertas de brechas (Have I Been Pwned, k-anonimato) | Ausente | Media — Sprint 24 |
 | Carpetas/tags/favoritos/búsqueda | Completo (vaults + tags + `IsFavorite` + búsqueda por nombre/usuario/URL) | — |
-| Compartir vault con cifrado extremo a extremo | Parcial: se comparte el vault (roles lectura/escritura, `VaultAccessService.cs`), pero al no ser E2E (ver C1) "compartir" es solo un permiso de fila en la base, no un intercambio de claves | Depende de resolver C1 primero |
+| Compartir vault con cifrado extremo a extremo | Completo (Sprints 25-27, zero-knowledge — ver C1 arriba). Rotar la vault key al remover un miembro sigue pendiente (M1) | — |
 | Historial de versiones por entrada | Completo (`EntryHistory`, `PasswordEntryService.cs:224-271`) | — |
 | Notas seguras / adjuntos | Completo | — |
-| Importar desde otros gestores (CSV) | Ausente — planeado como Sprint 17 en `docs/TODO.md:130` | Media (ya priorizado por el equipo) |
-| Exportar entradas propias | Ausente | Media |
+| Instalable como PWA | Completo (Sprint 31) — no cubre lectura offline de datos | — |
+| Importar desde otros gestores (CSV) | Ausente — planeado como Sprint 17 en `docs/SPRINTS.md`, pendiente de reescribir client-side | Media (ya priorizado por el equipo) |
+| Exportar entradas propias | Ausente — mismo Sprint 17 | Media |
 | Autocompletado navegador / apps móviles | Fuera de alcance explícito (`docs/PRODUCT.md:61-63`) | — (decisión de producto) |
 
 ## Calidad de código
@@ -267,14 +289,19 @@ Cubierto por `TheShed.Tests/Security/AuthRequestValidationTests.cs`.
    Vale la pena convertirlo en un diferencial visible ("nunca perdés una contraseña borrada por 30 días",
    configurable) en vez de dejarlo como feature interna.
 
-## Próximos pasos sugeridos (orden de prioridad)
-1. Decidir explícitamente si The Shed apunta a ser zero-knowledge (mover cifrado al cliente) o si el
-   modelo "self-hosted, confío en mi servidor" (oportunidad #1) es la propuesta real — y documentarlo
-   como decisión de arquitectura, no dejarlo implícito (C1).
-2. ~~Rate limiting en `/api/auth/login` y `/api/auth/register` (A3)~~ — ✅ hecho (2026-08-16, Sprint 21).
-3. Auto-bloqueo por inactividad + reautenticación para revelar/exportar contraseñas (A1, A2) — ya
-   planeado en `docs/PRODUCT.md`, falta implementar.
-4. Evaluar antiforgery token como capa adicional a `SameSite=Lax` (A4) — evaluado, pospuesto por tamaño
-   (ver la nota en A4); es el candidato natural al próximo PR de hardening.
-5. Resolver el problema de adjuntos huérfanos en purga (M2) antes de que `Attachments/` crezca sin límite.
-6. ~~Sumar `Content-Security-Policy` y `UseHsts()` (M5)~~ — ✅ hecho (2026-08-16, Sprint 22), ver D8.
+## Próximos pasos sugeridos (orden de prioridad) — actualizado 2026-08-31
+
+Todos los hallazgos críticos y altos de esta auditoría están resueltos (C1, A1, A2, A3). Lo que
+queda:
+
+1. Antiforgery token como capa adicional a `SameSite=Lax` (A4) — pospuesto por tamaño desde el
+   Sprint 21+22, sigue siendo el candidato natural al próximo PR de hardening.
+2. Reescribir el Sprint 17 (import/export) sobre el cifrado client-side actual — quedó escrito
+   contra `IEncryptionService`, que el Sprint 28 borró.
+3. Adjuntos huérfanos en purga (M2) + excluir caracteres ambiguos del generador (M3) — Sprint 23,
+   bajo impacto, sin bloquear nada.
+4. 2FA de la propia app (Sprint 18) y TOTP/breach-alerts para cuentas guardadas (Sprint 24) —
+   prioridad Alta/Media, sin fecha.
+
+~~Rate limiting (A3)~~ ✅ Sprint 21 · ~~CSP/HSTS (M5)~~ ✅ Sprint 22, ver D8 · ~~Zero-knowledge
+(C1)~~ ✅ Sprints 25-28, ver D7 · ~~Auto-bloqueo + reautenticación (A1, A2)~~ ✅ Sprint 30, ver D9.
