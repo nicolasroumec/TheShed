@@ -5,7 +5,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
     <!-- Fingerprinted assets are resolved through an inline <script type="importmap">, which the
          Content-Security-Policy blocks unless script-src allows inline scripts. Turning
          fingerprinting off keeps the strict script-src the CSP is there for.
@@ -13,6 +12,17 @@
          carries content hashes, so the runtime revalidates). To get it back, compute the SHA-256
          of the rendered import map per response and add it to script-src as an SRI hash. -->
     <WasmFingerprintAssets>false</WasmFingerprintAssets>
+    <!-- blazor.webassembly.js has its own fingerprinting switch, gated by
+         OverrideHtmlAssetPlaceholders (SDK targets) rather than WasmFingerprintAssets above.
+         Enabling that property to turn this off requires resolving "#[.{fingerprint}]" in
+         index.html via MapStaticAssets, which this project doesn't use (Program.cs stays on
+         UseStaticFiles/MapFallbackToFile — the classic pipeline D8 already chose over the
+         MapStaticAssets/importmap route). So instead: force the loader unfingerprinted and
+         reference its now-deterministic filename directly in index.html (see the <script> tag),
+         no placeholder involved. Found+fixed verifying Sprint 31 Increment 4's
+         `dotnet publish -c Release` — never exercised before this sprint, so this had been
+         silently broken (stuck on "Loading", 404 on the literal placeholder text) since D8. -->
+    <BlazorFingerprintBlazorJs>false</BlazorFingerprintBlazorJs>
     <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
   </PropertyGroup>
 

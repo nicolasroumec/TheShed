@@ -1388,13 +1388,47 @@ de ese sprint arriba (`WebCryptoKeyDerivationService`).
       revisit only if it actually gets in the way
 
 ### Increment 4 — Verification + PR
-- [ ] `dotnet publish -c Release`, serve it, run the Lighthouse PWA audit, install on desktop and
-      Android
-- [ ] Airplane mode: the shell loads and the offline banner shows
-- [ ] Kill and relaunch the installed app: it must land on Sprint 30's unlock screen, not on a
-      broken vault
-- [ ] iOS caveat to document, not fix: an installed PWA gets its own cookie jar, so the first
-      launch asks for a full login even if the browser is logged in
+- [x] **Found and fixed while verifying: the Release build didn't load at all.** This was the
+      first `dotnet publish -c Release` this repo had ever served (the note under Increment 2
+      said as much and turned out to be literal). `wwwroot/index.html` hardcoded
+      `<script src="_framework/blazor.webassembly#[.{fingerprint}].js">`, a placeholder meant to
+      be resolved by `MapStaticAssets`/an inline importmap — both of which D8 deliberately
+      avoided (`Program.cs` stays on `UseStaticFiles`/`MapFallbackToFile`). With neither present,
+      the placeholder reached the browser as literal text; the browser reads everything from `#`
+      onward as a URL fragment, requested a path that doesn't exist, and the shell hung on
+      "Loading" forever. `dotnet run` never showed it — Development's static-web-assets pipeline
+      resolves the placeholder itself, which is exactly why nobody had caught this since D8
+      shipped in Sprint 21+22. Fix, in `TheShed.Client.csproj` and `wwwroot/index.html`: added
+      `<BlazorFingerprintBlazorJs>false</BlazorFingerprintBlazorJs>` (a separate switch from
+      `WasmFingerprintAssets`, which doesn't cover the loader script itself) so
+      `blazor.webassembly.js` is never fingerprinted, and pointed `index.html` straight at that
+      now-deterministic filename — no placeholder, no runtime resolution needed at all
+- [x] `dotnet publish -c Release`, served locally (throwaway `bin/Release-pwa-verify`, cleaned up
+      after). Verified in-browser: app loads, no console errors beyond the expected
+      pre-login `DenyAnonymousAuthorizationRequirement` info logs, `manifest.webmanifest` fetches
+      OK, `navigator.serviceWorker.getRegistration()` shows an active worker
+- [x] Lighthouse: **the `pwa` category no longer exists.** Confirmed against Lighthouse 12.8.2
+      (`npx lighthouse`) — Google deprecated and removed it, along with the audits this increment
+      was written against (`installable-manifest`, `maskable-icon`, `themed-omnibox`,
+      `apple-touch-icon`, `splash-screen`); a run against this build only returns `performance`,
+      `accessibility`, `best-practices`, `seo`. Verified the same signals Lighthouse used to check
+      manually instead: valid manifest (fetched and parsed), registered+active service worker,
+      served from a secure context (`localhost`) — Chrome's actual installability criteria
+- [x] Airplane mode: covered by Increment 3's verification (synthetic `online`/`offline` events;
+      real airplane mode isn't scriptable from here) — banner shown/hidden correctly, same code
+      path as this build
+- [x] Kill and relaunch → unlock screen: registered a real user through the UI, reloaded the page
+      (closest equivalent to a killed-and-relaunched installed app without a physical install) —
+      landed cleanly on Sprint 30's `Locked` screen ("Signed in as pwaverify..."), not a broken
+      vault. Confirms the service worker's cached shell doesn't fight the unlock flow
+- [ ] **Not done — needs a human:** installing on desktop and Android, and the iOS cookie-jar
+      caveat. `beforeinstallprompt` didn't fire for the automated tab in the time available to
+      check (Chrome's engagement heuristics don't necessarily fire it for
+      an extension-driven tab); the manifest/service-worker/secure-context criteria it depends on
+      are all independently confirmed above. Actually installing is also just a real action on
+      the user's own machine — do it from `dotnet publish -c Release` + serve, watch for the
+      install icon in the address bar, install, kill the window, relaunch, confirm the unlock
+      screen. Android needs a physical device
 - [ ] PR to `main`
 
 ### Out of scope (each its own sprint if ever wanted)
