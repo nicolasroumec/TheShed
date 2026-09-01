@@ -7,13 +7,12 @@
 > cada uno vive en `git log`, no acá.
 
 ## 🔵 Sprint 17 — Importar / Exportar (CSV) · `feature/import-export`
-> ⚠️ **Obsoleto tal como está escrito.** El plan de abajo usa `IEncryptionService`
-> server-side, que el Sprint 28 borró — el cifrado ahora corre client-side (D7).
-> Hay que reescribirlo sobre ese modelo antes de arrancar: import/export tienen que
-> cifrar/descifrar con la vault key vía Web Crypto (mismo patrón que
-> `EntriesPanel`/`NotesPanel`), no con un servicio de servidor. Queda el resto del
-> plan como referencia de alcance (formatos, mapeo de columnas), no como diseño
-> técnico vigente.
+> Reescrito 2026-09-01 sobre el modelo zero-knowledge (D7, Sprints 25-28): todo el
+> cifrado corre client-side con la vault key vía Web Crypto, mismo patrón que
+> `EntriesPanel.SubmitAsync`/`LoadEntriesAsync` (`IVaultKeyCache.Get(VaultId)` +
+> `IAesGcmService.EncryptAsync/DecryptAsync`). No hay endpoint de servidor nuevo: import
+> reusa `POST /api/entries` fila por fila, export no pega al servidor más que el `GET`
+> que ya hace `EntriesPanel`.
 >
 > CSV de LastPass / Bitwarden / 1Password (import) y export de entradas propias. Ningún
 > proyecto tiene hoy una lib de CSV — un parser a mano que solo hace `Split(',')` rompe con
@@ -23,32 +22,38 @@
 > es más código y más riesgo que una dependencia madura de un solo propósito.
 
 ### Increment 1 — DTOs + dependencia
-- [ ] `PackageReference CsvHelper` en `TheShed.Client.csproj` (no `Server` — el parseo pasa
-      a correr client-side, junto al cifrado)
-- [ ] DTOs `ImportResult` (Imported/Skipped/Errors por fila) y `ExportEntryRow` (Name,
+- [ ] `PackageReference CsvHelper` en `TheShed.Client.csproj` (solo Client — el parseo
+      corre en el browser, junto al cifrado; el servidor no toca CSV)
+- [ ] DTOs en `TheShed.Shared/Models/DTOs/Entries/`: `ImportResult` (Imported/Skipped +
+      `List<ImportRowError>` con número de fila y motivo) y `ExportEntryRow` (Name,
       Username, Password, Url, Notes — mismas columnas que expone el export)
 
 ### Increment 2 — Import (client-side)
 - [ ] Mapper de columnas por formato (LastPass: `url,username,password,extra,name,
       grouping,fav`; Bitwarden: `folder,favorite,type,name,notes,fields,reprompt,
       login_uri,login_username,login_password,login_totp`; 1Password:
-      `Title,Website,Username,Password,Notes`) → cifra cada fila con la vault key
-      (mismo camino que `EntriesPanel.SubmitAsync`) y sube el resultado ya cifrado vía
-      `POST /api/entries` — el servidor sigue sin ver texto plano
+      `Title,Website,Username,Password,Notes`) → por fila, cifra con
+      `IAesGcmService.EncryptAsync(vaultKey, ...)` (vaultKey de
+      `IVaultKeyCache.Get(VaultId)`, mismo guard de `MissingVaultKeyError` que
+      `EntriesPanel`) y sube ya cifrada vía `EntryClient.CreateAsync` — el servidor
+      sigue sin ver texto plano
 - [ ] Fila inválida (columnas faltantes, vacía) no aborta el import completo: se cuenta en
-      `ImportResult.Errors` con el número de fila, se sigue con las demás
+      `ImportResult` con el número de fila, se sigue con las demás
 
 ### Increment 3 — Export (client-side)
-- [ ] Trae las entradas del vault (ya lo hace `EntriesPanel`), descifra en memoria del
-      cliente con la vault key, arma el CSV con `CsvHelper` y dispara la descarga desde
-      el navegador (`Blob`/`URL.createObjectURL`) — sin endpoint de servidor nuevo
+- [ ] Trae las entradas del vault (`EntryClient.ListAsync`, igual que
+      `EntriesPanel.LoadEntriesAsync`), descifra en memoria con
+      `IAesGcmService.DecryptAsync(vaultKey, ...)`, arma el CSV con `CsvHelper` y dispara
+      la descarga desde el navegador (`Blob`/`URL.createObjectURL` vía JS interop) — sin
+      endpoint de servidor nuevo
 
 ### Increment 4 — UI
-- [ ] `ImportExportClient` + sección en `/vaults/{id}` (o página propia `/import-export`):
-      input de archivo + selector de formato, preview de `ImportResult` tras subir
-      (importadas/saltadas/errores por fila); botón "Export" con confirmación propia
-      (`ModalService`, no `window.confirm` — ver Sprint 20) avisando que el archivo
-      tendrá las contraseñas en texto plano, antes de disparar la descarga
+- [ ] `ImportExportClient` (wrapper delgado sobre `CsvHelper` + los pasos de arriba) +
+      sección en `/vaults/{id}` (o página propia `/import-export`): input de archivo +
+      selector de formato, preview de `ImportResult` tras subir (importadas/saltadas/
+      errores por fila); botón "Export" con confirmación propia (`ModalService`, no
+      `window.confirm` — ver Sprint 20) avisando que el archivo tendrá las contraseñas en
+      texto plano, antes de disparar la descarga
 
 ### Increment 5 — Tests
 - [ ] Tests de import/export (los 3 formatos, fila con columnas faltantes, fila vacía,
@@ -63,30 +68,16 @@
 - [ ] Tests del flujo TOTP (validación de código, ventana de tiempo)
 - [ ] PR a `main`
 
-## 🟣 Sprint 23 — Hardening menor: adjuntos huérfanos + generador · `feature/minor-hardening`
-> `docs/AUDITORIA.md` M2, M3, B1.
+## 🟣 Sprint 23 — Adjuntos huérfanos · `feature/minor-hardening`
+> `docs/AUDITORIA.md` M2. (M3, B1 y el Sprint 24 — TOTP en entradas guardadas + alertas
+> HIBP — se sacaron del roadmap el 2026-08-31: valor bajo/dudoso para el tamaño de este
+> proyecto, ver el "Descartado" al final de `AUDITORIA.md`.)
 
 - [ ] `TrashService` (purga en cascada) llama `IAttachmentStorage.DeleteAsync` por cada
       `Attachment` de la entry purgada — cierra el `// ponytail:` ya marcado en
       `TrashService.cs:172-174` (adjuntos huérfanos en disco, no fuga de datos pero
       acumulación sin límite)
-- [ ] `PasswordGenerator`: opción de excluir caracteres ambiguos (`l/1/I/O/0`) + toggle en
-      la UI del generador
-- [ ] B1 (asimetría: login oculta existencia de email, registro la confirma con
-      `Conflict`) — trade-off de UX aceptado, no un fix; si se quiere dejar constancia,
-      documentarlo en `DECISIONS.md`, si no, cerrar el hallazgo sin tocar código
 - [ ] Tests + PR a `main`
-
-## 🟣 Sprint 24 — TOTP en entradas guardadas + alertas de brechas (baja prioridad) · `feature/breach-alerts`
-> `docs/AUDITORIA.md`, tabla "Features faltantes" — ambas Media prioridad, ninguna
-> bloqueante. **No confundir con el Sprint 18** (2FA de la propia app): esto es TOTP
-> *para las cuentas guardadas* (generador/lector estilo Bitwarden/1Password Authenticator)
-> y alertas Have I Been Pwned (k-anonimato — solo se manda un prefijo del hash, nunca la
-> contraseña ni el hash completo). M4 (`PasswordHealthChecker` heurístico, no
-> dictionary-aware — limitación ya documentada en el propio código) es candidato a
-> resolver en el mismo sprint si se vuelve a tocar el generador/health.
-- [ ] Sin increments todavía — placeholder de roadmap, evaluar recién si la lista de
-      arriba se vacía.
 
 ## 🔵 Transversal — Traducir a inglés · `feature/i18n-english`
 > **Hacerla pronto** (no bloquea features pero la deuda crece con cada sprint). CLAUDE.md
