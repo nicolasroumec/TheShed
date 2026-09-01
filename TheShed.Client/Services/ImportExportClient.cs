@@ -8,9 +8,10 @@ namespace TheShed.Client.Services
 {
     public enum ImportFormat { LastPass, Bitwarden, OnePassword }
 
-    /// <summary>Client-side CSV import for entries (Sprint 17). Parses with CsvHelper, encrypts
-    /// each field with the vault key — same path as EntriesPanel's SubmitAsync — and uploads the
-    /// ciphertext via <see cref="EntryClient.CreateAsync"/>. The server never sees plaintext.</summary>
+    /// <summary>Client-side CSV import/export for entries (Sprint 17). All encryption runs here
+    /// with the vault key — same path as EntriesPanel's SubmitAsync/LoadEntriesAsync. The server
+    /// only ever sees ciphertext; CSV parsing, encryption/decryption and CSV writing all happen
+    /// in the browser.</summary>
     public class ImportExportClient
     {
         private readonly EntryClient _entryApi;
@@ -89,6 +90,44 @@ namespace TheShed.Client.Services
             }
 
             return result;
+        }
+
+        /// <summary>Fetches every entry in <paramref name="vaultId"/> (list + one GetAsync per
+        /// entry, since the list endpoint never carries Password/Notes), decrypts all fields in
+        /// memory with the vault key, and returns the resulting CSV as UTF-8 bytes. The caller
+        /// hands these to the browser (same downloadFile interop as attachment downloads); no
+        /// plaintext is written back to the server.</summary>
+        public async Task<byte[]> ExportAsync(int vaultId)
+        {
+            var vaultKey = _vaultKeyCache.Get(vaultId)
+                ?? throw new InvalidOperationException("Your session is missing this vault's encryption key — log out and log back in.");
+
+            var rows = new List<ExportEntryRow>();
+            foreach (var item in await _entryApi.ListAsync(vaultId))
+            {
+                var entry = await _entryApi.GetAsync(item.Id);
+                if (entry is null)
+                {
+                    continue; // deleted between the list and the get; nothing to export
+                }
+
+                rows.Add(new ExportEntryRow
+                {
+                    Name = await _aesGcm.DecryptAsync(vaultKey, entry.Name),
+                    Username = await _aesGcm.DecryptAsync(vaultKey, entry.Username),
+                    Password = await _aesGcm.DecryptAsync(vaultKey, entry.Password),
+                    Url = string.IsNullOrEmpty(entry.Url) ? null : await _aesGcm.DecryptAsync(vaultKey, entry.Url),
+                    Notes = string.IsNullOrEmpty(entry.Notes) ? null : await _aesGcm.DecryptAsync(vaultKey, entry.Notes),
+                });
+            }
+
+            using var memory = new MemoryStream();
+            await using (var textWriter = new StreamWriter(memory, leaveOpen: true))
+            await using (var csvWriter = new CsvWriter(textWriter, CultureInfo.InvariantCulture))
+            {
+                await csvWriter.WriteRecordsAsync(rows);
+            }
+            return memory.ToArray();
         }
     }
 }

@@ -1,5 +1,8 @@
+using System.Net;
+using System.Net.Http.Json;
 using System.Text;
 using TheShed.Client.Services;
+using TheShed.Shared.Models.DTOs.Entries;
 using TheShed.Shared.Security;
 
 namespace TheShed.Tests;
@@ -16,6 +19,32 @@ file class FixedVaultKeyCache : IVaultKeyCache
     public void Set(int vaultId, byte[] key) => _key = key;
     public byte[]? Get(int vaultId) => _key;
     public void Clear() => _key = null;
+}
+
+// Routes GET api/entries?vaultId=.. to the list and GET api/entries/{id} to the detail — just
+// enough to drive ExportAsync's list-then-get-each fetch without a real server.
+file class FakeEntriesHandler : HttpMessageHandler
+{
+    private readonly List<EntryListItem> _list;
+    private readonly Dictionary<int, EntryResponse> _byId;
+
+    public FakeEntriesHandler(List<EntryListItem> list, Dictionary<int, EntryResponse> byId)
+    {
+        _list = list;
+        _byId = byId;
+    }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var path = request.RequestUri!.AbsolutePath;
+        if (path == "/api/entries")
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(_list) });
+        }
+
+        var id = int.Parse(path.Split('/').Last());
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(_byId[id]) });
+    }
 }
 
 // Only exercises rows that fail before EntryClient.CreateAsync is reached, so no HTTP call is
@@ -52,5 +81,31 @@ public class ImportExportClientTests
 
         Assert.Equal(0, result.Imported);
         Assert.Single(result.Errors);
+    }
+
+    [Fact]
+    public async Task ExportAsync_DecryptsEveryField_AndWritesOneCsvRowPerEntry()
+    {
+        var list = new List<EntryListItem> { new() { Id = 5, Name = "GitHub", Username = "me" } };
+        var byId = new Dictionary<int, EntryResponse>
+        {
+            [5] = new()
+            {
+                Id = 5,
+                Name = "GitHub",
+                Username = "me",
+                Password = "secret",
+                Url = "https://github.com",
+                Notes = null,
+            },
+        };
+        var http = new HttpClient(new FakeEntriesHandler(list, byId)) { BaseAddress = new Uri("http://localhost/") };
+        var client = new ImportExportClient(new EntryClient(http), new FixedVaultKeyCache(), new NoopAesGcmService());
+
+        var csvBytes = await client.ExportAsync(vaultId: 1);
+        var csv = Encoding.UTF8.GetString(csvBytes);
+
+        Assert.Contains("Name,Username,Password,Url,Notes", csv);
+        Assert.Contains("GitHub,me,secret,https://github.com,", csv);
     }
 }
