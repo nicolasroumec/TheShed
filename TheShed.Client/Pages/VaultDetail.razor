@@ -33,6 +33,8 @@ else
 
     <NotesPanel VaultId="Id" CanWrite="_vault.CanWrite" />
 
+    <ImportExportPanel VaultId="Id" CanWrite="_vault.CanWrite" />
+
     @if (_vault.IsOwner)
     {
         <MembersPanel VaultId="Id" />
