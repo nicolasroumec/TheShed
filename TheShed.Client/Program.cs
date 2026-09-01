@@ -27,6 +27,7 @@ builder.Services.AddScoped<NoteClient>();
 builder.Services.AddScoped<TagClient>();
 builder.Services.AddScoped<TrashClient>();
 builder.Services.AddScoped<AttachmentClient>();
+builder.Services.AddScoped<ImportExportClient>();
 builder.Services.AddScoped<IKeyDerivationService, WebCryptoKeyDerivationService>();
 builder.Services.AddScoped<IUserKeypairService, WebCryptoUserKeypairService>();
 builder.Services.AddScoped<IStretchedKeyStore, StretchedKeyStore>();

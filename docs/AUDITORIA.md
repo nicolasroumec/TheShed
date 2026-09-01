@@ -155,6 +155,10 @@ Los pools de caracteres son fijos (no hay flag para excluir `l/1/I/O/0`). Funcio
 esperable en generadores de nivel profesional, y mencionada en el checklist de referencia de la
 industria.
 
+**🚫 Descartado (2026-08-31).** Tiene sentido cuando la contraseña se tipea a mano (offline, papel);
+en este flujo se copia/pega desde el vault, así que el valor real es bajo. No entra al roadmap salvo
+que se pida puntualmente.
+
 ### M4 — `PasswordHealthChecker` es heurístico, no dictionary-aware
 **Ubicación:** `TheShed.Shared/Helpers/PasswordHealthChecker.cs:11-13` (comentario propio del código:
 "Heuristic, not a full zxcvbn-style dictionary/pattern check").

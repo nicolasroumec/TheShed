@@ -1,0 +1,50 @@
+@using TheShed.Client.Services
+
+<div class="d-flex justify-content-between align-items-center mt-5 mb-3">
+    <h2 class="mb-0 h4">Import / Export</h2>
+</div>
+
+<div class="d-flex flex-wrap gap-4 align-items-start">
+    @if (CanWrite)
+    {
+        <div>
+            <label class="form-label" for="import-format">Import from</label>
+            <select id="import-format" class="form-select form-select-sm mb-2" @bind="_format">
+                <option value="@ImportFormat.LastPass">LastPass</option>
+                <option value="@ImportFormat.Bitwarden">Bitwarden</option>
+                <option value="@ImportFormat.OnePassword">1Password</option>
+            </select>
+            <InputFile OnChange="ImportAsync" accept=".csv" disabled="@_importing" />
+            @if (_importing)
+            {
+                <span class="text-muted small ms-2">Importing…</span>
+            }
+        </div>
+    }
+    <div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="ExportAsync" disabled="@_exporting">
+            @(_exporting ? "Exporting…" : "Export CSV")
+        </button>
+    </div>
+</div>
+
+@if (_result is not null)
+{
+    <div class="alert @(_result.Errors.Count == 0 ? "alert-success" : "alert-warning") mt-3" role="alert">
+        <p class="mb-1">Imported @_result.Imported entr@(_result.Imported == 1 ? "y" : "ies").</p>
+        @if (_result.Errors.Count > 0)
+        {
+            <ul class="mb-0 small">
+                @foreach (var rowError in _result.Errors)
+                {
+                    <li>Row @rowError.Row: @rowError.Reason</li>
+                }
+            </ul>
+        }
+    </div>
+}
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger mt-3" role="alert">@_error</div>
+}
