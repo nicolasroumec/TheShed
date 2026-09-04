@@ -28,6 +28,81 @@
       (`Invalidate()` en cada transición de auth) y `CsrfHandler` con lifetime `Scoped`
       en vez de `Singleton` (`IHttpClientFactory` lo resolvía desde un scope interno
       distinto al de `AuthService` — ver D10)
+- [x] PR a `main`
+
+## 🔵 Sprint 33 — Tests de integración · `feature/integration-tests`
+> `docs/AUDITORIA.md` / `TODO.md` #2: los ~230 tests son unitarios sobre EF InMemory o
+> controllers instanciados a mano (`new AuthController(fakeService)`) — cero pasa por el
+> pipeline real de ASP.NET Core (middleware, auth, antiforgery, autorización, EF contra una
+> base relacional de verdad). El Sprint 32 mostró el caso de manual: los dos bugs de
+> antiforgery no los agarró ningún test unitario, sólo probar en Chrome.
+>
+> **Límite honesto:** esto cubre el pipeline del *servidor*. Los bugs más caros del proyecto
+> hasta ahora (`AesGcm` en WASM, campos viajando en claro, F5/reauth) vivían en el *cliente*
+> Blazor — eso lo sigue agarrando solo el navegador, no `WebApplicationFactory`. Verificar en
+> Chrome sigue siendo obligatorio para cambios de UI/cripto client-side, esto no lo reemplaza.
+>
+> Viven en `TheShed.Tests/Integration/` (mismo proyecto, sin csproj nuevo — separar en un
+> proyecto propio es ceremonia de más para el tamaño actual). DB: SQLite in-memory, no EF
+> InMemory ni SQL Server real — relacional de verdad (constraints, transacciones), cero
+> dependencias externas (no exige LocalDB instalado ni Docker corriendo), portable a
+> cualquier máquina o CI futuro.
+
+### Increment 1 — Plomería del test host ✅
+- [x] `public partial class Program;` al final de `TheShed.Server/Program.cs` (WebApplicationFactory
+      necesita el tipo de entry point accesible; con top-level statements no lo es por defecto)
+- [x] `PackageReference` en `TheShed.Tests.csproj`: `Microsoft.AspNetCore.Mvc.Testing` +
+      `Microsoft.EntityFrameworkCore.Sqlite` (+ `FrameworkReference Microsoft.AspNetCore.App`,
+      hace falta a mano porque el proyecto usa `Microsoft.NET.Sdk`, no `.Web`) + pin explícito
+      de `SQLitePCLRaw.bundle_e_sqlite3` 3.0.5 (NU1903/CVE-2025-6965 en la 2.1.11 que trae EF
+      Core 10.0.9 — no explotable acá, los tests no corren SQL de terceros, pero gratis de
+      arreglar)
+- [x] `CustomWebApplicationFactory : WebApplicationFactory<Program>`: en `ConfigureWebHost`,
+      saca el `DbContextOptions<TheShedContext>` real y lo reemplaza por SQLite en memoria
+      (`DataSource=:memory:`, conexión abierta y guardada como campo — se cierra recién al
+      hacer `Dispose` de la factory, si no la base desaparece) + `EnsureCreated()` en
+      `CreateHost` (contra el service provider real, no uno descartable aparte). Pisa `Jwt:Key`
+      (no hay uno en `appsettings.json`, vive en user-secrets — inutilizable en otra máquina o
+      CI), `Attachments:StoragePath` (un temp dir por test run) y
+      `RateLimiting:AuthPermitLimit` (bien alto — si no, la ventana fija de 10 cada 5 min la
+      pisan entre sí los tests de auth del mismo run) vía `UseSetting`, no
+      `ConfigureAppConfiguration` — `Program.cs` los lee de forma eager antes de `Build()`
+- [x] Gotcha real: sacar solo `DbContextOptions<TheShedContext>` no alcanza —
+      `AddDbContext` también registra un `IDbContextOptionsConfiguration<TheShedContext>` por
+      llamada, y esos se acumulan en vez de reemplazarse; sin sacar también ese, EF Core
+      terminaba con SqlServer y Sqlite configurados a la vez y tiraba
+      `InvalidOperationException`. Los dos `RemoveAll` (`Microsoft.Extensions.DependencyInjection.Extensions`)
+- [x] `SmokeTests`: token de antiforgery no vacío + `/api/auth/me` sin cookie → 401 — prueba
+      que el host de test arranca de punta a punta antes de escribir tests de comportamiento
+      sobre él
+
+### Increment 2 — Helper de autenticación
+- [ ] Extensión/helper sobre `HttpClient` que hace lo que hoy hace `CsrfHandler` en el
+      navegador: `GET /api/antiforgery/token`, guarda el par cookie+token, lo reenvía en cada
+      mutación. Sin esto ningún test puede registrar/loguear un usuario — antiforgery (Sprint
+      32) bloquea la primera mutación de cualquier test que no lo tenga
+- [ ] Wrapper que registra un usuario con datos únicos por test (email con GUID — evita
+      necesitar un reset de base entre tests) y devuelve el `HttpClient` ya autenticado
+
+### Increment 3 — Suite: flujo de auth
+- [ ] Register: éxito (201 + cookie `authToken`), email duplicado (409), payload sin
+      material criptográfico (400, ver guard de `AuthController`)
+- [ ] Login: credenciales válidas (200), inválidas (401)
+- [ ] `GET /api/auth/me`: autenticado (200 con los datos esperados), sin cookie (401)
+- [ ] Antiforgery contra el pipeline real: mutación sin `X-CSRF-TOKEN` → 400, con token de
+      un par cookie/token que no matchea → 400, par válido → pasa
+
+### Increment 4 — Suite: autorización cruzada (vaults)
+> El tipo de bug que un controller test con `IVaultAccessService` mockeado no puede agarrar:
+> mockear la respuesta del servicio de acceso da por sentado que la lógica de autorización
+> ya es correcta, que es justo lo que hay que probar.
+- [ ] Dueño puede leer/escribir su vault; un usuario ajeno (no miembro) recibe 403/404 al
+      intentar leer o escribir esa vault
+- [ ] Miembro con rol Viewer puede leer entradas pero no puede crear/editar/borrar (403)
+- [ ] Miembro con rol Editor puede escribir
+
+### Increment 5 — PR
+- [ ] `dotnet test` corriendo ambas suites (unitarios + integración) en verde
 - [ ] PR a `main`
 
 ## 🟣 Sprint 18 — 2FA (TOTP) · `feature/2fa`
