@@ -91,13 +91,14 @@
 - [x] `AuthTestHelperTests`: prueba el helper mismo (register deja autenticado, email
       duplicado → 409) antes de construir la suite completa encima en el Incremento 3
 
-### Increment 3 — Suite: flujo de auth
-- [ ] Register: éxito (201 + cookie `authToken`), email duplicado (409), payload sin
-      material criptográfico (400, ver guard de `AuthController`)
-- [ ] Login: credenciales válidas (200), inválidas (401)
-- [ ] `GET /api/auth/me`: autenticado (200 con los datos esperados), sin cookie (401)
-- [ ] Antiforgery contra el pipeline real: mutación sin `X-CSRF-TOKEN` → 400, con token de
-      un par cookie/token que no matchea → 400, par válido → pasa
+### Increment 3 — Suite: flujo de auth ✅
+- [x] `AuthFlowTests`: register éxito (201, cookie seteada — confirmado indirectamente vía
+      `/me` autenticado, que sin cookie sería 401), sin material criptográfico (400), login
+      válido (200) e inválido (401). Duplicado (409) y `/me` autenticado/sin cookie ya estaban
+      en `AuthTestHelperTests`/`SmokeTests` del Incremento 2 — no se repiten
+- [x] Antiforgery contra el pipeline real (no el `IAntiforgery` in-process de
+      `AntiforgeryControllerTests`): sin `X-CSRF-TOKEN` → 400, header que no matchea la
+      cookie → 400
 
 ### Increment 4 — Suite: autorización cruzada (vaults)
 > El tipo de bug que un controller test con `IVaultAccessService` mockeado no puede agarrar:
