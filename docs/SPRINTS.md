@@ -30,7 +30,7 @@
       distinto al de `AuthService` — ver D10)
 - [x] PR a `main`
 
-## 🔵 Sprint 33 — Tests de integración · `feature/integration-tests`
+## ✅ Sprint 33 — Tests de integración · `feature/integration-tests`
 > `docs/AUDITORIA.md` / `TODO.md` #2: los ~230 tests son unitarios sobre EF InMemory o
 > controllers instanciados a mano (`new AuthController(fakeService)`) — cero pasa por el
 > pipeline real de ASP.NET Core (middleware, auth, antiforgery, autorización, EF contra una
@@ -100,17 +100,20 @@
       `AntiforgeryControllerTests`): sin `X-CSRF-TOKEN` → 400, header que no matchea la
       cookie → 400
 
-### Increment 4 — Suite: autorización cruzada (vaults)
+### Increment 4 — Suite: autorización cruzada (vaults) ✅
 > El tipo de bug que un controller test con `IVaultAccessService` mockeado no puede agarrar:
 > mockear la respuesta del servicio de acceso da por sentado que la lógica de autorización
 > ya es correcta, que es justo lo que hay que probar.
-- [ ] Dueño puede leer/escribir su vault; un usuario ajeno (no miembro) recibe 403/404 al
-      intentar leer o escribir esa vault
-- [ ] Miembro con rol Viewer puede leer entradas pero no puede crear/editar/borrar (403)
-- [ ] Miembro con rol Editor puede escribir
+- [x] `VaultAccessTests`: dueño lee/escribe su vault; un usuario ajeno (no miembro) recibe
+      404 al leer o escribir esa vault (`VaultAccess.None` → `EntryError.NotFound`, no
+      `Forbidden` — no filtra ni siquiera que la vault existe)
+- [x] Miembro con rol Viewer lee la vault pero no puede crear entradas (403); miembro Editor sí
+      (201) — vía `POST /api/vaults/{id}/members` + `VaultAccessService` reales, sin mockear
 
 ### Increment 5 — PR
-- [ ] `dotnet test` corriendo ambas suites (unitarios + integración) en verde
+- [x] `dotnet test` corriendo ambas suites (unitarios + integración) en verde — 242/242
+      (228 unitarios previos + 14 nuevos de integración en `TheShed.Tests/Integration/`),
+      `dotnet build` de la solución completa también limpio
 - [ ] PR a `main`
 
 ## 🟣 Sprint 18 — 2FA (TOTP) · `feature/2fa`
