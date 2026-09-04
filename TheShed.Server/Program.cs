@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -48,6 +49,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 builder.Services.AddAuthorization();
+
+// Security — antiforgery (A4), second line of defense on top of the cookie's SameSite=Lax
+// (D6). The client fetches a token from AntiforgeryController and echoes it back in this
+// header on every mutating request; the middleware below validates it against the
+// antiforgery cookie ASP.NET Core sets alongside it.
+builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 
 // Security — rate limiting on the auth endpoints. Argon2 is deliberately expensive, so an
 // unthrottled login is both a brute-force surface against the master password and a way to
@@ -155,6 +162,29 @@ app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Security — antiforgery validation (A4). GET/HEAD/OPTIONS/TRACE are read-only and exempt;
+// every other verb must carry a valid X-CSRF-TOKEN header or gets rejected before it reaches
+// a controller. AntiforgeryController's token endpoint is itself a GET, so it's never blocked.
+app.Use(async (context, next) =>
+{
+    var method = context.Request.Method;
+    if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method) &&
+        !HttpMethods.IsOptions(method) && !HttpMethods.IsTrace(method))
+    {
+        var antiforgery = context.RequestServices.GetRequiredService<IAntiforgery>();
+        try
+        {
+            await antiforgery.ValidateRequestAsync(context);
+        }
+        catch (AntiforgeryValidationException)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return;
+        }
+    }
+    await next();
+});
 
 app.MapControllers();
 app.MapFallbackToFile("index.html");
