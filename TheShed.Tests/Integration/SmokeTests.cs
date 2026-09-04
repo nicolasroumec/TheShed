@@ -10,7 +10,7 @@ namespace TheShed.Tests.Integration
     {
         private readonly HttpClient _client;
 
-        public SmokeTests(CustomWebApplicationFactory factory) => _client = factory.CreateClient();
+        public SmokeTests(CustomWebApplicationFactory factory) => _client = factory.CreateAuthenticatedClient();
 
         [Fact]
         public async Task AntiforgeryToken_DevuelveUnTokenNoVacio()

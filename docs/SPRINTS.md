@@ -76,13 +76,20 @@
       que el host de test arranca de punta a punta antes de escribir tests de comportamiento
       sobre él
 
-### Increment 2 — Helper de autenticación
-- [ ] Extensión/helper sobre `HttpClient` que hace lo que hoy hace `CsrfHandler` en el
-      navegador: `GET /api/antiforgery/token`, guarda el par cookie+token, lo reenvía en cada
-      mutación. Sin esto ningún test puede registrar/loguear un usuario — antiforgery (Sprint
-      32) bloquea la primera mutación de cualquier test que no lo tenga
-- [ ] Wrapper que registra un usuario con datos únicos por test (email con GUID — evita
-      necesitar un reset de base entre tests) y devuelve el `HttpClient` ya autenticado
+### Increment 2 — Helper de autenticación ✅
+- [x] `AuthTestHelper`: extensiones sobre `HttpClient` (`PostJsonWithCsrfAsync`,
+      `PutJsonWithCsrfAsync`, `DeleteWithCsrfAsync`) que piden el token fresco antes de cada
+      mutación en vez de cachearlo — más simple que replicar el `Invalidate()` de
+      `CsrfHandler`, y sin el riesgo de arrastrar el mismo bug de identidad del Sprint 32
+- [x] `RegisterNewUserAsync`: registra un usuario con datos únicos por test (email con GUID —
+      evita necesitar un reset de base entre tests) y deja el `HttpClient` autenticado
+- [x] Gotcha real #2: `CreateClient()` de `WebApplicationFactory` usa `BaseAddress =
+      http://localhost` por default — la cookie `authToken` es `Secure=true` (D6), y
+      `CookieContainer` la descarta en un request con scheme `http`, aunque el TestServer no
+      use TLS de verdad. `CustomWebApplicationFactory.CreateAuthenticatedClient()` fuerza
+      `https://localhost` para que la cookie sobreviva entre requests
+- [x] `AuthTestHelperTests`: prueba el helper mismo (register deja autenticado, email
+      duplicado → 409) antes de construir la suite completa encima en el Incremento 3
 
 ### Increment 3 — Suite: flujo de auth
 - [ ] Register: éxito (201 + cookie `authToken`), email duplicado (409), payload sin

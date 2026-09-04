@@ -60,6 +60,16 @@ namespace TheShed.Tests.Integration
             return host;
         }
 
+        /// <summary>Same shape as `CreateClient()`, but with an `https://` `BaseAddress`.
+        /// `AuthController`'s cookie is `Secure=true` (D6); `CookieContainer` drops a Secure
+        /// cookie for a request whose URI scheme is `http`, and `CreateClient()` otherwise
+        /// defaults to `http://localhost` — even though `WebApplicationFactory` never runs
+        /// real TLS, the scheme text on the request URI is what the cookie logic checks. Any
+        /// test that registers/logs in and expects the session cookie to stick needs this,
+        /// not the plain `CreateClient()`.</summary>
+        public HttpClient CreateAuthenticatedClient() =>
+            CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
