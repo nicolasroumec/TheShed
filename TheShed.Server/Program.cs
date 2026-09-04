@@ -190,3 +190,7 @@ app.MapControllers();
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+// Exposes the top-level Program as a type WebApplicationFactory<Program> can reference
+// (TheShed.Tests/Integration) — top-level statements otherwise generate it `internal`.
+public partial class Program;
