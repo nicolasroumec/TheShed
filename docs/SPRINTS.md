@@ -22,6 +22,12 @@
 - [x] Test de `AntiforgeryController` (token no vacío + cookie de antiforgery seteada)
 - [x] Verificado con el server real: sin header → 400, header sin cookie pareja → 400,
       par válido → pasa (llega a `AuthService`)
+- [x] Verificado en Chrome real (no solo curl): registro → crear vault → crear entry →
+      editar → borrar → logout → login. Encontró y corrigió dos bugs que ni curl ni los
+      tests unitarios detectaban — el token atado a la identidad de quien lo generó
+      (`Invalidate()` en cada transición de auth) y `CsrfHandler` con lifetime `Scoped`
+      en vez de `Singleton` (`IHttpClientFactory` lo resolvía desde un scope interno
+      distinto al de `AuthService` — ver D10)
 - [ ] PR a `main`
 
 ## 🟣 Sprint 18 — 2FA (TOTP) · `feature/2fa`

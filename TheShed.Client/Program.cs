@@ -12,8 +12,11 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // The CsrfHandler intercepts every request made through this HttpClient and attaches the
 // antiforgery header (A4) to mutating ones — every typed client below shares it, so none of
-// them need to know the token exists.
-builder.Services.AddScoped<CsrfHandler>();
+// them need to know the token exists. Must be a singleton: IHttpClientFactory resolves
+// AddHttpMessageHandler<T> instances from its own internal per-handler-lifetime DI scope, so a
+// Scoped registration here would hand the HTTP pipeline a different instance than the one
+// AuthService injects and calls Invalidate() on — the cached token would never actually clear.
+builder.Services.AddSingleton<CsrfHandler>();
 builder.Services.AddHttpClient("Default", client => client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress))
     .AddHttpMessageHandler<CsrfHandler>();
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Default"));

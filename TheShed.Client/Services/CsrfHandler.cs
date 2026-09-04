@@ -4,10 +4,12 @@ using TheShed.Shared.Models.DTOs.Auth;
 
 namespace TheShed.Client.Services
 {
-    /// <summary>Attaches the CSRF token (A4) to every mutating request. Fetches it once from
-    /// `/api/antiforgery/token` and caches it for the browser session — the token stays valid as
-    /// long as the antiforgery cookie the server paired it with does, so there's no need to
-    /// re-fetch per request.</summary>
+    /// <summary>Attaches the CSRF token (A4) to every mutating request. Fetches it from
+    /// `/api/antiforgery/token` and caches it — ASP.NET Core's antiforgery token embeds the
+    /// caller's authenticated identity at generation time, so a token fetched while anonymous
+    /// stops validating the instant login/register/logout flips that identity. AuthService calls
+    /// <see cref="Invalidate"/> right after those calls succeed so the next mutation fetches a
+    /// token bound to the new identity instead of replaying the stale one.</summary>
     public class CsrfHandler(NavigationManager nav) : DelegatingHandler
     {
         private string? _token;
@@ -21,6 +23,8 @@ namespace TheShed.Client.Services
             }
             return await base.SendAsync(request, ct);
         }
+
+        public void Invalidate() => _token = null;
 
         private static bool NeedsToken(HttpMethod method) =>
             method != HttpMethod.Get && method != HttpMethod.Head &&

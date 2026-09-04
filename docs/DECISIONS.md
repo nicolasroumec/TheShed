@@ -208,4 +208,22 @@ exponer nada nuevo al DOM.
 todos pasan por el mismo handler sin saber que el token existe. El endpoint del token es GET, así
 que nunca lo bloquea su propio middleware. Verificado con el server corriendo: POST sin header →
 400, header sin cookie pareja → 400, par válido → pasa el antiforgery (llega a `AuthService`).
+
+**Dos bugs reales que solo aparecieron probando en navegador (no en curl, no en los tests
+unitarios):**
+1. El token de ASP.NET Core queda atado a la identidad autenticada del momento en que se generó
+   (`GetAndStoreTokens`) — un token pedido en anónimo deja de validar apenas el usuario hace
+   login/register, con el mensaje exacto `"The provided antiforgery token was meant for a
+   different claims-based user than the current user"`. `CsrfHandler.Invalidate()` fuerza un
+   refetch en cada transición de auth (login, register, logout) — ver `AuthService`.
+2. `CsrfHandler` estaba registrado `AddScoped`, pero `IHttpClientFactory` resuelve los
+   `AddHttpMessageHandler<T>()` desde un **scope de DI propio e interno** (el que usa para el
+   pooling de handlers, vida útil 2 minutos) — distinto del scope que le entrega la instancia a
+   `AuthService`. `Invalidate()` limpiaba una copia fantasma; el pipeline HTTP real seguía
+   sirviendo el token viejo. Pasó a `AddSingleton`: los singletons sí se comparten entre scopes,
+   así que ambos consumidores terminan viendo la misma instancia. Ninguno de los dos bugs lo
+   detectaron los tests unitarios (mockean `IAuthService`/controllers directamente, sin pasar por
+   el `HttpClient` real ni por `IHttpClientFactory`) — solo el flujo real en Chrome (registro →
+   crear vault → logout → login) los mostró.
+
 Detalle en `docs/SPRINTS.md` Sprint 32.
