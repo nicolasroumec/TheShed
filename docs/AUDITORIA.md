@@ -124,12 +124,12 @@ defensa. No hay un token antiforgery de doble verificación como capa adicional,
 recomendada cuando la autenticación vive en una cookie. Riesgo real hoy: bajo-medio (mitigado por Lax),
 pero es una dependencia frágil de un solo mecanismo del navegador.
 
-**🔵 Abierto — pospuesto deliberadamente (2026-08-16, Sprint 21).** Se evaluó junto con A3/M5 y se dejó
-afuera por tamaño, no por olvido: el plan lo trataba como un ítem del mismo peso que los otros dos y no
-lo es. Con un cliente WASM puro y auth por cookie, `AddAntiforgery()` no alcanza — hace falta un endpoint
-que emita el token, que el cliente lo lea y lo reenvíe como header en cada mutación (patrón double-submit
-completo). Sigue siendo defensa en profundidad: `SameSite=Lax` (D6) es la primera línea y ya está puesta.
-Va en su propio PR.
+**✅ Resuelto (2026-09-04, Sprint 32, ver D10 en `DECISIONS.md`).** `AntiforgeryController` emite el
+token (`GET /api/antiforgery/token`, anónimo) y un middleware en `Program.cs` lo valida en todo método
+no seguro (POST/PUT/DELETE/PATCH), devolviendo 400 si falta o no matchea con la cookie. El cliente lo pide
+una vez al arrancar y lo reenvía en cada mutación vía `CsrfHandler` (`DelegatingHandler` sobre el
+`HttpClient` compartido — los clients tipados no cambian). Sigue siendo defensa en profundidad, capa
+adicional sobre `SameSite=Lax` (D6).
 
 ## Hallazgos medios 🟡
 
@@ -293,19 +293,16 @@ Cubierto por `TheShed.Tests/Security/AuthRequestValidationTests.cs`.
    Vale la pena convertirlo en un diferencial visible ("nunca perdés una contraseña borrada por 30 días",
    configurable) en vez de dejarlo como feature interna.
 
-## Próximos pasos sugeridos (orden de prioridad) — actualizado 2026-08-31
+## Próximos pasos sugeridos (orden de prioridad) — actualizado 2026-09-04
 
-Todos los hallazgos críticos y altos de esta auditoría están resueltos (C1, A1, A2, A3). Lo que
+Todos los hallazgos críticos y altos de esta auditoría están resueltos (C1, A1, A2, A3, A4). Lo que
 queda:
 
-1. Antiforgery token como capa adicional a `SameSite=Lax` (A4) — pospuesto por tamaño desde el
-   Sprint 21+22, sigue siendo el candidato natural al próximo PR de hardening.
-2. Reescribir el Sprint 17 (import/export) sobre el cifrado client-side actual — quedó escrito
-   contra `IEncryptionService`, que el Sprint 28 borró.
-3. Adjuntos huérfanos en purga (M2) + excluir caracteres ambiguos del generador (M3) — Sprint 23,
+1. Adjuntos huérfanos en purga (M2) + excluir caracteres ambiguos del generador (M3) — Sprint 23,
    bajo impacto, sin bloquear nada.
-4. 2FA de la propia app (Sprint 18) y TOTP/breach-alerts para cuentas guardadas (Sprint 24) —
+2. 2FA de la propia app (Sprint 18) y TOTP/breach-alerts para cuentas guardadas (Sprint 24) —
    prioridad Alta/Media, sin fecha.
 
 ~~Rate limiting (A3)~~ ✅ Sprint 21 · ~~CSP/HSTS (M5)~~ ✅ Sprint 22, ver D8 · ~~Zero-knowledge
-(C1)~~ ✅ Sprints 25-28, ver D7 · ~~Auto-bloqueo + reautenticación (A1, A2)~~ ✅ Sprint 30, ver D9.
+(C1)~~ ✅ Sprints 25-28, ver D7 · ~~Auto-bloqueo + reautenticación (A1, A2)~~ ✅ Sprint 30, ver D9 ·
+~~Antiforgery (A4)~~ ✅ Sprint 32, ver D10 · ~~Import/export (Sprint 17)~~ ✅ Sprint 17, PR #28.

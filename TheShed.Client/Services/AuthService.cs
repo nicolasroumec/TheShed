@@ -22,10 +22,12 @@ namespace TheShed.Client.Services
         private readonly IVaultKeyCache _vaultKeyCache;
         private readonly IOwnKeypairCache _ownKeypairCache;
         private readonly IAesGcmService _aesGcm;
+        private readonly CsrfHandler _csrf;
 
         public AuthService(HttpClient http, AuthenticationStateProvider stateProvider,
             IKeyDerivationService kdf, IUserKeypairService keypair, IStretchedKeyStore keyStore,
-            IVaultKeyCache vaultKeyCache, IOwnKeypairCache ownKeypairCache, IAesGcmService aesGcm)
+            IVaultKeyCache vaultKeyCache, IOwnKeypairCache ownKeypairCache, IAesGcmService aesGcm,
+            CsrfHandler csrf)
         {
             _http = http;
             _stateProvider = (JwtAuthenticationStateProvider)stateProvider;
@@ -35,6 +37,7 @@ namespace TheShed.Client.Services
             _vaultKeyCache = vaultKeyCache;
             _ownKeypairCache = ownKeypairCache;
             _aesGcm = aesGcm;
+            _csrf = csrf;
         }
 
         public async Task<AuthResult> LoginAsync(LoginRequest request)
@@ -130,6 +133,9 @@ namespace TheShed.Client.Services
         public async Task LogoutAsync()
         {
             await _http.PostAsync("api/auth/logout", null);
+            // The cached CSRF token was bound to this (now former) authenticated identity — see
+            // CsrfHandler.Invalidate.
+            _csrf.Invalidate();
             Lock();
             _stateProvider.NotifyLoggedOut();
         }
@@ -143,6 +149,10 @@ namespace TheShed.Client.Services
             }
 
             await onSuccess(response);
+            // The CSRF token cached before this call was anonymous (or a different user); the
+            // cookie the server just set flips the identity, so the next mutation needs a fresh
+            // one — see CsrfHandler.Invalidate.
+            _csrf.Invalidate();
 
             // Beyond that, the response body is not read: the session lives in the HttpOnly
             // cookie the server just set, and RefreshAsync re-reads the user from /api/auth/me.

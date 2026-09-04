@@ -6,58 +6,28 @@
 > shippeados quedan colapsados al final como referencia — el detalle día a día de
 > cada uno vive en `git log`, no acá.
 
-## 🔵 Sprint 17 — Importar / Exportar (CSV) · `feature/import-export`
-> Reescrito 2026-09-01 sobre el modelo zero-knowledge (D7, Sprints 25-28): todo el
-> cifrado corre client-side con la vault key vía Web Crypto, mismo patrón que
-> `EntriesPanel.SubmitAsync`/`LoadEntriesAsync` (`IVaultKeyCache.Get(VaultId)` +
-> `IAesGcmService.EncryptAsync/DecryptAsync`). No hay endpoint de servidor nuevo: import
-> reusa `POST /api/entries` fila por fila, export no pega al servidor más que el `GET`
-> que ya hace `EntriesPanel`.
->
-> CSV de LastPass / Bitwarden / 1Password (import) y export de entradas propias. Ningún
-> proyecto tiene hoy una lib de CSV — un parser a mano que solo hace `Split(',')` rompe con
-> comillas/comas/saltos de línea embebidos en `notes` o `password`, justo el campo más
-> sensible. Se suma `CsvHelper` (NuGet, la lib estándar de facto en .NET) en vez de
-> reinventar el parseo: es la excepción lazy correcta acá — un parser CSV RFC4180 a mano
-> es más código y más riesgo que una dependencia madura de un solo propósito.
+## ✅ Sprint 32 — Antiforgery (A4) · `feature/antiforgery`
+> `docs/AUDITORIA.md` A4, pospuesto desde el Sprint 21+22. `SameSite=Lax` (D6) ya bloquea la
+> mayoría de POST/PUT/DELETE cross-site pero es la única defensa — esto suma una capa
+> independiente. Detalle de diseño en `DECISIONS.md` D10. Implementado y verificado
+> (2026-09-04), PR pendiente de abrir.
 
-### Increment 1 — DTOs + dependencia
-- [ ] `PackageReference CsvHelper` en `TheShed.Client.csproj` (solo Client — el parseo
-      corre en el browser, junto al cifrado; el servidor no toca CSV)
-- [ ] DTOs en `TheShed.Shared/Models/DTOs/Entries/`: `ImportResult` (Imported/Skipped +
-      `List<ImportRowError>` con número de fila y motivo) y `ExportEntryRow` (Name,
-      Username, Password, Url, Notes — mismas columnas que expone el export)
-
-### Increment 2 — Import (client-side)
-- [ ] Mapper de columnas por formato (LastPass: `url,username,password,extra,name,
-      grouping,fav`; Bitwarden: `folder,favorite,type,name,notes,fields,reprompt,
-      login_uri,login_username,login_password,login_totp`; 1Password:
-      `Title,Website,Username,Password,Notes`) → por fila, cifra con
-      `IAesGcmService.EncryptAsync(vaultKey, ...)` (vaultKey de
-      `IVaultKeyCache.Get(VaultId)`, mismo guard de `MissingVaultKeyError` que
-      `EntriesPanel`) y sube ya cifrada vía `EntryClient.CreateAsync` — el servidor
-      sigue sin ver texto plano
-- [ ] Fila inválida (columnas faltantes, vacía) no aborta el import completo: se cuenta en
-      `ImportResult` con el número de fila, se sigue con las demás
-
-### Increment 3 — Export (client-side)
-- [ ] Trae las entradas del vault (`EntryClient.ListAsync`, igual que
-      `EntriesPanel.LoadEntriesAsync`), descifra en memoria con
-      `IAesGcmService.DecryptAsync(vaultKey, ...)`, arma el CSV con `CsvHelper` y dispara
-      la descarga desde el navegador (`Blob`/`URL.createObjectURL` vía JS interop) — sin
-      endpoint de servidor nuevo
-
-### Increment 4 — UI
-- [ ] `ImportExportClient` (wrapper delgado sobre `CsvHelper` + los pasos de arriba) +
-      sección en `/vaults/{id}` (o página propia `/import-export`): input de archivo +
-      selector de formato, preview de `ImportResult` tras subir (importadas/saltadas/
-      errores por fila); botón "Export" con confirmación propia (`ModalService`, no
-      `window.confirm` — ver Sprint 20) avisando que el archivo tendrá las contraseñas en
-      texto plano, antes de disparar la descarga
-
-### Increment 5 — Tests
-- [ ] Tests de import/export (los 3 formatos, fila con columnas faltantes, fila vacía,
-      roundtrip cifrado/descifrado)
+- [x] `AddAntiforgery()` (header `X-CSRF-TOKEN`) + `AntiforgeryController.GetToken` (anónimo,
+      `GET /api/antiforgery/token`)
+- [x] Middleware en `Program.cs` que valida el token en todo método no seguro
+      (POST/PUT/DELETE/PATCH), 400 si falta o no matchea la cookie
+- [x] `CsrfHandler` (`DelegatingHandler`) en el cliente: pide el token una vez al arrancar,
+      lo cachea y lo reenvía en cada mutación — enganchado sobre el único `HttpClient`
+      compartido, los 9 clients tipados no cambian
+- [x] Test de `AntiforgeryController` (token no vacío + cookie de antiforgery seteada)
+- [x] Verificado con el server real: sin header → 400, header sin cookie pareja → 400,
+      par válido → pasa (llega a `AuthService`)
+- [x] Verificado en Chrome real (no solo curl): registro → crear vault → crear entry →
+      editar → borrar → logout → login. Encontró y corrigió dos bugs que ni curl ni los
+      tests unitarios detectaban — el token atado a la identidad de quien lo generó
+      (`Invalidate()` en cada transición de auth) y `CsrfHandler` con lifetime `Scoped`
+      en vez de `Singleton` (`IHttpClientFactory` lo resolvía desde un scope interno
+      distinto al de `AuthService` — ver D10)
 - [ ] PR a `main`
 
 ## 🟣 Sprint 18 — 2FA (TOTP) · `feature/2fa`
@@ -109,8 +79,9 @@
 | 14 | Adjuntos | `feature/attachments` | #14 |
 | 15 | Salud de contraseñas (versión server-side original — reemplazada client-side en el 27) | `feature/password-health` | #15 |
 | 16 | Cookie `httpOnly` para el JWT (D6) | `feature/jwt-cookie` | #16 |
+| 17 | Importar/exportar CSV (LastPass/Bitwarden/1Password), client-side sobre el modelo zero-knowledge | `feature/import-export` | #28 |
 | 20 | Refactor de frontend: identidad "Workshop", responsive mobile-first, tipografía, split de `VaultDetail`. Detalle de diseño absorbido en `docs/UI.md` | `feature/frontend` | #17 |
-| 21+22 | Hardening: rate limiting (A3) + tope de longitud de password (B2) + CSP/HSTS (M5, ver D8). A4 (antiforgery) quedó deliberadamente afuera — sigue abierto | `feature/security-hardening` | #20 |
+| 21+22 | Hardening: rate limiting (A3) + tope de longitud de password (B2) + CSP/HSTS (M5, ver D8). A4 (antiforgery) quedó deliberadamente afuera, cerrado en el Sprint 32 | `feature/security-hardening` | #20 |
 | 25 | Zero-knowledge: derivación de clave (PBKDF2 vía Web Crypto) + keypair RSA por usuario (D7) | `feature/e2e-key-derivation` | #21 |
 | 26 | Zero-knowledge: vault key + cifrado de entradas/notas client-side | `feature/e2e-vault-encryption` | #23 |
 | 27 | Zero-knowledge: compartir vaults (key wrapping RSA-OAEP). Remover miembro no rota la vault key — riesgo aceptado, ver D7 | `feature/e2e-vault-sharing` | #24 |

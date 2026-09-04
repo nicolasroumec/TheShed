@@ -180,3 +180,50 @@ la master password por la red y gastado el rate limit de auth en una acción muc
 que iniciar sesión). Junto con esto: auto-lock por 15 min de inactividad y reautenticación (misma
 pantalla de password, sin re-derivar) antes de revelar/copiar una contraseña — cierran A2/A1 de
 `AUDITORIA.md`. Detalle completo en `docs/SPRINTS.md` Sprint 30 (shipped).
+
+## D10 — Antiforgery (A4): token emitido por endpoint, no cookie XSRF legible
+
+**Decisión:** `AddAntiforgery()` con header `X-CSRF-TOKEN`. Un `AntiforgeryController.GetToken`
+anónimo llama `IAntiforgery.GetAndStoreTokens` y devuelve el `RequestToken` en el body (no en una
+cookie legible por JS). Un middleware en `Program.cs`, después de `UseAuthorization` y antes de
+`MapControllers`, llama `IAntiforgery.ValidateRequestAsync` en todo método que no sea
+GET/HEAD/OPTIONS/TRACE y devuelve 400 si falla. El cliente WASM pide el token una vez al arrancar
+(`CsrfHandler`, cacheado en memoria) y lo reenvía en cada mutación — cubre login/register también,
+no solo los endpoints autenticados.
+
+**Contexto:** `SameSite=Lax` en la cookie del JWT (D6) ya bloquea la mayoría de POST/PUT/DELETE
+cross-site, pero es la única defensa (A4 en `AUDITORIA.md`). Con un cliente WASM puro no hay
+Razor Pages ni `<form>` que generen el token automáticamente — hace falta un endpoint explícito.
+
+**Alternativa descartada — patrón XSRF-TOKEN cookie legible + JS que la lee y la reenvía:** es el
+patrón "clásico" de SPA (Angular lo hace así de fábrica), pero necesita que el cliente lea una
+cookie no-HttpOnly desde JS interop — una superficie más (cualquier XSS que lea cookies ya lee esa)
+para nada de valor extra: acá el token de sesión ya es HttpOnly (D6) y no hay Razor de por medio
+que necesite la cookie legible. Pedirlo por `fetch` a un endpoint y guardarlo en memoria evita
+exponer nada nuevo al DOM.
+
+**Implementación:** `AntiforgeryController` (servidor) + `CsrfHandler : DelegatingHandler`
+(cliente) enganchado una sola vez sobre el `HttpClient` compartido vía `AddHttpClient` +
+`AddHttpMessageHandler` — los 9 clients tipados (`VaultClient`, `EntryClient`, etc.) no cambian,
+todos pasan por el mismo handler sin saber que el token existe. El endpoint del token es GET, así
+que nunca lo bloquea su propio middleware. Verificado con el server corriendo: POST sin header →
+400, header sin cookie pareja → 400, par válido → pasa el antiforgery (llega a `AuthService`).
+
+**Dos bugs reales que solo aparecieron probando en navegador (no en curl, no en los tests
+unitarios):**
+1. El token de ASP.NET Core queda atado a la identidad autenticada del momento en que se generó
+   (`GetAndStoreTokens`) — un token pedido en anónimo deja de validar apenas el usuario hace
+   login/register, con el mensaje exacto `"The provided antiforgery token was meant for a
+   different claims-based user than the current user"`. `CsrfHandler.Invalidate()` fuerza un
+   refetch en cada transición de auth (login, register, logout) — ver `AuthService`.
+2. `CsrfHandler` estaba registrado `AddScoped`, pero `IHttpClientFactory` resuelve los
+   `AddHttpMessageHandler<T>()` desde un **scope de DI propio e interno** (el que usa para el
+   pooling de handlers, vida útil 2 minutos) — distinto del scope que le entrega la instancia a
+   `AuthService`. `Invalidate()` limpiaba una copia fantasma; el pipeline HTTP real seguía
+   sirviendo el token viejo. Pasó a `AddSingleton`: los singletons sí se comparten entre scopes,
+   así que ambos consumidores terminan viendo la misma instancia. Ninguno de los dos bugs lo
+   detectaron los tests unitarios (mockean `IAuthService`/controllers directamente, sin pasar por
+   el `HttpClient` real ni por `IHttpClientFactory`) — solo el flujo real en Chrome (registro →
+   crear vault → logout → login) los mostró.
+
+Detalle en `docs/SPRINTS.md` Sprint 32.

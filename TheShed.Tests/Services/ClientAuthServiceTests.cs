@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Components;
 using TheShed.Client.Auth;
 using TheShed.Client.Services;
 using TheShed.Shared.Security;
@@ -83,7 +84,7 @@ namespace TheShed.Tests.Services
             new AuthService(new HttpClient { BaseAddress = new Uri("https://localhost/") },
                 new JwtAuthenticationStateProvider(new HttpClient { BaseAddress = new Uri("https://localhost/") }),
                 new FakeKdf(), new ThrowingKeypairService(), keyStore, vaultKeys, ownKeypair,
-                new FakeAesGcm("whatever")).Lock();
+                new FakeAesGcm("whatever"), new CsrfHandler(new FakeNavigationManager())).Lock();
 
             Assert.Null(keyStore.Get());
             Assert.Null(vaultKeys.Get(1));
@@ -107,7 +108,7 @@ namespace TheShed.Tests.Services
 
             var auth = new AuthService(http, new JwtAuthenticationStateProvider(http), kdf,
                 new ThrowingKeypairService(), keyStore, new VaultKeyCache(), ownKeypair,
-                new FakeAesGcm(correctPassword));
+                new FakeAesGcm(correctPassword), new CsrfHandler(new FakeNavigationManager()));
 
             return (auth, keyStore, ownKeypair, kdf);
         }
@@ -148,6 +149,11 @@ namespace TheShed.Tests.Services
                 key.SequenceEqual(FakeKdf.KeyFor(correctPassword))
                     ? Task.FromResult("private-key-pkcs8")
                     : throw new CryptographicException("auth tag mismatch");
+        }
+
+        private sealed class FakeNavigationManager : NavigationManager
+        {
+            public FakeNavigationManager() => Initialize("https://localhost/", "https://localhost/");
         }
 
         /// <summary>Unlock never generates or wraps a keypair; being called at all is the bug.</summary>
