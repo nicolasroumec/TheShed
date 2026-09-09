@@ -1,8 +1,4 @@
 @page "/register"
-@using TheShed.Client.Services
-@using TheShed.Shared.Models.DTOs.Auth
-@inject IAuthService AuthService
-@inject NavigationManager Navigation
 
 <PageTitle>Create account — The Shed</PageTitle>
 
@@ -44,27 +40,3 @@
         Already have an account? <a href="login">Sign in</a>
     </p>
 </div>
-
-@code {
-    private readonly RegisterRequest _model = new();
-    private string? _error;
-    private bool _busy;
-
-    private async Task HandleSubmit()
-    {
-        _busy = true;
-        _error = null;
-
-        var result = await AuthService.RegisterAsync(_model);
-        _busy = false;
-
-        if (result.Success)
-        {
-            Navigation.NavigateTo("");
-        }
-        else
-        {
-            _error = result.Error;
-        }
-    }
-}

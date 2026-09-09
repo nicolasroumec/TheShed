@@ -1,8 +1,4 @@
 @page "/login"
-@using TheShed.Client.Services
-@using TheShed.Shared.Models.DTOs.Auth
-@inject IAuthService AuthService
-@inject NavigationManager Navigation
 
 <PageTitle>Sign in — The Shed</PageTitle>
 
@@ -38,30 +34,3 @@
         Don't have an account? <a href="register">Create one</a>
     </p>
 </div>
-
-@code {
-    [SupplyParameterFromQuery]
-    private string? ReturnUrl { get; set; }
-
-    private readonly LoginRequest _model = new();
-    private string? _error;
-    private bool _busy;
-
-    private async Task HandleSubmit()
-    {
-        _busy = true;
-        _error = null;
-
-        var result = await AuthService.LoginAsync(_model);
-        _busy = false;
-
-        if (result.Success)
-        {
-            Navigation.NavigateTo(string.IsNullOrWhiteSpace(ReturnUrl) ? "" : ReturnUrl);
-        }
-        else
-        {
-            _error = result.Error;
-        }
-    }
-}
