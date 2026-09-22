@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.AspNetCore.Components;
 using TheShed.Client.Auth;
 using TheShed.Client.Services;
+using TheShed.Shared.Models.DTOs.Auth;
 using TheShed.Shared.Security;
 using Xunit;
 
@@ -89,6 +90,81 @@ namespace TheShed.Tests.Services
             Assert.Null(keyStore.Get());
             Assert.Null(vaultKeys.Get(1));
             Assert.Equal((null, null), ownKeypair.Get());
+        }
+
+        // --- N1: the master password never goes on the wire ---
+
+        [Fact]
+        public async Task LoginAsync_SendsTheAuthHashNotTheMasterPassword_AndKeepsTheStretchedKey()
+        {
+            var (auth, handler, keyStore) = BuildRecording();
+            var form = new LoginRequest { Email = "nico@example.com", Password = "hunter2-master" };
+
+            var result = await auth.LoginAsync(form);
+
+            Assert.True(result.Success);
+            var sent = handler.BodyOf("api/auth/login");
+            Assert.DoesNotContain("hunter2-master", sent);
+            Assert.Contains(AuthHash.Compute(FakeKdf.KeyFor("hunter2-master")), sent);
+            Assert.Equal(FakeKdf.KeyFor("hunter2-master"), keyStore.Get());
+            Assert.Equal("hunter2-master", form.Password); // the form's model is left alone
+        }
+
+        [Fact]
+        public async Task RegisterAsync_SendsTheAuthHashNotTheMasterPassword()
+        {
+            var (auth, handler, _) = BuildRecording();
+
+            var result = await auth.RegisterAsync(new RegisterRequest
+            {
+                Username = "nico", Email = "nico@example.com", Password = "hunter2-master"
+            });
+
+            Assert.True(result.Success);
+            var sent = handler.BodyOf("api/auth/register");
+            Assert.DoesNotContain("hunter2-master", sent);
+            Assert.Contains(AuthHash.Compute(FakeKdf.KeyFor("hunter2-master")), sent);
+        }
+
+        private static (AuthService Auth, RecordingHandler Handler, StretchedKeyStore KeyStore) BuildRecording()
+        {
+            var handler = new RecordingHandler(
+                $$"""{"keySalt":"{{KeySalt}}"}""",
+                $$"""{"username":"nico","email":"nico@example.com","keySalt":"{{KeySalt}}","expiresAt":"2030-01-01T00:00:00Z"}""");
+            var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") };
+            var keyStore = new StretchedKeyStore();
+
+            var auth = new AuthService(http, new JwtAuthenticationStateProvider(http), new FakeKdf(),
+                new FakeKeypairService(), keyStore, new VaultKeyCache(), new OwnKeypairCache(),
+                new FakeAesGcm("whatever"), new CsrfHandler(new FakeNavigationManager()));
+
+            return (auth, handler, keyStore);
+        }
+
+        /// <summary>Answers prelogin with the salt and everything else with an auth response,
+        /// keeping every request body so tests can check what actually left the client.</summary>
+        private sealed class RecordingHandler(string preloginBody, string authBody) : HttpMessageHandler
+        {
+            private readonly Dictionary<string, string> _bodies = new();
+
+            public string BodyOf(string path) => _bodies[path];
+
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                var path = request.RequestUri!.AbsolutePath.TrimStart('/');
+                _bodies[path] = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(path == "api/auth/prelogin" ? preloginBody : authBody, Encoding.UTF8, "application/json")
+                };
+            }
+        }
+
+        private sealed class FakeKeypairService : IUserKeypairService
+        {
+            public Task<UserKeypair> GenerateAsync(byte[] stretchedMasterKey) => Task.FromResult(new UserKeypair(PublicKey, EncryptedPrivateKey));
+            public Task<string> WrapKeyForMemberAsync(byte[] vaultKey, string memberPublicKeyPem) => throw new InvalidOperationException();
+            public Task<byte[]> UnwrapKeyAsMemberAsync(byte[] stretchedMasterKey, string encryptedPrivateKey, string wrappedVaultKey) => throw new InvalidOperationException();
         }
 
         private static (AuthService Auth, StretchedKeyStore KeyStore, OwnKeypairCache OwnKeypair, FakeKdf Kdf) Build(

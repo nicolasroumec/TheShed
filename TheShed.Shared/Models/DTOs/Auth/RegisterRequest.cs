@@ -10,8 +10,11 @@ namespace TheShed.Shared.Models.DTOs.Auth
         [Required, EmailAddress]
         public string Email { get; set; } = string.Empty;
 
-        // Argon2 cost grows with the input, so an unbounded password is a cheap way to burn
-        // server CPU. 128 chars is far above any real master password.
+        // The register form binds the master password here, so MinLength(8) is enforced
+        // client-side by the EditForm. On the wire it's AuthHash.Compute(stretched key)
+        // instead (see LoginRequest.Password): the server can no longer judge password
+        // strength, only cap the input. Argon2 cost grows with the input, so an unbounded
+        // value is a cheap way to burn server CPU.
         [Required, MinLength(8), MaxLength(128)]
         public string Password { get; set; } = string.Empty;
 

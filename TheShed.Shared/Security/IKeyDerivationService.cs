@@ -2,8 +2,9 @@ namespace TheShed.Shared.Security
 {
     /// <summary>
     /// Derives the client-side "stretched master key" from a user's master password.
-    /// This key never leaves the browser and the server never sees it — it is independent
-    /// of the Argon2 hash used for login authentication.
+    /// This key never leaves the browser and the server never sees it. What the server gets
+    /// for login is <see cref="AuthHash.Compute"/> of it, which it Argon2-hashes — one-way, so
+    /// the stored hash and the wire value can't be turned back into this key.
     /// </summary>
     public interface IKeyDerivationService
     {
