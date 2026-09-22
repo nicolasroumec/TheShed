@@ -1,4 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
 using TheShed.Server.Security;
@@ -12,12 +15,21 @@ namespace TheShed.Server.Services
         private readonly TheShedContext _db;
         private readonly IPasswordHasher _hasher;
         private readonly IJwtTokenService _jwt;
+        private readonly byte[] _fakeSaltKey;
 
-        public AuthService(TheShedContext db, IPasswordHasher hasher, IJwtTokenService jwt)
+        // Same length as IKeyDerivationService.GenerateSalt, so fake and real salts look alike.
+        private const int SaltSize = 16;
+
+        public AuthService(TheShedContext db, IPasswordHasher hasher, IJwtTokenService jwt,
+            IOptions<JwtSettings> jwtSettings)
         {
             _db = db;
             _hasher = hasher;
             _jwt = jwt;
+            // ponytail: reuses the JWT signing key as the fake-salt HMAC key (domain-separated by
+            // the "prelogin-salt:" prefix below) instead of a dedicated secret. HMAC output doesn't
+            // reveal its key; add a separate setting if the two ever need to rotate independently.
+            _fakeSaltKey = Encoding.UTF8.GetBytes(jwtSettings.Value.Key);
         }
 
         public async Task<AuthResult> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
@@ -59,6 +71,18 @@ namespace TheShed.Server.Services
             await _db.SaveChangesAsync(ct);
 
             return Success(user);
+        }
+
+        public async Task<string> GetPreloginSaltAsync(string email, CancellationToken ct = default)
+        {
+            var normalized = email.Trim().ToLowerInvariant();
+            var salt = await _db.Users
+                .Where(u => u.Email == normalized)
+                .Select(u => u.KeySalt)
+                .FirstOrDefaultAsync(ct);
+
+            return salt ?? Convert.ToBase64String(
+                HMACSHA256.HashData(_fakeSaltKey, Encoding.UTF8.GetBytes("prelogin-salt:" + normalized))[..SaltSize]);
         }
 
         public async Task<(string? PublicKey, string? EncryptedPrivateKey)> GetKeypairAsync(int userId, CancellationToken ct = default)

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using TheShed.Shared.Models.DTOs.Auth;
 using Xunit;
 
 namespace TheShed.Tests.Integration
@@ -63,6 +64,20 @@ namespace TheShed.Tests.Integration
             });
 
             response.EnsureSuccessStatusCode();
+        }
+
+        [Fact]
+        public async Task Prelogin_IsAnonymous_ReturnsRealSaltOrFakeOne()
+        {
+            var client = _factory.CreateAuthenticatedClient();
+            var (email, _) = await client.RegisterNewUserAsync();
+
+            var anonymous = _factory.CreateAuthenticatedClient();
+            var known = await anonymous.GetFromJsonAsync<PreloginResponse>($"api/auth/prelogin?email={Uri.EscapeDataString(email)}");
+            var unknown = await anonymous.GetFromJsonAsync<PreloginResponse>("api/auth/prelogin?email=nobody%40example.com");
+
+            Assert.Equal("c2FsdA==", known!.KeySalt); // the salt AuthTestHelper registers with
+            Assert.Equal(16, Convert.FromBase64String(unknown!.KeySalt).Length);
         }
 
         [Fact]

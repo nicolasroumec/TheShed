@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
 using TheShed.Server.Security;
@@ -18,7 +19,8 @@ namespace TheShed.Tests.Services
                 .Options);
 
         private static AuthService CreateService(TheShedContext db) =>
-            new(db, new FakePasswordHasher(), new FakeJwtTokenService());
+            new(db, new FakePasswordHasher(), new FakeJwtTokenService(),
+                Options.Create(new JwtSettings { Key = "unit-test-signing-key-at-least-32-bytes" }));
 
         // --- Register ---
 
@@ -209,6 +211,36 @@ namespace TheShed.Tests.Services
 
             Assert.False(result.Success);
             Assert.Equal(AuthError.InvalidCredentials, result.Error);
+        }
+
+        // --- GetPreloginSaltAsync ---
+
+        [Fact]
+        public async Task GetPreloginSaltAsync_KnownEmail_ReturnsRealSalt()
+        {
+            using var db = CreateContext();
+            db.Users.Add(new User { Username = "x", Email = "ana@test.com", PasswordHash = "h", KeySalt = "cmVhbC1zYWx0LTE2Ynl0ZQ==" });
+            await db.SaveChangesAsync();
+
+            var salt = await CreateService(db).GetPreloginSaltAsync(" ANA@test.com ");
+
+            Assert.Equal("cmVhbC1zYWx0LTE2Ynl0ZQ==", salt);
+        }
+
+        [Fact]
+        public async Task GetPreloginSaltAsync_UnknownEmail_ReturnsStableFakeSaltOfRealLength()
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+
+            var first = await service.GetPreloginSaltAsync("nobody@test.com");
+            var again = await service.GetPreloginSaltAsync("NOBODY@test.com");
+            var other = await service.GetPreloginSaltAsync("someone-else@test.com");
+
+            // Stable, or a second call would give away that the account doesn't exist.
+            Assert.Equal(first, again);
+            Assert.NotEqual(first, other);
+            Assert.Equal(16, Convert.FromBase64String(first).Length);
         }
 
         // --- Fakes (sin Moq, para mantener el estilo liviano del repo) ---

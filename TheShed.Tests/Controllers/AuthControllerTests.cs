@@ -190,6 +190,9 @@ namespace TheShed.Tests.Controllers
             public Task<AuthResult> LoginAsync(LoginRequest request, CancellationToken ct = default)
                 => Task.FromResult(LoginResult);
 
+            public Task<string> GetPreloginSaltAsync(string email, CancellationToken ct = default)
+                => Task.FromResult("c2FsdA==");
+
             public Task<(string? PublicKey, string? EncryptedPrivateKey)> GetKeypairAsync(int userId, CancellationToken ct = default)
                 => Task.FromResult(KeypairResult);
         }

@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -51,6 +52,20 @@ namespace TheShed.Server.Controllers
             }
             SetAuthCookie(result);
             return Ok(result.Response);
+        }
+
+        // Shares the Auth rate-limit policy with login: every login costs two permits now, but
+        // the fake salts already make this endpoint useless for enumeration, so the limit only
+        // needs to stop it from being hammered.
+        [EnableRateLimiting(RateLimitPolicies.Auth)]
+        [HttpGet("prelogin")]
+        public async Task<IActionResult> Prelogin([FromQuery, EmailAddress] string email, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return BadRequest(new { message = "Email is required." });
+            }
+            return Ok(new PreloginResponse(await _auth.GetPreloginSaltAsync(email, ct)));
         }
 
         [Authorize]
