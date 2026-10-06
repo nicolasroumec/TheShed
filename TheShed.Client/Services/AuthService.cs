@@ -140,6 +140,55 @@ namespace TheShed.Client.Services
             return AuthResult.Ok();
         }
 
+        public async Task<AuthResult> ChangePasswordAsync(ChangePasswordRequest request)
+        {
+            AuthResponse? me;
+            try
+            {
+                me = await _http.GetFromJsonAsync<AuthResponse>("api/auth/me");
+            }
+            catch (HttpRequestException)
+            {
+                return AuthResult.Fail("Your session expired. Sign in again.");
+            }
+
+            if (me?.KeySalt is null || me.EncryptedPrivateKey is null)
+            {
+                return AuthResult.Fail("This account has no encryption keys on the server. Sign in again.");
+            }
+
+            var currentKey = await _kdf.DeriveKeyAsync(request.CurrentPassword, Convert.FromBase64String(me.KeySalt));
+            var newSalt = _kdf.GenerateSalt();
+            var newKey = await _kdf.DeriveKeyAsync(request.NewPassword, newSalt);
+
+            // A wrong current password fails the AES-GCM tag right here, same check as
+            // UnlockAsync — no request sent, no rate-limit permit burned.
+            string newEncryptedPrivateKey;
+            try
+            {
+                newEncryptedPrivateKey = await _keypair.RewrapPrivateKeyAsync(currentKey, newKey, me.EncryptedPrivateKey);
+            }
+            catch (Exception)
+            {
+                return AuthResult.Fail("Current password is incorrect.");
+            }
+
+            // Same copy-not-mutate reasoning as LoginAsync.
+            var response = await _http.PostAsJsonAsync("api/auth/change-password", new ChangePasswordRequest
+            {
+                CurrentPassword = AuthHash.Compute(currentKey),
+                NewPassword = AuthHash.Compute(newKey),
+                NewKeySalt = Convert.ToBase64String(newSalt),
+                NewEncryptedPrivateKey = newEncryptedPrivateKey
+            });
+            return await HandleSuccessAsync(response, _ =>
+            {
+                _keyStore.Set(newKey);
+                _ownKeypairCache.Set(me.PublicKey, newEncryptedPrivateKey);
+                return Task.CompletedTask;
+            });
+        }
+
         public void Lock()
         {
             _keyStore.Clear();

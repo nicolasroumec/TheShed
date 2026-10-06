@@ -126,11 +126,51 @@ namespace TheShed.Tests.Services
             Assert.Contains(AuthHash.Compute(FakeKdf.KeyFor("hunter2-master")), sent);
         }
 
+        // --- N2: change master password ---
+
+        [Fact]
+        public async Task ChangePasswordAsync_SendsOnlyAuthHashes_AndSwitchesTheSessionToTheNewKey()
+        {
+            var (auth, handler, keyStore) = BuildRecording();
+            var form = new ChangePasswordRequest { CurrentPassword = "hunter2-master", NewPassword = "brand-new-master" };
+
+            var result = await auth.ChangePasswordAsync(form);
+
+            Assert.True(result.Success);
+            var sent = handler.BodyOf("api/auth/change-password");
+            Assert.DoesNotContain("hunter2-master", sent);
+            Assert.DoesNotContain("brand-new-master", sent);
+            // Parsed, not substring-matched: the serializer escapes base64's '+' as +.
+            var body = System.Text.Json.JsonSerializer.Deserialize<ChangePasswordRequest>(sent,
+                new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+            Assert.Equal(AuthHash.Compute(FakeKdf.KeyFor("hunter2-master")), body.CurrentPassword);
+            Assert.Equal(AuthHash.Compute(FakeKdf.KeyFor("brand-new-master")), body.NewPassword);
+            Assert.Equal("rewrapped-under-" + Convert.ToBase64String(FakeKdf.KeyFor("brand-new-master")), body.NewEncryptedPrivateKey);
+            Assert.Equal(FakeKdf.KeyFor("brand-new-master"), keyStore.Get());
+            Assert.Equal("hunter2-master", form.CurrentPassword); // the form's model is left alone
+        }
+
+        [Fact]
+        public async Task ChangePasswordAsync_WrongCurrentPassword_FailsWithoutCallingTheServer()
+        {
+            var (auth, handler, keyStore) = BuildRecording();
+
+            var result = await auth.ChangePasswordAsync(new ChangePasswordRequest
+            {
+                CurrentPassword = "not-it", NewPassword = "brand-new-master"
+            });
+
+            Assert.False(result.Success);
+            Assert.Equal("Current password is incorrect.", result.Error);
+            Assert.False(handler.Sent("api/auth/change-password"));
+            Assert.Null(keyStore.Get());
+        }
+
         private static (AuthService Auth, RecordingHandler Handler, StretchedKeyStore KeyStore) BuildRecording()
         {
             var handler = new RecordingHandler(
                 $$"""{"keySalt":"{{KeySalt}}"}""",
-                $$"""{"username":"nico","email":"nico@example.com","keySalt":"{{KeySalt}}","expiresAt":"2030-01-01T00:00:00Z"}""");
+                $$"""{"username":"nico","email":"nico@example.com","keySalt":"{{KeySalt}}","encryptedPrivateKey":"{{EncryptedPrivateKey}}","expiresAt":"2030-01-01T00:00:00Z"}""");
             var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") };
             var keyStore = new StretchedKeyStore();
 
@@ -148,6 +188,7 @@ namespace TheShed.Tests.Services
             private readonly Dictionary<string, string> _bodies = new();
 
             public string BodyOf(string path) => _bodies[path];
+            public bool Sent(string path) => _bodies.ContainsKey(path);
 
             protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             {
@@ -165,6 +206,12 @@ namespace TheShed.Tests.Services
             public Task<UserKeypair> GenerateAsync(byte[] stretchedMasterKey) => Task.FromResult(new UserKeypair(PublicKey, EncryptedPrivateKey));
             public Task<string> WrapKeyForMemberAsync(byte[] vaultKey, string memberPublicKeyPem) => throw new InvalidOperationException();
             public Task<byte[]> UnwrapKeyAsMemberAsync(byte[] stretchedMasterKey, string encryptedPrivateKey, string wrappedVaultKey) => throw new InvalidOperationException();
+
+            // Like the AES-GCM tag: only the key "hunter2-master" derives can open the old wrap.
+            public Task<string> RewrapPrivateKeyAsync(byte[] oldStretchedKey, byte[] newStretchedKey, string encryptedPrivateKey) =>
+                oldStretchedKey.SequenceEqual(FakeKdf.KeyFor("hunter2-master"))
+                    ? Task.FromResult("rewrapped-under-" + Convert.ToBase64String(newStretchedKey))
+                    : throw new CryptographicException("auth tag mismatch");
         }
 
         private static (AuthService Auth, StretchedKeyStore KeyStore, OwnKeypairCache OwnKeypair, FakeKdf Kdf) Build(
@@ -238,6 +285,7 @@ namespace TheShed.Tests.Services
             public Task<UserKeypair> GenerateAsync(byte[] stretchedMasterKey) => throw new InvalidOperationException();
             public Task<string> WrapKeyForMemberAsync(byte[] vaultKey, string memberPublicKeyPem) => throw new InvalidOperationException();
             public Task<byte[]> UnwrapKeyAsMemberAsync(byte[] stretchedMasterKey, string encryptedPrivateKey, string wrappedVaultKey) => throw new InvalidOperationException();
+            public Task<string> RewrapPrivateKeyAsync(byte[] oldStretchedKey, byte[] newStretchedKey, string encryptedPrivateKey) => throw new InvalidOperationException();
         }
     }
 }

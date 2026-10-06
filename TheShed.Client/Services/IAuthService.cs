@@ -24,6 +24,13 @@ namespace TheShed.Client.Services
         Task<AuthResult> UnlockAsync(string masterPassword);
 
         /// <summary>
+        /// Master password change (N2): re-derives both stretched keys, re-wraps the private key
+        /// client-side and sends only auth hashes. Vault keys are untouched, so the session stays
+        /// unlocked with the new key.
+        /// </summary>
+        Task<AuthResult> ChangePasswordAsync(ChangePasswordRequest request);
+
+        /// <summary>
         /// Drops every decryption key this session holds, leaving the JWT cookie in place, so the
         /// next render lands on the unlock prompt. Called by the idle timer (Sprint 30) and by
         /// <see cref="LogoutAsync"/>, which needs the same clearing before it ends the session.
