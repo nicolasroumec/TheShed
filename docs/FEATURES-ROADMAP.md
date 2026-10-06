@@ -7,7 +7,11 @@ saved entries) and out-of-scope items (browser extension, offline access) are no
 
 ## New findings
 
-### N1 🔴 — The master password reaches the server, which can then decrypt everything
+### N1 ✅ — The master password reaches the server, which can then decrypt everything
+> **Done** in Sprint 34 (`feature/auth-hash`, D11). The fix below is what shipped, except
+> `authHash = HMAC-SHA256(masterKey, "theshed-auth-hash")` instead of a 1-iteration PBKDF2 —
+> same one-way property, simpler call.
+
 **Where:** `TheShed.Client/Services/AuthService.cs` — `LoginAsync` and `RegisterAsync` post
 `request.Password` as-is; `TheShed.Server/Services/AuthService.cs` hashes it with Argon2.
 
@@ -38,7 +42,9 @@ password). If data is still test data (as in Sprint 28), re-registering is enoug
 **Caveat:** no web app is zero-knowledge against a server that ships malicious JS. N1 matters
 because today *reading* traffic is enough; after the fix, an attacker has to *modify* the client.
 
-### N2 🟡 — No way to change the master password
+### N2 ✅ — No way to change the master password
+> **Done** in Sprint 34: `POST /api/auth/change-password` + `/account` page.
+
 `AuthController` exposes only register, login, me, logout and public-key. A leaked master password
 has no remedy. The key hierarchy makes this cheap: re-encrypt `EncryptedPrivateKey` with the new
 stretched key and store the new salt + hash. Vault keys and entries are untouched.
@@ -61,8 +67,8 @@ unconditionally if `readText` permission is denied).
 
 | # | Feature | Why | Cost |
 |---|---|---|---|
-| 1 | Auth hash + prelogin (N1) | Closes the gap in the zero-knowledge model | M |
-| 2 | Change master password (N2) | No remedy today if it leaks; cheap thanks to the key hierarchy | S |
+| 1 | ✅ Auth hash + prelogin (N1) | Closes the gap in the zero-knowledge model | M |
+| 2 | ✅ Change master password (N2) | No remedy today if it leaks; cheap thanks to the key hierarchy | S |
 | 3 | Clipboard auto-clear (N4) | Industry standard, a few lines of JS | XS |
 | 4 | Sign out everywhere (N3) | Real revocation; one column + one claim | S |
 | 5 | 2FA TOTP (Sprint 18, already planned) | Fields exist on `User`. With zero-knowledge it protects login, not data | M |
@@ -74,8 +80,8 @@ unconditionally if `readText` permission is denied).
 | 11 | Per-vault activity log | Builds on `ChangedByUserId` (AUDITORIA opportunity #2): who changed what, when | M |
 
 ## Suggested order
-1. **N1 + N2 together** (`feature/auth-hash`): same flow, same migration. Cover with the new
+1. ✅ **N1 + N2 together** (`feature/auth-hash`, Sprint 34): same flow, same migration. Cover with the new
    `WebApplicationFactory` suite (`TheShed.Tests/Integration/AuthFlowTests.cs`): the server must
    never receive the raw password.
-2. N4 and N3 (small), plus the pending Sprint 23 (orphaned attachments).
+2. N4 and N3 (small, Sprint 35 in `SPRINTS.md`), plus the pending Sprint 23 (orphaned attachments).
 3. Then Sprint 18 (2FA), recovery key, encrypted export, and the rest by value.

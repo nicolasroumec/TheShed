@@ -14,6 +14,7 @@ con la posibilidad de compartir vaults con otros usuarios (pareja, equipo, famil
 
 ### Autenticación
 - Registro e inicio de sesión con email + contraseña maestra
+- Change the master password (vaults are kept; only the private key is re-encrypted)
 - Cierre automático de sesión por inactividad (timeout configurable)
 - 2FA (autenticación de dos factores)
 

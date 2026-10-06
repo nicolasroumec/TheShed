@@ -6,115 +6,54 @@
 > shippeados quedan colapsados al final como referencia — el detalle día a día de
 > cada uno vive en `git log`, no acá.
 
-## ✅ Sprint 32 — Antiforgery (A4) · `feature/antiforgery`
-> `docs/AUDITORIA.md` A4, pospuesto desde el Sprint 21+22. `SameSite=Lax` (D6) ya bloquea la
-> mayoría de POST/PUT/DELETE cross-site pero es la única defensa — esto suma una capa
-> independiente. Detalle de diseño en `DECISIONS.md` D10. Implementado y verificado
-> (2026-09-04), PR pendiente de abrir.
+## 🟢 Sprint 34 — Auth hash + change master password · `feature/auth-hash`
+> N1 + N2 in `FEATURES-ROADMAP.md`; design in `DECISIONS.md` D11. Until now the server received the
+> raw master password on login/register — with `KeySalt` and `EncryptedPrivateKey` already in the
+> database, an *active* server compromise (RCE, a body-logging middleware) was enough to decrypt
+> everything. Same branch as N2 because both touch the same flow.
 
-- [x] `AddAntiforgery()` (header `X-CSRF-TOKEN`) + `AntiforgeryController.GetToken` (anónimo,
-      `GET /api/antiforgery/token`)
-- [x] Middleware en `Program.cs` que valida el token en todo método no seguro
-      (POST/PUT/DELETE/PATCH), 400 si falta o no matchea la cookie
-- [x] `CsrfHandler` (`DelegatingHandler`) en el cliente: pide el token una vez al arrancar,
-      lo cachea y lo reenvía en cada mutación — enganchado sobre el único `HttpClient`
-      compartido, los 9 clients tipados no cambian
-- [x] Test de `AntiforgeryController` (token no vacío + cookie de antiforgery seteada)
-- [x] Verificado con el server real: sin header → 400, header sin cookie pareja → 400,
-      par válido → pasa (llega a `AuthService`)
-- [x] Verificado en Chrome real (no solo curl): registro → crear vault → crear entry →
-      editar → borrar → logout → login. Encontró y corrigió dos bugs que ni curl ni los
-      tests unitarios detectaban — el token atado a la identidad de quien lo generó
-      (`Invalidate()` en cada transición de auth) y `CsrfHandler` con lifetime `Scoped`
-      en vez de `Singleton` (`IHttpClientFactory` lo resolvía desde un scope interno
-      distinto al de `AuthService` — ver D10)
-- [x] PR a `main`
+### Increment 1 — Prelogin ✅
+- [x] `GET /api/auth/prelogin?email=` returns the account's `KeySalt`; for unknown emails a fake
+      salt, `HMAC(Jwt:Key, "prelogin-salt:" + email)[..16]` — stable and the same length as a
+      real one, so it doesn't enumerate accounts. Rate-limited with the `Auth` policy
 
-## ✅ Sprint 33 — Tests de integración · `feature/integration-tests`
-> `docs/AUDITORIA.md` / `TODO.md` #2: los ~230 tests son unitarios sobre EF InMemory o
-> controllers instanciados a mano (`new AuthController(fakeService)`) — cero pasa por el
-> pipeline real de ASP.NET Core (middleware, auth, antiforgery, autorización, EF contra una
-> base relacional de verdad). El Sprint 32 mostró el caso de manual: los dos bugs de
-> antiforgery no los agarró ningún test unitario, sólo probar en Chrome.
->
-> **Límite honesto:** esto cubre el pipeline del *servidor*. Los bugs más caros del proyecto
-> hasta ahora (`AesGcm` en WASM, campos viajando en claro, F5/reauth) vivían en el *cliente*
-> Blazor — eso lo sigue agarrando solo el navegador, no `WebApplicationFactory`. Verificar en
-> Chrome sigue siendo obligatorio para cambios de UI/cripto client-side, esto no lo reemplaza.
->
-> Viven en `TheShed.Tests/Integration/` (mismo proyecto, sin csproj nuevo — separar en un
-> proyecto propio es ceremonia de más para el tamaño actual). DB: SQLite in-memory, no EF
-> InMemory ni SQL Server real — relacional de verdad (constraints, transacciones), cero
-> dependencias externas (no exige LocalDB instalado ni Docker corriendo), portable a
-> cualquier máquina o CI futuro.
+### Increment 2 — Auth hash on login/register ✅
+- [x] `AuthHash.Compute(stretchedKey) = HMAC-SHA256(stretchedKey, "theshed-auth-hash")` is what
+      goes on the wire as `Password`; the server Argon2-hashes it unchanged (D1 still holds)
+- [x] Client tests: the master password never appears in the request body
 
-### Increment 1 — Plomería del test host ✅
-- [x] `public partial class Program;` al final de `TheShed.Server/Program.cs` (WebApplicationFactory
-      necesita el tipo de entry point accesible; con top-level statements no lo es por defecto)
-- [x] `PackageReference` en `TheShed.Tests.csproj`: `Microsoft.AspNetCore.Mvc.Testing` +
-      `Microsoft.EntityFrameworkCore.Sqlite` (+ `FrameworkReference Microsoft.AspNetCore.App`,
-      hace falta a mano porque el proyecto usa `Microsoft.NET.Sdk`, no `.Web`) + pin explícito
-      de `SQLitePCLRaw.bundle_e_sqlite3` 3.0.5 (NU1903/CVE-2025-6965 en la 2.1.11 que trae EF
-      Core 10.0.9 — no explotable acá, los tests no corren SQL de terceros, pero gratis de
-      arreglar)
-- [x] `CustomWebApplicationFactory : WebApplicationFactory<Program>`: en `ConfigureWebHost`,
-      saca el `DbContextOptions<TheShedContext>` real y lo reemplaza por SQLite en memoria
-      (`DataSource=:memory:`, conexión abierta y guardada como campo — se cierra recién al
-      hacer `Dispose` de la factory, si no la base desaparece) + `EnsureCreated()` en
-      `CreateHost` (contra el service provider real, no uno descartable aparte). Pisa `Jwt:Key`
-      (no hay uno en `appsettings.json`, vive en user-secrets — inutilizable en otra máquina o
-      CI), `Attachments:StoragePath` (un temp dir por test run) y
-      `RateLimiting:AuthPermitLimit` (bien alto — si no, la ventana fija de 10 cada 5 min la
-      pisan entre sí los tests de auth del mismo run) vía `UseSetting`, no
-      `ConfigureAppConfiguration` — `Program.cs` los lee de forma eager antes de `Build()`
-- [x] Gotcha real: sacar solo `DbContextOptions<TheShedContext>` no alcanza —
-      `AddDbContext` también registra un `IDbContextOptionsConfiguration<TheShedContext>` por
-      llamada, y esos se acumulan en vez de reemplazarse; sin sacar también ese, EF Core
-      terminaba con SqlServer y Sqlite configurados a la vez y tiraba
-      `InvalidOperationException`. Los dos `RemoveAll` (`Microsoft.Extensions.DependencyInjection.Extensions`)
-- [x] `SmokeTests`: token de antiforgery no vacío + `/api/auth/me` sin cookie → 401 — prueba
-      que el host de test arranca de punta a punta antes de escribir tests de comportamiento
-      sobre él
+### Increment 3 — Change master password, server ✅
+- [x] `POST /api/auth/change-password` (`[Authorize]`, `Auth` rate limit): verifies the current
+      auth hash, stores the new hash + `KeySalt` + `EncryptedPrivateKey`, re-issues the cookie
+      (the old JWT carries the old `keySalt` claim). Wrong current password → 400, not 401
+- [x] Unit tests (`AuthServiceTests`) + integration round trip (`AuthFlowTests`): `/me` returns
+      the new salt, the old password gets 401, the new one logs in
 
-### Increment 2 — Helper de autenticación ✅
-- [x] `AuthTestHelper`: extensiones sobre `HttpClient` (`PostJsonWithCsrfAsync`,
-      `PutJsonWithCsrfAsync`, `DeleteWithCsrfAsync`) que piden el token fresco antes de cada
-      mutación en vez de cachearlo — más simple que replicar el `Invalidate()` de
-      `CsrfHandler`, y sin el riesgo de arrastrar el mismo bug de identidad del Sprint 32
-- [x] `RegisterNewUserAsync`: registra un usuario con datos únicos por test (email con GUID —
-      evita necesitar un reset de base entre tests) y deja el `HttpClient` autenticado
-- [x] Gotcha real #2: `CreateClient()` de `WebApplicationFactory` usa `BaseAddress =
-      http://localhost` por default — la cookie `authToken` es `Secure=true` (D6), y
-      `CookieContainer` la descarta en un request con scheme `http`, aunque el TestServer no
-      use TLS de verdad. `CustomWebApplicationFactory.CreateAuthenticatedClient()` fuerza
-      `https://localhost` para que la cookie sobreviva entre requests
-- [x] `AuthTestHelperTests`: prueba el helper mismo (register deja autenticado, email
-      duplicado → 409) antes de construir la suite completa encima en el Incremento 3
-
-### Increment 3 — Suite: flujo de auth ✅
-- [x] `AuthFlowTests`: register éxito (201, cookie seteada — confirmado indirectamente vía
-      `/me` autenticado, que sin cookie sería 401), sin material criptográfico (400), login
-      válido (200) e inválido (401). Duplicado (409) y `/me` autenticado/sin cookie ya estaban
-      en `AuthTestHelperTests`/`SmokeTests` del Incremento 2 — no se repiten
-- [x] Antiforgery contra el pipeline real (no el `IAntiforgery` in-process de
-      `AntiforgeryControllerTests`): sin `X-CSRF-TOKEN` → 400, header que no matchea la
-      cookie → 400
-
-### Increment 4 — Suite: autorización cruzada (vaults) ✅
-> El tipo de bug que un controller test con `IVaultAccessService` mockeado no puede agarrar:
-> mockear la respuesta del servicio de acceso da por sentado que la lógica de autorización
-> ya es correcta, que es justo lo que hay que probar.
-- [x] `VaultAccessTests`: dueño lee/escribe su vault; un usuario ajeno (no miembro) recibe
-      404 al leer o escribir esa vault (`VaultAccess.None` → `EntryError.NotFound`, no
-      `Forbidden` — no filtra ni siquiera que la vault existe)
-- [x] Miembro con rol Viewer lee la vault pero no puede crear entradas (403); miembro Editor sí
-      (201) — vía `POST /api/vaults/{id}/members` + `VaultAccessService` reales, sin mockear
+### Increment 4 — Change master password, client ✅
+- [x] `IUserKeypairService.RewrapPrivateKeyAsync`: decrypt with the old stretched key, re-encrypt
+      with the new one, base64 straight through JS — `IAesGcmService` round-trips through UTF-8
+      and would corrupt the binary PKCS#8 key
+- [x] `AuthService.ChangePasswordAsync`: a wrong current password fails the AES-GCM tag
+      client-side, before any request. Vault keys are untouched; the session stays unlocked
+- [x] `/account` page (code-behind) + nav link
+- [x] 253/253 tests green
 
 ### Increment 5 — PR
-- [x] `dotnet test` corriendo ambas suites (unitarios + integración) en verde — 242/242
-      (228 unitarios previos + 14 nuevos de integración en `TheShed.Tests/Integration/`),
-      `dotnet build` de la solución completa también limpio
-- [ ] PR a `main`
+- [ ] Browser check: register → entry → change password → F5 → unlock with the new one →
+      logout → login
+- [ ] PR to `main`
+
+**Migration:** none. Accounts created before Increment 2 stored `Argon2(raw password)` and can't
+log in anymore — test data only, re-register (same call as Sprint 28).
+**Known gap:** other open sessions keep working until their JWT expires, with a stale `keySalt`
+(unlock fails there until re-login). Closed by N3 (sign out everywhere).
+
+## 🔵 Sprint 35 — Clipboard auto-clear + sign out everywhere · `feature/session-hardening`
+> N4 + N3 in `FEATURES-ROADMAP.md`.
+- [ ] N4: clear the clipboard after 30 s in `interop.js`, only if it still holds what we copied
+- [ ] N3: `User.TokenVersion` column, emitted as a claim, checked in `OnTokenValidated`;
+      incremented by "sign out everywhere" and by a master password change
+- [ ] Tests + PR to `main`
 
 ## 🟣 Sprint 18 — 2FA (TOTP) · `feature/2fa`
 > `User.TwoFactorSecret` (nullable, null = desactivado) ya existe en el modelo.
@@ -175,6 +114,9 @@
 | 29 | Generador: modo memorable (passphrase) | `feature/password-generator-passphrase` | #22 |
 | 30 | Session lock: unlock screen + auto-lock por inactividad (A2) + reautenticación para reveal/copy (A1). Ver D9 | `feature/session-lock` | #26 |
 | 31 | PWA instalable: manifest + íconos, service worker, banner offline. No cubre lectura offline de datos | `feature/pwa` | #27 |
+| 32 | Antiforgery (A4): token from an endpoint + `CsrfHandler`. See D10 | `feature/antiforgery` | #29 |
+| 33 | Integration tests: `WebApplicationFactory` + SQLite in-memory (auth, antiforgery, cross-user vault access) | `feature/integration-tests` | #30 |
+| — | `Login`, `Register`, `RedirectToLogin` moved to code-behind | `feature/razor-code-behind` | #31 |
 
 **Nota:** el Sprint 19 (`feature/session-timeout` — auto-logout + reautenticación) nunca se
 empezó; su alcance completo terminó cubierto por el Sprint 30 con un diseño mejor (lock/unlock

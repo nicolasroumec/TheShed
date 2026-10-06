@@ -5,10 +5,13 @@
 - **EF Core 10** + **SQL Server**
 - **3 proyectos:** `TheShed.Server` · `TheShed.Client` · `TheShed.Shared`
 
-## Seguridad
-- Contraseñas de usuario: **Argon2** (hash de la contraseña maestra)
-- Entradas del vault: **AES-256-GCM** (cifrado autenticado; clave de servidor en User Secrets)
-- Sesiones: **JWT**
+## Security
+- **Zero-knowledge** (D7): the master password is stretched client-side (PBKDF2, Web Crypto);
+  vault keys, entries and notes are encrypted in the browser with **AES-256-GCM**. The server
+  stores opaque blobs only
+- Authentication: the client sends an auth hash derived from the stretched key, never the
+  password (D11); the server hashes it with **Argon2**
+- Sessions: **JWT** in an httpOnly cookie (D6) + antiforgery token (D10)
 
 Detalle y contexto de cada decisión en `DECISIONS.md`.
 
