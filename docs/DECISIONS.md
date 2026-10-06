@@ -7,6 +7,8 @@
 `Isopoh.Cryptography.Argon2` (formato PHC con salt y parámetros embebidos).
 **Contexto:** el modelo *zero-knowledge* (derivar la clave en el cliente) queda como
 evolución futura. Por ahora el servidor recibe la contraseña en el login/registro.
+**Update (D11, Sprint 34):** the server no longer receives the password — it Argon2-hashes the
+client's auth hash instead. Argon2 stays as the server-side hash.
 **Alternativas descartadas:** bcrypt, PBKDF2, MD5/SHA (prohibidos por CLAUDE.md).
 
 ## D2 — Sesiones: JWT (HMAC-SHA256, solo access token)
@@ -227,3 +229,35 @@ unitarios):**
    crear vault → logout → login) los mostró.
 
 Detalle en `docs/SPRINTS.md` Sprint 32.
+
+## D11 — Auth hash instead of the master password (N1) + master password change (N2)
+
+**Decision:** the client derives the stretched key as before (`PBKDF2(password, KeySalt, 600k)`)
+and sends `AuthHash.Compute(stretchedKey) = HMAC-SHA256(stretchedKey, "theshed-auth-hash")` as the
+password on register/login. The server Argon2-hashes that value (D1 unchanged). Since login needs
+the salt before deriving, `GET /api/auth/prelogin?email=` returns it.
+
+**Context:** with D7 the server already stored `KeySalt` and `EncryptedPrivateKey`. Receiving the
+raw password too meant `password + KeySalt → stretched key → private key → every vault key`: a DB
+dump was useless, but an active compromise (RCE, a request-logging middleware, a curious operator)
+read everything — exactly the threat D7 exists for. Same scheme as Bitwarden.
+
+**Prelogin enumeration:** unknown emails get `HMAC(Jwt:Key, "prelogin-salt:" + email)[..16]` —
+stable across calls and the same length as a real salt, so the endpoint answers identically for
+registered and unregistered emails. Reuses the JWT key (domain-separated) instead of a new secret;
+split it if the two ever need to rotate independently.
+
+**Master password change:** possible without touching any vault: vault keys are wrapped with the
+user's RSA public key, and only the private key is wrapped with the stretched key. The client
+re-wraps the private key (`IUserKeypairService.RewrapPrivateKeyAsync`) and sends the current and
+new auth hashes + new salt + new wrapped private key; the server verifies the current hash and
+swaps the three fields, re-issuing the cookie because the JWT carries `keySalt` as a claim.
+
+**Accepted limits:**
+- No web app is zero-knowledge against a server that ships malicious JS. After D11 an attacker
+  has to *modify* the client, not just *read* traffic.
+- Other sessions survive a password change until their JWT expires, with a stale `keySalt`
+  (unlock fails there). N3 (`TokenVersion`, Sprint 35) closes it.
+- No migration: pre-D11 accounts can't log in (test data, re-register).
+
+Detail in `docs/SPRINTS.md` Sprint 34.

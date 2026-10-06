@@ -54,6 +54,17 @@ namespace TheShed.Client.Services
             return Convert.FromBase64String(vaultKeyBase64);
         }
 
+        public async Task<string> RewrapPrivateKeyAsync(byte[] oldStretchedKey, byte[] newStretchedKey, string encryptedPrivateKey)
+        {
+            ArgumentNullException.ThrowIfNull(oldStretchedKey);
+            ArgumentNullException.ThrowIfNull(newStretchedKey);
+
+            var privateKeyPkcs8Base64 = await _js.InvokeAsync<string>(
+                "decryptAesGcm", Convert.ToBase64String(oldStretchedKey), encryptedPrivateKey);
+            return await _js.InvokeAsync<string>(
+                "encryptAesGcm", Convert.ToBase64String(newStretchedKey), privateKeyPkcs8Base64);
+        }
+
         private record RawRsaKeyPair(string PublicKeySpkiBase64, string PrivateKeyPkcs8Base64);
     }
 }

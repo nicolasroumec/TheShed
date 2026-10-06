@@ -1,38 +1,33 @@
-# The Shed — Estado y Próximos Pasos
+# The Shed — Status and Next Steps
 
-## Estado actual
-- [x] Fase 1 — Renombramiento (SwimAnalytics → TheShed)
-- [x] Fase 2 — Limpieza (modelos y docs de natación eliminados)
-- [x] Fase 3 — Modelo de datos (entidades del gestor de contraseñas)
-- [x] Fase 4 — Seguridad (Argon2, cifrado zero-knowledge client-side, JWT en cookie
-      httpOnly, tests) — ver `SPRINTS.md`
-- [~] Fase 5 — UI Blazor (auth, vaults+entradas, generador, compartir vaults, notas
-      seguras, tags, historial, papelera, adjuntos, salud de contraseñas, identidad
-      visual "Workshop", responsive mobile-first, session lock, PWA instalable) ←
-      funcionalmente completa, quedan los pendientes de abajo
+## Current status
+- [x] Phase 1 — Rename (SwimAnalytics → TheShed)
+- [x] Phase 2 — Cleanup (swimming models and docs removed)
+- [x] Phase 3 — Data model (password manager entities)
+- [x] Phase 4 — Security (Argon2, client-side zero-knowledge encryption, JWT in an httpOnly
+      cookie, antiforgery, integration tests) — see `SPRINTS.md`
+- [~] Phase 5 — Blazor UI (auth, vaults + entries, generator, vault sharing, secure notes,
+      tags, history, trash, attachments, password health, "Workshop" visual identity,
+      mobile-first responsive, session lock, installable PWA, import/export, master password
+      change) ← functionally complete, the items below remain
 
-El detalle sprint por sprint (qué se hizo, cuándo, por qué) vive en `SPRINTS.md`
-(lista "Shipped" al final) y en `git log` — no se duplica acá.
+Sprint-by-sprint detail (what, when, why) lives in `SPRINTS.md` (the "Shipped" table at the end)
+and in `git log` — not duplicated here.
 
-## Pendiente, por orden de daño (auditoría 2026-08-31, cerrada 2026-09-04)
+## In progress
+- 🟢 **Sprint 34 — Auth hash + change master password** (`feature/auth-hash`, N1 + N2 in
+  `FEATURES-ROADMAP.md`, `DECISIONS.md` D11). Implemented and tested; pending a browser check and
+  the PR to `main`.
 
-1. 🟢 **Antiforgery (A4)** implementado en `feature/antiforgery` (Sprint 32, ver
-   `AUDITORIA.md`/`DECISIONS.md` D10) — PR abierto, pendiente de merge.
-2. 🟢 **Tests de integración** implementados en `feature/integration-tests` (Sprint 33):
-   `WebApplicationFactory` + SQLite in-memory, 14 tests nuevos (auth, antiforgery contra el
-   pipeline real, autorización cruzada owner/ajeno/Viewer/Editor en vaults) — PR pendiente de
-   abrir. Cubre el pipeline del servidor — los bugs client-side (`AesGcm` en WASM, campos en
-   claro, F5/reauth) los sigue agarrando solo el navegador, no esto.
-3. 🟡 **Deuda de idioma**: `docs/*.md` y comentarios viejos en español, contra el propio
-   `CLAUDE.md`. Rama `feature/i18n-english` en `SPRINTS.md`, mergeable en cualquier momento.
-4. 🟢 `Login.razor`, `Register.razor` y `Auth/RedirectToLogin.razor` siguen con `@code`
-   inline (convención de code-behind adoptada a mitad del Sprint 20, no repasada ahí).
-5. 🟢 Sprint 23 (adjuntos huérfanos, caracteres ambiguos en el generador) sin tocar.
+## Pending, by value (see `FEATURES-ROADMAP.md`)
+1. 🔵 **Clipboard auto-clear (N4)** and **sign out everywhere (N3)** — both small. N3 also
+   closes the gap Sprint 34 leaves: other sessions keep a stale `keySalt` claim after a
+   password change until their JWT expires.
+2. 🔵 **Sprint 23** — orphaned attachments on disk.
+3. 🟡 **Language debt**: old `docs/*.md` and comments still in Spanish, against `CLAUDE.md`.
+   `feature/i18n-english` branch in `SPRINTS.md`, mergeable at any time.
+4. 🟣 Sprint 18 (2FA), recovery key, encrypted export, and the rest of the roadmap table.
 
-## Próximo paso
-Import/export (Sprint 17) mergeado a `main` (PR #28) — el plan había quedado escrito contra
-`IEncryptionService` (Sprint 28 lo borró) pero se reescribió client-side antes de shippear;
-la doc solo tenía el registro atrasado. Antiforgery (A4, Sprint 32) con PR abierto, pendiente
-de merge. Tests de integración (Sprint 33) implementados, PR pendiente de abrir. PWA
-(Sprint 31, PR #27) y session lock (Sprint 30, PR #26) también cerrados. Siguiente en la
-cola: rama de traducción (`feature/i18n-english`).
+## Next step
+Browser check of Sprint 34 (register → entry → change password → F5 → unlock with the new one →
+logout → login), then PR. After that: N4 + N3.

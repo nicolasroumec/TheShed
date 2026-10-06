@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using TheShed.Server.Data;
 using TheShed.Server.Enums;
 using TheShed.Server.Security;
@@ -18,7 +19,8 @@ namespace TheShed.Tests.Services
                 .Options);
 
         private static AuthService CreateService(TheShedContext db) =>
-            new(db, new FakePasswordHasher(), new FakeJwtTokenService());
+            new(db, new FakePasswordHasher(), new FakeJwtTokenService(),
+                Options.Create(new JwtSettings { Key = "unit-test-signing-key-at-least-32-bytes" }));
 
         // --- Register ---
 
@@ -209,6 +211,89 @@ namespace TheShed.Tests.Services
 
             Assert.False(result.Success);
             Assert.Equal(AuthError.InvalidCredentials, result.Error);
+        }
+
+        // --- GetPreloginSaltAsync ---
+
+        [Fact]
+        public async Task GetPreloginSaltAsync_KnownEmail_ReturnsRealSalt()
+        {
+            using var db = CreateContext();
+            db.Users.Add(new User { Username = "x", Email = "ana@test.com", PasswordHash = "h", KeySalt = "cmVhbC1zYWx0LTE2Ynl0ZQ==" });
+            await db.SaveChangesAsync();
+
+            var salt = await CreateService(db).GetPreloginSaltAsync(" ANA@test.com ");
+
+            Assert.Equal("cmVhbC1zYWx0LTE2Ynl0ZQ==", salt);
+        }
+
+        [Fact]
+        public async Task GetPreloginSaltAsync_UnknownEmail_ReturnsStableFakeSaltOfRealLength()
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+
+            var first = await service.GetPreloginSaltAsync("nobody@test.com");
+            var again = await service.GetPreloginSaltAsync("NOBODY@test.com");
+            var other = await service.GetPreloginSaltAsync("someone-else@test.com");
+
+            // Stable, or a second call would give away that the account doesn't exist.
+            Assert.Equal(first, again);
+            Assert.NotEqual(first, other);
+            Assert.Equal(16, Convert.FromBase64String(first).Length);
+        }
+
+        // --- ChangePasswordAsync ---
+
+        private static ChangePasswordRequest SampleChange(string current) => new()
+        {
+            CurrentPassword = current,
+            NewPassword = "N3wSecret!",
+            NewKeySalt = "bmV3LXNhbHQ=",
+            NewEncryptedPrivateKey = "new-blob"
+        };
+
+        [Fact]
+        public async Task ChangePasswordAsync_CorrectCurrent_SwapsHashSaltAndPrivateKey()
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+            await service.RegisterAsync(new RegisterRequest
+            {
+                Username = "Ana", Email = "ana@test.com", Password = "Sup3rSecret!",
+                KeySalt = "b2xkLXNhbHQ=", PublicKey = "pem", EncryptedPrivateKey = "old-blob"
+            });
+            var userId = (await db.Users.SingleAsync()).Id;
+
+            var result = await service.ChangePasswordAsync(userId, SampleChange("Sup3rSecret!"));
+
+            Assert.True(result.Success);
+            Assert.Equal("bmV3LXNhbHQ=", result.Response!.KeySalt);
+            Assert.Equal("new-blob", result.Response.EncryptedPrivateKey);
+            Assert.Equal("pem", result.Response.PublicKey); // keypair itself is untouched
+            Assert.False((await service.LoginAsync(new LoginRequest { Email = "ana@test.com", Password = "Sup3rSecret!" })).Success);
+            Assert.True((await service.LoginAsync(new LoginRequest { Email = "ana@test.com", Password = "N3wSecret!" })).Success);
+        }
+
+        [Fact]
+        public async Task ChangePasswordAsync_WrongCurrent_ChangesNothing()
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+            await service.RegisterAsync(new RegisterRequest
+            {
+                Username = "Ana", Email = "ana@test.com", Password = "Sup3rSecret!",
+                KeySalt = "b2xkLXNhbHQ=", EncryptedPrivateKey = "old-blob"
+            });
+            var user = await db.Users.SingleAsync();
+
+            var result = await service.ChangePasswordAsync(user.Id, SampleChange("wrong"));
+
+            Assert.False(result.Success);
+            Assert.Equal(AuthError.InvalidCredentials, result.Error);
+            Assert.Equal("b2xkLXNhbHQ=", user.KeySalt);
+            Assert.Equal("old-blob", user.EncryptedPrivateKey);
+            Assert.Equal(FakePasswordHasher.Hashed("Sup3rSecret!"), user.PasswordHash);
         }
 
         // --- Fakes (sin Moq, para mantener el estilo liviano del repo) ---

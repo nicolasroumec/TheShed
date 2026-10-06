@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using TheShed.Shared.Models.DTOs.Auth;
 using Xunit;
 
 namespace TheShed.Tests.Integration
@@ -63,6 +64,65 @@ namespace TheShed.Tests.Integration
             });
 
             response.EnsureSuccessStatusCode();
+        }
+
+        [Fact]
+        public async Task Prelogin_IsAnonymous_ReturnsRealSaltOrFakeOne()
+        {
+            var client = _factory.CreateAuthenticatedClient();
+            var (email, _) = await client.RegisterNewUserAsync();
+
+            var anonymous = _factory.CreateAuthenticatedClient();
+            var known = await anonymous.GetFromJsonAsync<PreloginResponse>($"api/auth/prelogin?email={Uri.EscapeDataString(email)}");
+            var unknown = await anonymous.GetFromJsonAsync<PreloginResponse>("api/auth/prelogin?email=nobody%40example.com");
+
+            Assert.Equal("c2FsdA==", known!.KeySalt); // the salt AuthTestHelper registers with
+            Assert.Equal(16, Convert.FromBase64String(unknown!.KeySalt).Length);
+        }
+
+        [Fact]
+        public async Task ChangePassword_RoundTrip_NewPasswordLogsInAndOldOneDoesNot()
+        {
+            var client = _factory.CreateAuthenticatedClient();
+            var (email, _) = await client.RegisterNewUserAsync(password: "IntegrationTest123!");
+
+            var wrong = await client.PostJsonWithCsrfAsync("api/auth/change-password", new ChangePasswordRequest
+            {
+                CurrentPassword = "not-it", NewPassword = "Changed123!",
+                NewKeySalt = "bmV3LXNhbHQ=", NewEncryptedPrivateKey = "new-blob"
+            });
+            Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+
+            var ok = await client.PostJsonWithCsrfAsync("api/auth/change-password", new ChangePasswordRequest
+            {
+                CurrentPassword = "IntegrationTest123!", NewPassword = "Changed123!",
+                NewKeySalt = "bmV3LXNhbHQ=", NewEncryptedPrivateKey = "new-blob"
+            });
+            ok.EnsureSuccessStatusCode();
+
+            // The re-issued cookie must carry the new keySalt claim, or unlock breaks on F5.
+            var me = await client.GetFromJsonAsync<AuthResponse>("api/auth/me");
+            Assert.Equal("bmV3LXNhbHQ=", me!.KeySalt);
+            Assert.Equal("new-blob", me.EncryptedPrivateKey);
+
+            var fresh = _factory.CreateAuthenticatedClient();
+            var oldLogin = await fresh.PostJsonWithCsrfAsync("api/auth/login", new { Email = email, Password = "IntegrationTest123!" });
+            var newLogin = await fresh.PostJsonWithCsrfAsync("api/auth/login", new { Email = email, Password = "Changed123!" });
+            Assert.Equal(HttpStatusCode.Unauthorized, oldLogin.StatusCode);
+            newLogin.EnsureSuccessStatusCode();
+        }
+
+        [Fact]
+        public async Task ChangePassword_Anonymous_Returns401()
+        {
+            var client = _factory.CreateAuthenticatedClient();
+
+            var response = await client.PostJsonWithCsrfAsync("api/auth/change-password", new ChangePasswordRequest
+            {
+                CurrentPassword = "x", NewPassword = "Changed123!", NewKeySalt = "c2FsdA==", NewEncryptedPrivateKey = "b"
+            });
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         }
 
         [Fact]

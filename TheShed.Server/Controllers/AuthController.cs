@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -48,6 +49,42 @@ namespace TheShed.Server.Controllers
             if (!result.Success)
             {
                 return Unauthorized(new { message = "Credenciales inválidas." });
+            }
+            SetAuthCookie(result);
+            return Ok(result.Response);
+        }
+
+        // Shares the Auth rate-limit policy with login: every login costs two permits now, but
+        // the fake salts already make this endpoint useless for enumeration, so the limit only
+        // needs to stop it from being hammered.
+        [EnableRateLimiting(RateLimitPolicies.Auth)]
+        [HttpGet("prelogin")]
+        public async Task<IActionResult> Prelogin([FromQuery, EmailAddress] string email, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return BadRequest(new { message = "Email is required." });
+            }
+            return Ok(new PreloginResponse(await _auth.GetPreloginSaltAsync(email, ct)));
+        }
+
+        // Rate-limited like login: a stolen session could otherwise brute-force the current
+        // password here.
+        [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.Auth)]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken ct)
+        {
+            if (string.IsNullOrEmpty(request.NewKeySalt) || string.IsNullOrEmpty(request.NewEncryptedPrivateKey))
+            {
+                return BadRequest(new { message = "Missing client-generated key material." });
+            }
+
+            var result = await _auth.ChangePasswordAsync(CurrentUserId, request, ct);
+            if (!result.Success)
+            {
+                // 400, not 401: the session is valid, only the current password is wrong.
+                return BadRequest(new { message = "Current password is incorrect." });
             }
             SetAuthCookie(result);
             return Ok(result.Response);

@@ -42,21 +42,33 @@ namespace TheShed.Client.Services
 
         public async Task<AuthResult> LoginAsync(LoginRequest request)
         {
-            var response = await _http.PostAsJsonAsync("api/auth/login", request);
+            // The salt comes first (prelogin) because the master password itself never goes to
+            // the server — only the auth hash derived from it, which needs the salt. Unknown
+            // emails get a fake salt, so this call alone reveals nothing; the login below just
+            // fails with the usual 401.
+            var prelogin = await _http.GetAsync($"api/auth/prelogin?email={Uri.EscapeDataString(request.Email)}");
+            if (!prelogin.IsSuccessStatusCode)
+            {
+                return AuthResult.Fail(await ReadErrorAsync(prelogin, "Unexpected error. Please try again."));
+            }
+            var keySalt = (await prelogin.Content.ReadFromJsonAsync<PreloginResponse>())!.KeySalt;
+            var stretchedMasterKey = await _kdf.DeriveKeyAsync(request.Password, Convert.FromBase64String(keySalt));
+
+            // A copy, not the form's model: writing the hash into request.Password would show it
+            // in the password field after a failed attempt.
+            var response = await _http.PostAsJsonAsync("api/auth/login", new LoginRequest
+            {
+                Email = request.Email,
+                Password = AuthHash.Compute(stretchedMasterKey)
+            });
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 return AuthResult.Fail(await ReadErrorAsync(response, "Invalid credentials."));
             }
-            // Unlike Register, Login doesn't already have the salt locally — it lives on the
-            // account being logged into — so the response body has to be read here to derive
-            // the stretched master key, not just relied on as a side channel for the cookie.
             return await HandleSuccessAsync(response, async r =>
             {
                 var auth = await r.Content.ReadFromJsonAsync<AuthResponse>();
-                if (auth?.KeySalt is not null)
-                {
-                    _keyStore.Set(await _kdf.DeriveKeyAsync(request.Password, Convert.FromBase64String(auth.KeySalt)));
-                }
+                _keyStore.Set(stretchedMasterKey);
                 _ownKeypairCache.Set(auth?.PublicKey, auth?.EncryptedPrivateKey);
             });
         }
@@ -67,11 +79,16 @@ namespace TheShed.Client.Services
             var stretchedMasterKey = await _kdf.DeriveKeyAsync(request.Password, salt);
             var keypair = await _keypair.GenerateAsync(stretchedMasterKey);
 
-            request.KeySalt = Convert.ToBase64String(salt);
-            request.PublicKey = keypair.PublicKeyPem;
-            request.EncryptedPrivateKey = keypair.EncryptedPrivateKey;
-
-            var response = await _http.PostAsJsonAsync("api/auth/register", request);
+            // Same copy-not-mutate reasoning as LoginAsync.
+            var response = await _http.PostAsJsonAsync("api/auth/register", new RegisterRequest
+            {
+                Username = request.Username,
+                Email = request.Email,
+                Password = AuthHash.Compute(stretchedMasterKey),
+                KeySalt = Convert.ToBase64String(salt),
+                PublicKey = keypair.PublicKeyPem,
+                EncryptedPrivateKey = keypair.EncryptedPrivateKey
+            });
             if (response.StatusCode == HttpStatusCode.Conflict)
             {
                 return AuthResult.Fail(await ReadErrorAsync(response, "The email is already registered."));
@@ -121,6 +138,55 @@ namespace TheShed.Client.Services
             _keyStore.Set(stretchedMasterKey);
             _ownKeypairCache.Set(me.PublicKey, me.EncryptedPrivateKey);
             return AuthResult.Ok();
+        }
+
+        public async Task<AuthResult> ChangePasswordAsync(ChangePasswordRequest request)
+        {
+            AuthResponse? me;
+            try
+            {
+                me = await _http.GetFromJsonAsync<AuthResponse>("api/auth/me");
+            }
+            catch (HttpRequestException)
+            {
+                return AuthResult.Fail("Your session expired. Sign in again.");
+            }
+
+            if (me?.KeySalt is null || me.EncryptedPrivateKey is null)
+            {
+                return AuthResult.Fail("This account has no encryption keys on the server. Sign in again.");
+            }
+
+            var currentKey = await _kdf.DeriveKeyAsync(request.CurrentPassword, Convert.FromBase64String(me.KeySalt));
+            var newSalt = _kdf.GenerateSalt();
+            var newKey = await _kdf.DeriveKeyAsync(request.NewPassword, newSalt);
+
+            // A wrong current password fails the AES-GCM tag right here, same check as
+            // UnlockAsync — no request sent, no rate-limit permit burned.
+            string newEncryptedPrivateKey;
+            try
+            {
+                newEncryptedPrivateKey = await _keypair.RewrapPrivateKeyAsync(currentKey, newKey, me.EncryptedPrivateKey);
+            }
+            catch (Exception)
+            {
+                return AuthResult.Fail("Current password is incorrect.");
+            }
+
+            // Same copy-not-mutate reasoning as LoginAsync.
+            var response = await _http.PostAsJsonAsync("api/auth/change-password", new ChangePasswordRequest
+            {
+                CurrentPassword = AuthHash.Compute(currentKey),
+                NewPassword = AuthHash.Compute(newKey),
+                NewKeySalt = Convert.ToBase64String(newSalt),
+                NewEncryptedPrivateKey = newEncryptedPrivateKey
+            });
+            return await HandleSuccessAsync(response, _ =>
+            {
+                _keyStore.Set(newKey);
+                _ownKeypairCache.Set(me.PublicKey, newEncryptedPrivateKey);
+                return Task.CompletedTask;
+            });
         }
 
         public void Lock()
