@@ -30,18 +30,34 @@
       the new salt, the old password gets 401, the new one logs in
 
 ### Increment 4 — Change master password, client ✅
-- [x] `IUserKeypairService.RewrapPrivateKeyAsync`: decrypt with the old stretched key, re-encrypt
+- [x] `IUserKeypairService.RewrapAsync`: decrypt with the old stretched key, re-encrypt
       with the new one, base64 straight through JS — `IAesGcmService` round-trips through UTF-8
-      and would corrupt the binary PKCS#8 key
+      and would corrupt binary keys
 - [x] `AuthService.ChangePasswordAsync`: a wrong current password fails the AES-GCM tag
-      client-side, before any request. Vault keys are untouched; the session stays unlocked
+      client-side, before any request; the session stays unlocked with the new key
 - [x] `/account` page (code-behind) + nav link
-- [x] 253/253 tests green
 
-### Increment 5 — PR
-- [ ] Browser check: register → entry → change password → F5 → unlock with the new one →
-      logout → login
-- [ ] PR to `main`
+> Increments 1–4 merged in PR #32. Increment 5 lives in its own branch,
+> `fix/owned-vault-keys-rewrap`, because the bug was found after that merge.
+
+### Increment 5 — Browser check + fix: owned vault keys · `fix/owned-vault-keys-rewrap` ✅
+- [x] Browser check found a real bug: owned vaults wrap their key with the **stretched key**
+      (`IVaultKeyService`), not RSA — after a change + F5 the vault failed to open
+      (`OperationError` in `decryptAesGcm`). No test caught it: none of them decrypt anything
+- [x] Fix: `GET /api/auth/owned-vault-keys` (own wraps on owned vaults, trashed included — they
+      can be restored); the client re-wraps each one and sends them in `ChangePasswordRequest.VaultKeys`;
+      the server requires the exact set (else 409, nothing saved) and saves it all at once
+- [x] Tests: owned/trashed/shared wrap selection, exact-set mismatch (missing, foreign,
+      duplicate), integration round trip with a real vault, client sends re-wrapped vault keys
+      — 258/258
+- [x] Re-checked in Chrome: register → vault + entry → wrong current password (rejected
+      client-side, no POST) → change → F5 → old password rejected on unlock → new one unlocks,
+      entry password reveals → logout → old password 401 → new one logs in
+- [ ] PR to `main` (fix branch)
+
+> Seen during the check, not from this branch: `POST /api/auth/logout` shows **503** in the
+> browser's network log (the user still ends up signed out). The server answers 200 to the same
+> request via curl, and neither service worker produces a 503 — cause not found yet.
 
 **Migration:** none. Accounts created before Increment 2 stored `Argon2(raw password)` and can't
 log in anymore — test data only, re-register (same call as Sprint 28).

@@ -15,9 +15,11 @@ Sprint-by-sprint detail (what, when, why) lives in `SPRINTS.md` (the "Shipped" t
 and in `git log` — not duplicated here.
 
 ## In progress
-- 🟢 **Sprint 34 — Auth hash + change master password** (`feature/auth-hash`, N1 + N2 in
-  `FEATURES-ROADMAP.md`, `DECISIONS.md` D11). Implemented and tested; pending a browser check and
-  the PR to `main`.
+- 🔴 **Fix for Sprint 34** (`fix/owned-vault-keys-rewrap`). `feature/auth-hash` (N1 + N2,
+  `DECISIONS.md` D11) merged in PR #32 with a bug: changing the master password didn't re-wrap
+  owned vault keys, leaving those vaults undecryptable. Found in the browser check after the
+  merge; fixed, tested and re-checked in Chrome. Pending: the PR to `main` — until then, don't
+  use the password change on real data.
 
 ## Pending, by value (see `FEATURES-ROADMAP.md`)
 1. 🔵 **Clipboard auto-clear (N4)** and **sign out everywhere (N3)** — both small. N3 also
@@ -29,5 +31,5 @@ and in `git log` — not duplicated here.
 4. 🟣 Sprint 18 (2FA), recovery key, encrypted export, and the rest of the roadmap table.
 
 ## Next step
-Browser check of Sprint 34 (register → entry → change password → F5 → unlock with the new one →
-logout → login), then PR. After that: N4 + N3.
+PR for `fix/owned-vault-keys-rewrap`. Then N4 + N3. Loose end: logout shows 503 in the browser (see `SPRINTS.md`
+Sprint 34) — not from this branch, cause unknown.

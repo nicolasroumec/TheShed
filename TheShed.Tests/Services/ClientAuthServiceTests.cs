@@ -145,7 +145,11 @@ namespace TheShed.Tests.Services
                 new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
             Assert.Equal(AuthHash.Compute(FakeKdf.KeyFor("hunter2-master")), body.CurrentPassword);
             Assert.Equal(AuthHash.Compute(FakeKdf.KeyFor("brand-new-master")), body.NewPassword);
-            Assert.Equal("rewrapped-under-" + Convert.ToBase64String(FakeKdf.KeyFor("brand-new-master")), body.NewEncryptedPrivateKey);
+            Assert.Equal(FakeKeypairService.Rewrapped(EncryptedPrivateKey, "brand-new-master"), body.NewEncryptedPrivateKey);
+            // The owned vault's key moves to the new master key too, or the vault is lost.
+            var vaultKey = Assert.Single(body.VaultKeys);
+            Assert.Equal(7, vaultKey.VaultId);
+            Assert.Equal(FakeKeypairService.Rewrapped("vault-7-wrap", "brand-new-master"), vaultKey.WrappedKey);
             Assert.Equal(FakeKdf.KeyFor("brand-new-master"), keyStore.Get());
             Assert.Equal("hunter2-master", form.CurrentPassword); // the form's model is left alone
         }
@@ -181,8 +185,8 @@ namespace TheShed.Tests.Services
             return (auth, handler, keyStore);
         }
 
-        /// <summary>Answers prelogin with the salt and everything else with an auth response,
-        /// keeping every request body so tests can check what actually left the client.</summary>
+        /// <summary>Answers prelogin with the salt, owned-vault-keys with one owned vault (id 7),
+        /// and everything else with an auth response, keeping every request body so tests can check what actually left the client.</summary>
         private sealed class RecordingHandler(string preloginBody, string authBody) : HttpMessageHandler
         {
             private readonly Dictionary<string, string> _bodies = new();
@@ -194,9 +198,15 @@ namespace TheShed.Tests.Services
             {
                 var path = request.RequestUri!.AbsolutePath.TrimStart('/');
                 _bodies[path] = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
+                var body = path switch
+                {
+                    "api/auth/prelogin" => preloginBody,
+                    "api/auth/owned-vault-keys" => """[{"vaultId":7,"wrappedKey":"vault-7-wrap"}]""",
+                    _ => authBody
+                };
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    Content = new StringContent(path == "api/auth/prelogin" ? preloginBody : authBody, Encoding.UTF8, "application/json")
+                    Content = new StringContent(body, Encoding.UTF8, "application/json")
                 };
             }
         }
@@ -207,10 +217,13 @@ namespace TheShed.Tests.Services
             public Task<string> WrapKeyForMemberAsync(byte[] vaultKey, string memberPublicKeyPem) => throw new InvalidOperationException();
             public Task<byte[]> UnwrapKeyAsMemberAsync(byte[] stretchedMasterKey, string encryptedPrivateKey, string wrappedVaultKey) => throw new InvalidOperationException();
 
+            public static string Rewrapped(string wrapped, string newPassword) =>
+                $"{wrapped}>rewrapped-under-{Convert.ToBase64String(FakeKdf.KeyFor(newPassword))}";
+
             // Like the AES-GCM tag: only the key "hunter2-master" derives can open the old wrap.
-            public Task<string> RewrapPrivateKeyAsync(byte[] oldStretchedKey, byte[] newStretchedKey, string encryptedPrivateKey) =>
+            public Task<string> RewrapAsync(byte[] oldStretchedKey, byte[] newStretchedKey, string wrapped) =>
                 oldStretchedKey.SequenceEqual(FakeKdf.KeyFor("hunter2-master"))
-                    ? Task.FromResult("rewrapped-under-" + Convert.ToBase64String(newStretchedKey))
+                    ? Task.FromResult($"{wrapped}>rewrapped-under-{Convert.ToBase64String(newStretchedKey)}")
                     : throw new CryptographicException("auth tag mismatch");
         }
 
@@ -285,7 +298,7 @@ namespace TheShed.Tests.Services
             public Task<UserKeypair> GenerateAsync(byte[] stretchedMasterKey) => throw new InvalidOperationException();
             public Task<string> WrapKeyForMemberAsync(byte[] vaultKey, string memberPublicKeyPem) => throw new InvalidOperationException();
             public Task<byte[]> UnwrapKeyAsMemberAsync(byte[] stretchedMasterKey, string encryptedPrivateKey, string wrappedVaultKey) => throw new InvalidOperationException();
-            public Task<string> RewrapPrivateKeyAsync(byte[] oldStretchedKey, byte[] newStretchedKey, string encryptedPrivateKey) => throw new InvalidOperationException();
+            public Task<string> RewrapAsync(byte[] oldStretchedKey, byte[] newStretchedKey, string wrapped) => throw new InvalidOperationException();
         }
     }
 }

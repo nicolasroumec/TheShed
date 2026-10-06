@@ -94,15 +94,40 @@ namespace TheShed.Server.Services
                 return new AuthResult(false, AuthError.InvalidCredentials, null);
             }
 
+            // Owned vault keys are wrapped with the stretched key, so they must all move with it.
+            // Exact set required: a vault created (or restored) between the client's fetch and
+            // this call would otherwise keep a wrap nobody can open anymore.
+            var wraps = await OwnedWraps(userId).ToListAsync(ct);
+            var newWraps = new Dictionary<int, string>();
+            if (request.VaultKeys.Any(k => string.IsNullOrEmpty(k.WrappedKey) || !newWraps.TryAdd(k.VaultId, k.WrappedKey)) ||
+                wraps.Count != newWraps.Count || wraps.Any(w => !newWraps.ContainsKey(w.VaultId)))
+            {
+                return new AuthResult(false, AuthError.VaultKeysOutOfDate, null);
+            }
+
             // ponytail: other sessions keep working until their JWT expires, with a stale keySalt
             // claim (unlock fails there until re-login). Sign-out-everywhere is N3 (TokenVersion).
             user.PasswordHash = _hasher.Hash(request.NewPassword);
             user.KeySalt = request.NewKeySalt;
             user.EncryptedPrivateKey = request.NewEncryptedPrivateKey;
+            foreach (var wrap in wraps)
+            {
+                wrap.WrappedKey = newWraps[wrap.VaultId];
+            }
             await _db.SaveChangesAsync(ct);
 
             return Success(user);
         }
+
+        public async Task<IReadOnlyList<OwnedVaultKey>> GetOwnedVaultKeysAsync(int userId, CancellationToken ct = default) =>
+            await OwnedWraps(userId)
+                .Select(w => new OwnedVaultKey { VaultId = w.VaultId, WrappedKey = w.WrappedKey })
+                .ToListAsync(ct);
+
+        // IgnoreQueryFilters: trashed vaults can be restored (TrashService), so their wraps count.
+        private IQueryable<VaultKeyWrap> OwnedWraps(int userId) =>
+            _db.VaultKeyWraps.IgnoreQueryFilters()
+                .Where(w => !w.IsDeleted && w.UserId == userId && w.Vault.OwnerId == userId);
 
         public async Task<(string? PublicKey, string? EncryptedPrivateKey)> GetKeypairAsync(int userId, CancellationToken ct = default)
         {

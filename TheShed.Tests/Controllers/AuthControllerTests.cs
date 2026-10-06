@@ -198,6 +198,9 @@ namespace TheShed.Tests.Controllers
 
             public Task<AuthResult> ChangePasswordAsync(int userId, ChangePasswordRequest request, CancellationToken ct = default)
                 => throw new NotSupportedException("Covered by AuthServiceTests and AuthFlowTests.");
+
+            public Task<IReadOnlyList<OwnedVaultKey>> GetOwnedVaultKeysAsync(int userId, CancellationToken ct = default)
+                => throw new NotSupportedException("Covered by AuthServiceTests and AuthFlowTests.");
         }
     }
 }

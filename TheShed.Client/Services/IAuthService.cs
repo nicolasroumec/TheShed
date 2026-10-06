@@ -25,8 +25,8 @@ namespace TheShed.Client.Services
 
         /// <summary>
         /// Master password change (N2): re-derives both stretched keys, re-wraps the private key
-        /// client-side and sends only auth hashes. Vault keys are untouched, so the session stays
-        /// unlocked with the new key.
+        /// and every owned vault key client-side, and sends only auth hashes. The vault keys
+        /// themselves don't change, so the session stays unlocked with the new key.
         /// </summary>
         Task<AuthResult> ChangePasswordAsync(ChangePasswordRequest request);
 

@@ -166,11 +166,31 @@ namespace TheShed.Client.Services
             string newEncryptedPrivateKey;
             try
             {
-                newEncryptedPrivateKey = await _keypair.RewrapPrivateKeyAsync(currentKey, newKey, me.EncryptedPrivateKey);
+                newEncryptedPrivateKey = await _keypair.RewrapAsync(currentKey, newKey, me.EncryptedPrivateKey);
             }
             catch (Exception)
             {
                 return AuthResult.Fail("Current password is incorrect.");
+            }
+
+            // Owned vaults wrap their key with the stretched key too (IVaultKeyService), so every
+            // one of them — trashed ones included — has to move to the new key in the same request.
+            var vaultKeys = new List<OwnedVaultKey>();
+            try
+            {
+                var owned = await _http.GetFromJsonAsync<List<OwnedVaultKey>>("api/auth/owned-vault-keys") ?? [];
+                foreach (var key in owned)
+                {
+                    vaultKeys.Add(new OwnedVaultKey
+                    {
+                        VaultId = key.VaultId,
+                        WrappedKey = await _keypair.RewrapAsync(currentKey, newKey, key.WrappedKey)
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                return AuthResult.Fail("Couldn't re-encrypt your vault keys. Nothing was changed.");
             }
 
             // Same copy-not-mutate reasoning as LoginAsync.
@@ -179,7 +199,8 @@ namespace TheShed.Client.Services
                 CurrentPassword = AuthHash.Compute(currentKey),
                 NewPassword = AuthHash.Compute(newKey),
                 NewKeySalt = Convert.ToBase64String(newSalt),
-                NewEncryptedPrivateKey = newEncryptedPrivateKey
+                NewEncryptedPrivateKey = newEncryptedPrivateKey,
+                VaultKeys = vaultKeys
             });
             return await HandleSuccessAsync(response, _ =>
             {
