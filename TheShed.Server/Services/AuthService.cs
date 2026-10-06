@@ -85,6 +85,25 @@ namespace TheShed.Server.Services
                 HMACSHA256.HashData(_fakeSaltKey, Encoding.UTF8.GetBytes("prelogin-salt:" + normalized))[..SaltSize]);
         }
 
+        public async Task<AuthResult> ChangePasswordAsync(int userId, ChangePasswordRequest request, CancellationToken ct = default)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+
+            if (user is null || !user.IsActive || !_hasher.Verify(request.CurrentPassword, user.PasswordHash))
+            {
+                return new AuthResult(false, AuthError.InvalidCredentials, null);
+            }
+
+            // ponytail: other sessions keep working until their JWT expires, with a stale keySalt
+            // claim (unlock fails there until re-login). Sign-out-everywhere is N3 (TokenVersion).
+            user.PasswordHash = _hasher.Hash(request.NewPassword);
+            user.KeySalt = request.NewKeySalt;
+            user.EncryptedPrivateKey = request.NewEncryptedPrivateKey;
+            await _db.SaveChangesAsync(ct);
+
+            return Success(user);
+        }
+
         public async Task<(string? PublicKey, string? EncryptedPrivateKey)> GetKeypairAsync(int userId, CancellationToken ct = default)
         {
             var user = await _db.Users

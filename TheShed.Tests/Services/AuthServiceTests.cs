@@ -243,6 +243,59 @@ namespace TheShed.Tests.Services
             Assert.Equal(16, Convert.FromBase64String(first).Length);
         }
 
+        // --- ChangePasswordAsync ---
+
+        private static ChangePasswordRequest SampleChange(string current) => new()
+        {
+            CurrentPassword = current,
+            NewPassword = "N3wSecret!",
+            NewKeySalt = "bmV3LXNhbHQ=",
+            NewEncryptedPrivateKey = "new-blob"
+        };
+
+        [Fact]
+        public async Task ChangePasswordAsync_CorrectCurrent_SwapsHashSaltAndPrivateKey()
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+            await service.RegisterAsync(new RegisterRequest
+            {
+                Username = "Ana", Email = "ana@test.com", Password = "Sup3rSecret!",
+                KeySalt = "b2xkLXNhbHQ=", PublicKey = "pem", EncryptedPrivateKey = "old-blob"
+            });
+            var userId = (await db.Users.SingleAsync()).Id;
+
+            var result = await service.ChangePasswordAsync(userId, SampleChange("Sup3rSecret!"));
+
+            Assert.True(result.Success);
+            Assert.Equal("bmV3LXNhbHQ=", result.Response!.KeySalt);
+            Assert.Equal("new-blob", result.Response.EncryptedPrivateKey);
+            Assert.Equal("pem", result.Response.PublicKey); // keypair itself is untouched
+            Assert.False((await service.LoginAsync(new LoginRequest { Email = "ana@test.com", Password = "Sup3rSecret!" })).Success);
+            Assert.True((await service.LoginAsync(new LoginRequest { Email = "ana@test.com", Password = "N3wSecret!" })).Success);
+        }
+
+        [Fact]
+        public async Task ChangePasswordAsync_WrongCurrent_ChangesNothing()
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+            await service.RegisterAsync(new RegisterRequest
+            {
+                Username = "Ana", Email = "ana@test.com", Password = "Sup3rSecret!",
+                KeySalt = "b2xkLXNhbHQ=", EncryptedPrivateKey = "old-blob"
+            });
+            var user = await db.Users.SingleAsync();
+
+            var result = await service.ChangePasswordAsync(user.Id, SampleChange("wrong"));
+
+            Assert.False(result.Success);
+            Assert.Equal(AuthError.InvalidCredentials, result.Error);
+            Assert.Equal("b2xkLXNhbHQ=", user.KeySalt);
+            Assert.Equal("old-blob", user.EncryptedPrivateKey);
+            Assert.Equal(FakePasswordHasher.Hashed("Sup3rSecret!"), user.PasswordHash);
+        }
+
         // --- Fakes (sin Moq, para mantener el estilo liviano del repo) ---
 
         private sealed class FakePasswordHasher : IPasswordHasher

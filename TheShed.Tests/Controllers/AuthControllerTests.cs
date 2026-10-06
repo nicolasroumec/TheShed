@@ -195,6 +195,9 @@ namespace TheShed.Tests.Controllers
 
             public Task<(string? PublicKey, string? EncryptedPrivateKey)> GetKeypairAsync(int userId, CancellationToken ct = default)
                 => Task.FromResult(KeypairResult);
+
+            public Task<AuthResult> ChangePasswordAsync(int userId, ChangePasswordRequest request, CancellationToken ct = default)
+                => throw new NotSupportedException("Covered by AuthServiceTests and AuthFlowTests.");
         }
     }
 }

@@ -81,6 +81,51 @@ namespace TheShed.Tests.Integration
         }
 
         [Fact]
+        public async Task ChangePassword_RoundTrip_NewPasswordLogsInAndOldOneDoesNot()
+        {
+            var client = _factory.CreateAuthenticatedClient();
+            var (email, _) = await client.RegisterNewUserAsync(password: "IntegrationTest123!");
+
+            var wrong = await client.PostJsonWithCsrfAsync("api/auth/change-password", new ChangePasswordRequest
+            {
+                CurrentPassword = "not-it", NewPassword = "Changed123!",
+                NewKeySalt = "bmV3LXNhbHQ=", NewEncryptedPrivateKey = "new-blob"
+            });
+            Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+
+            var ok = await client.PostJsonWithCsrfAsync("api/auth/change-password", new ChangePasswordRequest
+            {
+                CurrentPassword = "IntegrationTest123!", NewPassword = "Changed123!",
+                NewKeySalt = "bmV3LXNhbHQ=", NewEncryptedPrivateKey = "new-blob"
+            });
+            ok.EnsureSuccessStatusCode();
+
+            // The re-issued cookie must carry the new keySalt claim, or unlock breaks on F5.
+            var me = await client.GetFromJsonAsync<AuthResponse>("api/auth/me");
+            Assert.Equal("bmV3LXNhbHQ=", me!.KeySalt);
+            Assert.Equal("new-blob", me.EncryptedPrivateKey);
+
+            var fresh = _factory.CreateAuthenticatedClient();
+            var oldLogin = await fresh.PostJsonWithCsrfAsync("api/auth/login", new { Email = email, Password = "IntegrationTest123!" });
+            var newLogin = await fresh.PostJsonWithCsrfAsync("api/auth/login", new { Email = email, Password = "Changed123!" });
+            Assert.Equal(HttpStatusCode.Unauthorized, oldLogin.StatusCode);
+            newLogin.EnsureSuccessStatusCode();
+        }
+
+        [Fact]
+        public async Task ChangePassword_Anonymous_Returns401()
+        {
+            var client = _factory.CreateAuthenticatedClient();
+
+            var response = await client.PostJsonWithCsrfAsync("api/auth/change-password", new ChangePasswordRequest
+            {
+                CurrentPassword = "x", NewPassword = "Changed123!", NewKeySalt = "c2FsdA==", NewEncryptedPrivateKey = "b"
+            });
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Fact]
         public async Task Login_CredencialesInvalidas_Devuelve401()
         {
             var client = _factory.CreateAuthenticatedClient();

@@ -68,6 +68,28 @@ namespace TheShed.Server.Controllers
             return Ok(new PreloginResponse(await _auth.GetPreloginSaltAsync(email, ct)));
         }
 
+        // Rate-limited like login: a stolen session could otherwise brute-force the current
+        // password here.
+        [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.Auth)]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken ct)
+        {
+            if (string.IsNullOrEmpty(request.NewKeySalt) || string.IsNullOrEmpty(request.NewEncryptedPrivateKey))
+            {
+                return BadRequest(new { message = "Missing client-generated key material." });
+            }
+
+            var result = await _auth.ChangePasswordAsync(CurrentUserId, request, ct);
+            if (!result.Success)
+            {
+                // 400, not 401: the session is valid, only the current password is wrong.
+                return BadRequest(new { message = "Current password is incorrect." });
+            }
+            SetAuthCookie(result);
+            return Ok(result.Response);
+        }
+
         [Authorize]
         [HttpGet("me")]
         public async Task<IActionResult> Me(CancellationToken ct)
