@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using TheShed.Shared.Models.DTOs.Auth;
+using TheShed.Shared.Models.DTOs.Vaults;
 using Xunit;
 
 namespace TheShed.Tests.Integration
@@ -93,12 +94,27 @@ namespace TheShed.Tests.Integration
             });
             Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
 
-            var ok = await client.PostJsonWithCsrfAsync("api/auth/change-password", new ChangePasswordRequest
+            // An owned vault: its key is wrapped under the master key, so it has to move too.
+            var created = await client.PostJsonWithCsrfAsync("api/vaults", new VaultCreateRequest { Name = "Mine", VaultKeyWrap = "old-wrap" });
+            var vault = (await created.Content.ReadFromJsonAsync<VaultResponse>())!;
+            var owned = await client.GetFromJsonAsync<List<OwnedVaultKey>>("api/auth/owned-vault-keys");
+            Assert.Equal("old-wrap", Assert.Single(owned!).WrappedKey);
+
+            var missingVault = await client.PostJsonWithCsrfAsync("api/auth/change-password", new ChangePasswordRequest
             {
                 CurrentPassword = "IntegrationTest123!", NewPassword = "Changed123!",
                 NewKeySalt = "bmV3LXNhbHQ=", NewEncryptedPrivateKey = "new-blob"
             });
+            Assert.Equal(HttpStatusCode.Conflict, missingVault.StatusCode);
+
+            var ok = await client.PostJsonWithCsrfAsync("api/auth/change-password", new ChangePasswordRequest
+            {
+                CurrentPassword = "IntegrationTest123!", NewPassword = "Changed123!",
+                NewKeySalt = "bmV3LXNhbHQ=", NewEncryptedPrivateKey = "new-blob",
+                VaultKeys = [new() { VaultId = vault.Id, WrappedKey = "new-wrap" }]
+            });
             ok.EnsureSuccessStatusCode();
+            Assert.Equal("new-wrap", (await client.GetFromJsonAsync<VaultResponse>($"api/vaults/{vault.Id}"))!.WrappedKey);
 
             // The re-issued cookie must carry the new keySalt claim, or unlock breaks on F5.
             var me = await client.GetFromJsonAsync<AuthResponse>("api/auth/me");

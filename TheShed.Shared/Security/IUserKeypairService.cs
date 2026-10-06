@@ -31,10 +31,12 @@ namespace TheShed.Shared.Security
         /// <paramref name="wrappedVaultKey"/> with it.</summary>
         Task<byte[]> UnwrapKeyAsMemberAsync(byte[] stretchedMasterKey, string encryptedPrivateKey, string wrappedVaultKey);
 
-        /// <summary>Master password change (N2): decrypts <paramref name="encryptedPrivateKey"/>
-        /// with the old stretched key and re-encrypts it with the new one. Throws if the old key
-        /// is wrong (AES-GCM tag mismatch). Not done through <see cref="IAesGcmService"/>: that
-        /// one round-trips text through UTF-8, which would corrupt the binary PKCS#8 key.</summary>
-        Task<string> RewrapPrivateKeyAsync(byte[] oldStretchedKey, byte[] newStretchedKey, string encryptedPrivateKey);
+        /// <summary>Master password change (N2): decrypts <paramref name="wrapped"/> with the old
+        /// stretched key and re-encrypts it with the new one. Used for everything wrapped under the
+        /// stretched key: the private key and the owner's vault keys (<see cref="IVaultKeyService"/>).
+        /// Throws if the old key is wrong (AES-GCM tag mismatch). Not done through
+        /// <see cref="IAesGcmService"/>: that one round-trips text through UTF-8, which would
+        /// corrupt binary keys.</summary>
+        Task<string> RewrapAsync(byte[] oldStretchedKey, byte[] newStretchedKey, string wrapped);
     }
 }

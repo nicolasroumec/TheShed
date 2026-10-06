@@ -43,7 +43,9 @@ password). If data is still test data (as in Sprint 28), re-registering is enoug
 because today *reading* traffic is enough; after the fix, an attacker has to *modify* the client.
 
 ### N2 ✅ — No way to change the master password
-> **Done** in Sprint 34: `POST /api/auth/change-password` + `/account` page.
+> **Done** in Sprint 34: `POST /api/auth/change-password` + `/account` page. Correction to the
+> text below: owned vaults also wrap their key with the stretched key, so those wraps are
+> re-encrypted too (D11). Entries are untouched.
 
 `AuthController` exposes only register, login, me, logout and public-key. A leaked master password
 has no remedy. The key hierarchy makes this cheap: re-encrypt `EncryptedPrivateKey` with the new

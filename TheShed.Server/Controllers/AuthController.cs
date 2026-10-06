@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using TheShed.Server.Enums;
 using TheShed.Server.Security;
 using TheShed.Server.Services;
 using TheShed.Shared.Models.DTOs.Auth;
@@ -81,6 +82,10 @@ namespace TheShed.Server.Controllers
             }
 
             var result = await _auth.ChangePasswordAsync(CurrentUserId, request, ct);
+            if (result.Error == AuthError.VaultKeysOutOfDate)
+            {
+                return Conflict(new { message = "Your vaults changed during the password change. Nothing was saved — try again." });
+            }
             if (!result.Success)
             {
                 // 400, not 401: the session is valid, only the current password is wrong.
@@ -89,6 +94,11 @@ namespace TheShed.Server.Controllers
             SetAuthCookie(result);
             return Ok(result.Response);
         }
+
+        [Authorize]
+        [HttpGet("owned-vault-keys")]
+        public async Task<IActionResult> OwnedVaultKeys(CancellationToken ct) =>
+            Ok(await _auth.GetOwnedVaultKeysAsync(CurrentUserId, ct));
 
         [Authorize]
         [HttpGet("me")]

@@ -15,9 +15,14 @@ namespace TheShed.Server.Services
         /// one, so the endpoint doesn't reveal which emails are registered.</summary>
         Task<string> GetPreloginSaltAsync(string email, CancellationToken ct = default);
 
-        /// <summary>Verifies the current auth hash and swaps in the new hash, salt and wrapped
-        /// private key. Returns a fresh token: the old one carries the old keySalt claim.</summary>
+        /// <summary>Verifies the current auth hash and swaps in the new hash, salt, wrapped
+        /// private key and owned vault wraps, all in one save. Returns a fresh token: the old one
+        /// carries the old keySalt claim.</summary>
         Task<AuthResult> ChangePasswordAsync(int userId, ChangePasswordRequest request, CancellationToken ct = default);
+
+        /// <summary>The user's own wraps on vaults they own, trashed vaults included — exactly the
+        /// set a master password change must re-wrap.</summary>
+        Task<IReadOnlyList<OwnedVaultKey>> GetOwnedVaultKeysAsync(int userId, CancellationToken ct = default);
 
         /// <summary>The current user's own keypair (Sprint 27), for Me() — too large to carry
         /// as JWT claims, unlike KeySalt. (null, null) if the user no longer exists.</summary>

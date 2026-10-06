@@ -247,11 +247,17 @@ stable across calls and the same length as a real salt, so the endpoint answers 
 registered and unregistered emails. Reuses the JWT key (domain-separated) instead of a new secret;
 split it if the two ever need to rotate independently.
 
-**Master password change:** possible without touching any vault: vault keys are wrapped with the
-user's RSA public key, and only the private key is wrapped with the stretched key. The client
-re-wraps the private key (`IUserKeypairService.RewrapPrivateKeyAsync`) and sends the current and
-new auth hashes + new salt + new wrapped private key; the server verifies the current hash and
-swaps the three fields, re-issuing the cookie because the JWT carries `keySalt` as a claim.
+**Master password change:** two things are wrapped with the stretched key — the user's private
+key, and the owner's wrap of every vault they own (`IVaultKeyService`; members' wraps use RSA and
+don't move). The client re-wraps all of them (`IUserKeypairService.RewrapAsync`) — the vault keys
+themselves and the entries never change — and sends the current and new auth hashes + new salt +
+new private key + one new wrap per owned vault. The server verifies the current hash, requires
+the wraps to match exactly the owned set (`GET /api/auth/owned-vault-keys`, **trashed vaults
+included**, since they can be restored) — otherwise 409 and nothing is saved — and swaps
+everything in one `SaveChanges`, re-issuing the cookie because the JWT carries `keySalt` as a
+claim. The first version only re-wrapped the private key, on the wrong assumption that owned
+vaults were RSA-wrapped too; the browser check caught it (`OperationError` unwrapping the vault
+key after F5) — none of the unit or integration tests did, they never decrypt anything.
 
 **Accepted limits:**
 - No web app is zero-knowledge against a server that ships malicious JS. After D11 an attacker

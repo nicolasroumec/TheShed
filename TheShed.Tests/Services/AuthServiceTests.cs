@@ -296,6 +296,82 @@ namespace TheShed.Tests.Services
             Assert.Equal(FakePasswordHasher.Hashed("Sup3rSecret!"), user.PasswordHash);
         }
 
+        /// <summary>Ana owns vault 1 (active) and vault 2 (trashed); Bob owns vault 3, shared with
+        /// Ana (her wrap there is RSA, not under her stretched key). Returns Ana's id.</summary>
+        private static async Task<int> SeedVaultsAsync(TheShedContext db, AuthService service)
+        {
+            await service.RegisterAsync(new RegisterRequest
+            {
+                Username = "Ana", Email = "ana@test.com", Password = "Sup3rSecret!",
+                KeySalt = "b2xkLXNhbHQ=", EncryptedPrivateKey = "old-blob"
+            });
+            var ana = await db.Users.SingleAsync();
+            var bob = new User { Username = "Bob", Email = "bob@test.com", PasswordHash = "h" };
+            db.Users.Add(bob);
+            await db.SaveChangesAsync();
+
+            db.Vaults.AddRange(
+                new Vault { Id = 1, OwnerId = ana.Id, Name = "Mine" },
+                new Vault { Id = 2, OwnerId = ana.Id, Name = "Trashed", IsDeleted = true },
+                new Vault { Id = 3, OwnerId = bob.Id, Name = "Bob's" });
+            db.VaultKeyWraps.AddRange(
+                new VaultKeyWrap { VaultId = 1, UserId = ana.Id, WrappedKey = "ana-1" },
+                new VaultKeyWrap { VaultId = 2, UserId = ana.Id, WrappedKey = "ana-2" },
+                new VaultKeyWrap { VaultId = 3, UserId = bob.Id, WrappedKey = "bob-3" },
+                new VaultKeyWrap { VaultId = 3, UserId = ana.Id, WrappedKey = "ana-3-rsa" });
+            await db.SaveChangesAsync();
+            return ana.Id;
+        }
+
+        [Fact]
+        public async Task GetOwnedVaultKeysAsync_ReturnsOwnWrapsOnOwnedVaults_IncludingTrashed()
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+            var anaId = await SeedVaultsAsync(db, service);
+
+            var keys = await service.GetOwnedVaultKeysAsync(anaId);
+
+            // Trashed vault 2 counts: it can be restored, and would come back unopenable.
+            Assert.Equal(["ana-1", "ana-2"], keys.OrderBy(k => k.VaultId).Select(k => k.WrappedKey));
+        }
+
+        [Fact]
+        public async Task ChangePasswordAsync_RewrapsEveryOwnedVaultKey_AndNothingElse()
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+            var anaId = await SeedVaultsAsync(db, service);
+            var request = SampleChange("Sup3rSecret!");
+            request.VaultKeys = [new() { VaultId = 1, WrappedKey = "new-1" }, new() { VaultId = 2, WrappedKey = "new-2" }];
+
+            var result = await service.ChangePasswordAsync(anaId, request);
+
+            Assert.True(result.Success);
+            var wraps = await db.VaultKeyWraps.IgnoreQueryFilters().OrderBy(w => w.Id).Select(w => w.WrappedKey).ToListAsync();
+            Assert.Equal(["new-1", "new-2", "bob-3", "ana-3-rsa"], wraps);
+        }
+
+        [Theory]
+        [InlineData(new[] { 1 })]          // trashed vault 2 missing
+        [InlineData(new[] { 1, 2, 3 })]    // vault 3 isn't Ana's
+        [InlineData(new[] { 1, 1, 2 })]    // duplicate
+        public async Task ChangePasswordAsync_VaultKeySetMismatch_ChangesNothing(int[] vaultIds)
+        {
+            using var db = CreateContext();
+            var service = CreateService(db);
+            var anaId = await SeedVaultsAsync(db, service);
+            var request = SampleChange("Sup3rSecret!");
+            request.VaultKeys = vaultIds.Select(id => new OwnedVaultKey { VaultId = id, WrappedKey = "new" }).ToList();
+
+            var result = await service.ChangePasswordAsync(anaId, request);
+
+            Assert.False(result.Success);
+            Assert.Equal(AuthError.VaultKeysOutOfDate, result.Error);
+            Assert.Equal("b2xkLXNhbHQ=", (await db.Users.FindAsync(anaId))!.KeySalt);
+            Assert.DoesNotContain("new", await db.VaultKeyWraps.IgnoreQueryFilters().Select(w => w.WrappedKey).ToListAsync());
+        }
+
         // --- Fakes (sin Moq, para mantener el estilo liviano del repo) ---
 
         private sealed class FakePasswordHasher : IPasswordHasher
