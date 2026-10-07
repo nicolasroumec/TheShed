@@ -85,16 +85,16 @@ log in anymore — test data only, re-register (same call as Sprint 28).
 - [ ] Tests del flujo TOTP (validación de código, ventana de tiempo)
 - [ ] PR a `main`
 
-## 🟣 Sprint 23 — Adjuntos huérfanos · `feature/minor-hardening`
-> `docs/AUDITORIA.md` M2. (M3, B1 y el Sprint 24 — TOTP en entradas guardadas + alertas
-> HIBP — se sacaron del roadmap el 2026-08-31: valor bajo/dudoso para el tamaño de este
-> proyecto, ver el "Descartado" al final de `AUDITORIA.md`.)
+## 🟢 Sprint 23 — Orphaned attachments · `feature/minor-hardening`
+> `docs/AUDITORIA.md` M2. (M3, B1 and Sprint 24 — TOTP for saved entries + HIBP alerts — were
+> dropped from the roadmap on 2026-08-31: low/doubtful value for a project this size, see
+> "Descartado" at the end of `AUDITORIA.md`.)
 
-- [ ] `TrashService` (purga en cascada) llama `IAttachmentStorage.DeleteAsync` por cada
-      `Attachment` de la entry purgada — cierra el `// ponytail:` ya marcado en
-      `TrashService.cs:172-174` (adjuntos huérfanos en disco, no fuga de datos pero
-      acumulación sin límite)
-- [ ] Tests + PR a `main`
+- [x] `TrashService` deletes the attachment blobs from `IAttachmentStorage` on every purge path:
+      manual entry purge, manual vault purge (all its entries) and the expiry sweep. Keys are
+      collected before the delete and the files removed only after `SaveChanges` commits, so a
+      failed save leaves files, never rows pointing at missing files
+- [ ] Tests ✅ (3 new in `TrashServiceTests`) + PR to `main`
 
 ## 🔵 Transversal — Traducir a inglés · `feature/i18n-english`
 > **Hacerla pronto** (no bloquea features pero la deuda crece con cada sprint). CLAUDE.md

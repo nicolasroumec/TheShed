@@ -19,8 +19,25 @@ namespace TheShed.Tests.Services
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options);
 
-        private static TrashService CreateService(TheShedContext db) =>
-            new(db, new VaultAccessService(db), Options.Create(new TrashSettings { RetentionDays = RetentionDays }));
+        private static TrashService CreateService(TheShedContext db, IAttachmentStorage? storage = null) =>
+            new(db, new VaultAccessService(db), storage ?? new InMemoryAttachmentStorage(),
+                Options.Create(new TrashSettings { RetentionDays = RetentionDays }));
+
+        // A soft-deleted entry with one attachment whose blob sits in storage under blobKey.
+        private static async Task<int> SeedDeletedEntryWithAttachmentAsync(
+            TheShedContext db, InMemoryAttachmentStorage storage, int vaultId, string blobKey)
+        {
+            var entry = new PasswordEntry { VaultId = vaultId, Name = "Bank", Username = "a", PasswordEncrypted = "x" };
+            entry.Attachments.Add(new Attachment { FileName = "scan.pdf", StoragePath = blobKey, FileSizeBytes = 3 });
+            db.PasswordEntries.Add(entry);
+            await db.SaveChangesAsync();
+            await storage.SaveAsync(blobKey, [1, 2, 3]);
+
+            db.PasswordEntries.Remove(entry);
+            await db.SaveChangesAsync();
+
+            return entry.Id;
+        }
 
         private static async Task<(int ownerId, int vaultId)> SeedVaultAsync(TheShedContext db)
         {
@@ -236,6 +253,44 @@ namespace TheShed.Tests.Services
         }
 
         [Fact]
+        public async Task PurgeAsync_Entry_DeletesItsAttachmentBlobsOnly()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var storage = new InMemoryAttachmentStorage();
+            var entryId = await SeedDeletedEntryWithAttachmentAsync(db, storage, vaultId, "purged");
+            await SeedDeletedEntryWithAttachmentAsync(db, storage, vaultId, "kept");
+            var service = CreateService(db, storage);
+
+            var result = await service.PurgeAsync(ownerId, TrashItemType.Entry, entryId);
+
+            Assert.True(result.Success);
+            Assert.False(storage.Contains("purged"));
+            Assert.True(storage.Contains("kept"));
+        }
+
+        [Fact]
+        public async Task PurgeAsync_Vault_DeletesAttachmentBlobsOfItsEntries()
+        {
+            using var db = CreateContext();
+            var (ownerId, vaultId) = await SeedVaultAsync(db);
+            var storage = new InMemoryAttachmentStorage();
+            await SeedDeletedEntryWithAttachmentAsync(db, storage, vaultId, "in-vault");
+            // Like VaultService's fresh per-request context: with the entry still tracked, EF's
+            // client-side cascade would hard-delete it (already IsDeleted) on the vault's soft delete.
+            db.ChangeTracker.Clear();
+            var vault = await db.Vaults.FirstAsync(v => v.Id == vaultId);
+            db.Vaults.Remove(vault);
+            await db.SaveChangesAsync();
+            var service = CreateService(db, storage);
+
+            var result = await service.PurgeAsync(ownerId, TrashItemType.Vault, vaultId);
+
+            Assert.True(result.Success);
+            Assert.False(storage.Contains("in-vault"));
+        }
+
+        [Fact]
         public async Task PurgeAsync_NotYetDeleted_ReturnsNotFound()
         {
             using var db = CreateContext();
@@ -273,6 +328,25 @@ namespace TheShed.Tests.Services
             Assert.Equal(1, purged);
             Assert.Null(await db.PasswordEntries.IgnoreQueryFilters().FirstOrDefaultAsync(e => e.Id == expiredEntryId));
             Assert.NotNull(await db.PasswordEntries.IgnoreQueryFilters().FirstOrDefaultAsync(e => e.Id == freshEntryId));
+        }
+
+        [Fact]
+        public async Task PurgeExpiredAsync_DeletesAttachmentBlobsOfExpiredEntriesOnly()
+        {
+            using var db = CreateContext();
+            var (_, vaultId) = await SeedVaultAsync(db);
+            var storage = new InMemoryAttachmentStorage();
+            var expiredId = await SeedDeletedEntryWithAttachmentAsync(db, storage, vaultId, "expired");
+            await SeedDeletedEntryWithAttachmentAsync(db, storage, vaultId, "fresh");
+            var expired = await db.PasswordEntries.IgnoreQueryFilters().FirstAsync(e => e.Id == expiredId);
+            expired.DeletedAt = DateTime.UtcNow.AddDays(-RetentionDays - 1);
+            await db.SaveChangesAsync();
+            var service = CreateService(db, storage);
+
+            await service.PurgeExpiredAsync(DateTime.UtcNow);
+
+            Assert.False(storage.Contains("expired"));
+            Assert.True(storage.Contains("fresh"));
         }
 
         [Fact]

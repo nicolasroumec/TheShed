@@ -17,13 +17,14 @@ and in `git log` — not duplicated here.
 ## In progress
 - 🟢 **Sprint 35** (`feature/session-hardening`): clipboard auto-clear (N4) ✅, sign out
   everywhere (N3) ✅. Pending: browser check + PR to `main`.
+- 🟢 **Sprint 23** (`feature/minor-hardening`): purges delete attachment blobs from disk ✅.
+  Pending: PR to `main`.
 
 ## Pending, by value (see `FEATURES-ROADMAP.md`)
-1. 🔵 **Sprint 23** — orphaned attachments on disk.
-2. 🟡 **Language debt**: old `docs/*.md` and comments still in Spanish, against `CLAUDE.md`.
+1. 🟡 **Language debt**: old `docs/*.md` and comments still in Spanish, against `CLAUDE.md`.
    `feature/i18n-english` branch in `SPRINTS.md`, mergeable at any time.
-3. 🟣 Sprint 18 (2FA), recovery key, encrypted export, and the rest of the roadmap table.
+2. 🟣 Sprint 18 (2FA), recovery key, encrypted export, and the rest of the roadmap table.
 
 ## Next step
-PR for Sprint 35, then Sprint 23. Loose end: logout shows 503 in the browser (see `SPRINTS.md`
+PRs for Sprints 35 and 23. Loose end: logout shows 503 in the browser (see `SPRINTS.md`
 Sprint 34) — cause unknown.

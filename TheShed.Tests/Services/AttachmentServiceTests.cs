@@ -240,28 +240,5 @@ namespace TheShed.Tests.Services
             Assert.False(result.Success);
             Assert.Equal(EntryError.Forbidden, result.Error);
         }
-
-        // In-memory IAttachmentStorage double: no real filesystem I/O in tests.
-        private sealed class InMemoryAttachmentStorage : IAttachmentStorage
-        {
-            private readonly Dictionary<string, byte[]> _files = new();
-            public string? LastKey { get; private set; }
-
-            public Task SaveAsync(string key, byte[] content, CancellationToken ct = default)
-            {
-                _files[key] = content;
-                LastKey = key;
-                return Task.CompletedTask;
-            }
-
-            public Task<byte[]?> ReadAsync(string key, CancellationToken ct = default) =>
-                Task.FromResult(_files.TryGetValue(key, out var content) ? content : null);
-
-            public Task DeleteAsync(string key, CancellationToken ct = default)
-            {
-                _files.Remove(key);
-                return Task.CompletedTask;
-            }
-        }
     }
 }
