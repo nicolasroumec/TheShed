@@ -1,4 +1,21 @@
-window.copyToClipboard = (text) => navigator.clipboard.writeText(text);
+// Clipboard auto-clear (N4): a copied password is wiped after 30 s, but only if the clipboard
+// still holds it, so we never clobber something the user copied since. If readText is denied
+// or unsupported (Firefox), clear anyway: losing a stray copy beats leaving a password behind.
+// The browser only lets us write while the tab has focus, so a clear fired from a background
+// tab fails silently and the password stays. No API gets around that.
+const CLIPBOARD_CLEAR_MS = 30000;
+let clipboardTimer = null;
+
+window.copyToClipboard = async (text) => {
+    await navigator.clipboard.writeText(text);
+    clearTimeout(clipboardTimer);
+    clipboardTimer = setTimeout(async () => {
+        try {
+            if (await navigator.clipboard.readText() !== text) return;
+        } catch { /* no read permission: fall through and clear */ }
+        try { await navigator.clipboard.writeText(''); } catch { /* tab not focused */ }
+    }, CLIPBOARD_CLEAR_MS);
+};
 
 // Inline registration (the stock PWA template's approach) is blocked by our CSP (script-src
 // 'self', no 'unsafe-inline'), so it lives here instead — this file is already external and

@@ -57,7 +57,7 @@ Logout only deletes the cookie; a stolen cookie is valid for up to 60 minutes
 `OnTokenValidated`. Incrementing it gives "sign out everywhere" and invalidates sessions on a
 password change (N2).
 
-### N4 🟡 — Clipboard is never cleared
+### N4 ✅ — Clipboard is never cleared
 `EntryRow.razor.cs` copies the plaintext password and leaves it there. Clear it after 30 s in
 `interop.js`, only if the clipboard still holds what we copied (fall back to clearing
 unconditionally if `readText` permission is denied).
@@ -71,7 +71,7 @@ unconditionally if `readText` permission is denied).
 |---|---|---|---|
 | 1 | ✅ Auth hash + prelogin (N1) | Closes the gap in the zero-knowledge model | M |
 | 2 | ✅ Change master password (N2) | No remedy today if it leaks; cheap thanks to the key hierarchy | S |
-| 3 | Clipboard auto-clear (N4) | Industry standard, a few lines of JS | XS |
+| 3 | ✅ Clipboard auto-clear (N4) | Industry standard, a few lines of JS | XS |
 | 4 | Sign out everywhere (N3) | Real revocation; one column + one claim | S |
 | 5 | 2FA TOTP (Sprint 18, already planned) | Fields exist on `User`. With zero-knowledge it protects login, not data | M |
 | 6 | Recovery key | Forgotten master password = data lost forever. A random printable key that also wraps the private key (like 1Password's Emergency Kit) | M |

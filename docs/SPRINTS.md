@@ -6,7 +6,7 @@
 > shippeados quedan colapsados al final como referencia — el detalle día a día de
 > cada uno vive en `git log`, no acá.
 
-## 🟢 Sprint 34 — Auth hash + change master password · `feature/auth-hash`
+## ✅ Sprint 34 — Auth hash + change master password · `feature/auth-hash` · PRs #32, #33
 > N1 + N2 in `FEATURES-ROADMAP.md`; design in `DECISIONS.md` D11. Until now the server received the
 > raw master password on login/register — with `KeySalt` and `EncryptedPrivateKey` already in the
 > database, an *active* server compromise (RCE, a body-logging middleware) was enough to decrypt
@@ -64,9 +64,10 @@ log in anymore — test data only, re-register (same call as Sprint 28).
 **Known gap:** other open sessions keep working until their JWT expires, with a stale `keySalt`
 (unlock fails there until re-login). Closed by N3 (sign out everywhere).
 
-## 🔵 Sprint 35 — Clipboard auto-clear + sign out everywhere · `feature/session-hardening`
+## 🟢 Sprint 35 — Clipboard auto-clear + sign out everywhere · `feature/session-hardening`
 > N4 + N3 in `FEATURES-ROADMAP.md`.
-- [ ] N4: clear the clipboard after 30 s in `interop.js`, only if it still holds what we copied
+- [x] N4: clear the clipboard after 30 s in `interop.js`, only if it still holds what we copied
+      (or unconditionally if `readText` is denied). Only works while the tab has focus
 - [ ] N3: `User.TokenVersion` column, emitted as a claim, checked in `OnTokenValidated`;
       incremented by "sign out everywhere" and by a master password change
 - [ ] Tests + PR to `main`

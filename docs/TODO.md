@@ -15,21 +15,16 @@ Sprint-by-sprint detail (what, when, why) lives in `SPRINTS.md` (the "Shipped" t
 and in `git log` — not duplicated here.
 
 ## In progress
-- 🔴 **Fix for Sprint 34** (`fix/owned-vault-keys-rewrap`). `feature/auth-hash` (N1 + N2,
-  `DECISIONS.md` D11) merged in PR #32 with a bug: changing the master password didn't re-wrap
-  owned vault keys, leaving those vaults undecryptable. Found in the browser check after the
-  merge; fixed, tested and re-checked in Chrome. Pending: the PR to `main` — until then, don't
-  use the password change on real data.
+- 🟢 **Sprint 35** (`feature/session-hardening`): clipboard auto-clear (N4) ✅, sign out
+  everywhere (N3) pending. N3 also closes the gap Sprint 34 leaves: other sessions keep a stale
+  `keySalt` claim after a password change until their JWT expires.
 
 ## Pending, by value (see `FEATURES-ROADMAP.md`)
-1. 🔵 **Clipboard auto-clear (N4)** and **sign out everywhere (N3)** — both small. N3 also
-   closes the gap Sprint 34 leaves: other sessions keep a stale `keySalt` claim after a
-   password change until their JWT expires.
-2. 🔵 **Sprint 23** — orphaned attachments on disk.
-3. 🟡 **Language debt**: old `docs/*.md` and comments still in Spanish, against `CLAUDE.md`.
+1. 🔵 **Sprint 23** — orphaned attachments on disk.
+2. 🟡 **Language debt**: old `docs/*.md` and comments still in Spanish, against `CLAUDE.md`.
    `feature/i18n-english` branch in `SPRINTS.md`, mergeable at any time.
-4. 🟣 Sprint 18 (2FA), recovery key, encrypted export, and the rest of the roadmap table.
+3. 🟣 Sprint 18 (2FA), recovery key, encrypted export, and the rest of the roadmap table.
 
 ## Next step
-PR for `fix/owned-vault-keys-rewrap`. Then N4 + N3. Loose end: logout shows 503 in the browser (see `SPRINTS.md`
-Sprint 34) — not from this branch, cause unknown.
+N3 (sign out everywhere). Loose end: logout shows 503 in the browser (see `SPRINTS.md`
+Sprint 34) — cause unknown.
