@@ -7,6 +7,7 @@ namespace TheShed.Client.Pages;
 public partial class Account
 {
     [Inject] private IAuthService AuthService { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     private ChangePasswordRequest _model = new();
     // Kept off the DTO: it's a UI-only check and would otherwise ride along in the shared contract.
@@ -14,6 +15,13 @@ public partial class Account
     private string? _error;
     private bool _busy;
     private bool _done;
+
+    private async Task LogoutEverywhere()
+    {
+        _busy = true;
+        await AuthService.LogoutEverywhereAsync();
+        Navigation.NavigateTo("login");
+    }
 
     private async Task HandleSubmit()
     {

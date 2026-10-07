@@ -20,6 +20,10 @@ namespace TheShed.Server.Services
         /// carries the old keySalt claim.</summary>
         Task<AuthResult> ChangePasswordAsync(int userId, ChangePasswordRequest request, CancellationToken ct = default);
 
+        /// <summary>Bumps the user's TokenVersion, invalidating every JWT issued so far —
+        /// including the caller's (N3).</summary>
+        Task SignOutEverywhereAsync(int userId, CancellationToken ct = default);
+
         /// <summary>The user's own wraps on vaults they own, trashed vaults included — exactly the
         /// set a master password change must re-wrap.</summary>
         Task<IReadOnlyList<OwnedVaultKey>> GetOwnedVaultKeysAsync(int userId, CancellationToken ct = default);

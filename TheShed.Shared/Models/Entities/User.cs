@@ -21,6 +21,11 @@ namespace TheShed.Shared.Models.Entities
         public string? PublicKey { get; set; }
         public string? EncryptedPrivateKey { get; set; }
 
+        // Session revocation (N3). Copied into every JWT as the "tv" claim and compared on each
+        // request; bumping it invalidates every token issued before (sign out everywhere,
+        // master password change).
+        public int TokenVersion { get; set; }
+
         public bool IsActive { get; set; } = true;
         public DateTime? LastLoginAt { get; set; }
         public bool TwoFactorEnabled { get; set; } = false;

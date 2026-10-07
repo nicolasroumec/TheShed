@@ -217,9 +217,13 @@ namespace TheShed.Client.Services
             _ownKeypairCache.Clear();
         }
 
-        public async Task LogoutAsync()
+        public Task LogoutAsync() => EndSessionAsync("api/auth/logout");
+
+        public Task LogoutEverywhereAsync() => EndSessionAsync("api/auth/logout-all");
+
+        private async Task EndSessionAsync(string url)
         {
-            await _http.PostAsync("api/auth/logout", null);
+            await _http.PostAsync(url, null);
             // The cached CSRF token was bound to this (now former) authenticated identity — see
             // CsrfHandler.Invalidate.
             _csrf.Invalidate();

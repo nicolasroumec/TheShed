@@ -62,14 +62,19 @@
 **Migration:** none. Accounts created before Increment 2 stored `Argon2(raw password)` and can't
 log in anymore — test data only, re-register (same call as Sprint 28).
 **Known gap:** other open sessions keep working until their JWT expires, with a stale `keySalt`
-(unlock fails there until re-login). Closed by N3 (sign out everywhere).
+(unlock fails there until re-login). Closed by N3 in Sprint 35.
 
 ## 🟢 Sprint 35 — Clipboard auto-clear + sign out everywhere · `feature/session-hardening`
 > N4 + N3 in `FEATURES-ROADMAP.md`.
 - [x] N4: clear the clipboard after 30 s in `interop.js`, only if it still holds what we copied
       (or unconditionally if `readText` is denied). Only works while the tab has focus
-- [ ] N3: `User.TokenVersion` column, emitted as a claim, checked in `OnTokenValidated`;
-      incremented by "sign out everywhere" and by a master password change
+- [x] N3: `User.TokenVersion` column, emitted as the `tv` claim, checked in `OnTokenValidated`
+      (one PK lookup per request; inactive users are rejected there too); incremented by
+      `POST /api/auth/logout-all` ("Sign out everywhere" on `/account`) and by a master password
+      change, which re-issues the caller's own token. Migration `AddUserTokenVersion`: tokens
+      issued before it have no `tv` claim, so every open session has to log in once.
+      **Known gap:** a revoked tab finds out on its next API call (401) or reload — there's no
+      global 401 handler sending it to `/login`.
 - [ ] Tests + PR to `main`
 
 ## 🟣 Sprint 18 — 2FA (TOTP) · `feature/2fa`

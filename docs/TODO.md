@@ -16,8 +16,7 @@ and in `git log` — not duplicated here.
 
 ## In progress
 - 🟢 **Sprint 35** (`feature/session-hardening`): clipboard auto-clear (N4) ✅, sign out
-  everywhere (N3) pending. N3 also closes the gap Sprint 34 leaves: other sessions keep a stale
-  `keySalt` claim after a password change until their JWT expires.
+  everywhere (N3) ✅. Pending: browser check + PR to `main`.
 
 ## Pending, by value (see `FEATURES-ROADMAP.md`)
 1. 🔵 **Sprint 23** — orphaned attachments on disk.
@@ -26,5 +25,5 @@ and in `git log` — not duplicated here.
 3. 🟣 Sprint 18 (2FA), recovery key, encrypted export, and the rest of the roadmap table.
 
 ## Next step
-N3 (sign out everywhere). Loose end: logout shows 503 in the browser (see `SPRINTS.md`
+PR for Sprint 35, then Sprint 23. Loose end: logout shows 503 in the browser (see `SPRINTS.md`
 Sprint 34) — cause unknown.

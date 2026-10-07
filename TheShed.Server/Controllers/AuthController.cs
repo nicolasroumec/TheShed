@@ -127,6 +127,15 @@ namespace TheShed.Server.Controllers
             return Ok();
         }
 
+        [Authorize]
+        [HttpPost("logout-all")]
+        public async Task<IActionResult> LogoutAll(CancellationToken ct)
+        {
+            await _auth.SignOutEverywhereAsync(CurrentUserId, ct);
+            Response.Cookies.Delete("authToken", new CookieOptions { Path = "/" });
+            return Ok();
+        }
+
         private int CurrentUserId =>
             int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
                       ?? User.FindFirstValue("sub")

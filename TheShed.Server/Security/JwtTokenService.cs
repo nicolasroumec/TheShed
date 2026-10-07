@@ -9,6 +9,8 @@ namespace TheShed.Server.Security
 {
     public class JwtTokenService : IJwtTokenService
     {
+        public const string TokenVersionClaim = "tv";
+
         private readonly JwtSettings _settings;
 
         public JwtTokenService(IOptions<JwtSettings> settings) => _settings = settings.Value;
@@ -22,6 +24,7 @@ namespace TheShed.Server.Security
                 new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new(JwtRegisteredClaimNames.Email, user.Email),
                 new("username", user.Username),
+                new(TokenVersionClaim, user.TokenVersion.ToString()),
                 new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
             if (user.KeySalt is not null)

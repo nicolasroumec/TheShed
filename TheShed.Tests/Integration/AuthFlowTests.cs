@@ -86,6 +86,8 @@ namespace TheShed.Tests.Integration
         {
             var client = _factory.CreateAuthenticatedClient();
             var (email, _) = await client.RegisterNewUserAsync(password: "IntegrationTest123!");
+            var otherDevice = _factory.CreateAuthenticatedClient();
+            (await otherDevice.PostJsonWithCsrfAsync("api/auth/login", new { Email = email, Password = "IntegrationTest123!" })).EnsureSuccessStatusCode();
 
             var wrong = await client.PostJsonWithCsrfAsync("api/auth/change-password", new ChangePasswordRequest
             {
@@ -121,11 +123,37 @@ namespace TheShed.Tests.Integration
             Assert.Equal("bmV3LXNhbHQ=", me!.KeySalt);
             Assert.Equal("new-blob", me.EncryptedPrivateKey);
 
+            // Every other session is revoked (N3): it would carry the stale keySalt claim.
+            Assert.Equal(HttpStatusCode.Unauthorized, (await otherDevice.GetAsync("api/auth/me")).StatusCode);
+
             var fresh = _factory.CreateAuthenticatedClient();
             var oldLogin = await fresh.PostJsonWithCsrfAsync("api/auth/login", new { Email = email, Password = "IntegrationTest123!" });
             var newLogin = await fresh.PostJsonWithCsrfAsync("api/auth/login", new { Email = email, Password = "Changed123!" });
             Assert.Equal(HttpStatusCode.Unauthorized, oldLogin.StatusCode);
             newLogin.EnsureSuccessStatusCode();
+        }
+
+        [Fact]
+        public async Task LogoutAll_RevokesEverySessionIncludingTheCallers()
+        {
+            var client = _factory.CreateAuthenticatedClient();
+            var (email, _) = await client.RegisterNewUserAsync(password: "IntegrationTest123!");
+            var otherDevice = _factory.CreateAuthenticatedClient();
+            (await otherDevice.PostJsonWithCsrfAsync("api/auth/login", new { Email = email, Password = "IntegrationTest123!" })).EnsureSuccessStatusCode();
+
+            // otherDevice stands in for a stolen cookie: plain logout only deletes the cookie on
+            // the device that calls it, so this is the case logout-all exists for.
+            (await otherDevice.GetAsync("api/auth/me")).EnsureSuccessStatusCode();
+
+            (await client.PostJsonWithCsrfAsync("api/auth/logout-all", new { })).EnsureSuccessStatusCode();
+
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("api/auth/me")).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await otherDevice.GetAsync("api/auth/me")).StatusCode);
+
+            // Revocation isn't a lockout: a fresh login gets a token with the new version.
+            var relogin = _factory.CreateAuthenticatedClient();
+            (await relogin.PostJsonWithCsrfAsync("api/auth/login", new { Email = email, Password = "IntegrationTest123!" })).EnsureSuccessStatusCode();
+            (await relogin.GetAsync("api/auth/me")).EnsureSuccessStatusCode();
         }
 
         [Fact]
