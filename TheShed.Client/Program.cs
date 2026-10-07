@@ -17,8 +17,10 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 // Scoped registration here would hand the HTTP pipeline a different instance than the one
 // AuthService injects and calls Invalidate() on — the cached token would never actually clear.
 builder.Services.AddSingleton<CsrfHandler>();
+builder.Services.AddSingleton<SessionExpiredHandler>();
 builder.Services.AddHttpClient("Default", client => client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress))
-    .AddHttpMessageHandler<CsrfHandler>();
+    .AddHttpMessageHandler<CsrfHandler>()
+    .AddHttpMessageHandler<SessionExpiredHandler>();
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Default"));
 
 builder.Services.AddScoped<JwtAuthenticationStateProvider>();

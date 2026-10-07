@@ -73,8 +73,9 @@ log in anymore — test data only, re-register (same call as Sprint 28).
       `POST /api/auth/logout-all` ("Sign out everywhere" on `/account`) and by a master password
       change, which re-issues the caller's own token. Migration `AddUserTokenVersion`: tokens
       issued before it have no `tv` claim, so every open session has to log in once.
-      **Known gap:** a revoked tab finds out on its next API call (401) or reload — there's no
-      global 401 handler sending it to `/login`.
+      A revoked tab is sent to `/login` on its next API call: `SessionExpiredHandler` (client)
+      turns any 401 — except `login` and `me` — into a full reload of `/login`, which also wipes
+      the in-memory keys. Until that next call it still shows what it already had on screen.
 - [ ] Tests + PR to `main`
 
 ## 🟣 Sprint 18 — 2FA (TOTP) · `feature/2fa`
