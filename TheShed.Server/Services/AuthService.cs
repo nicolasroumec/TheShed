@@ -105,8 +105,10 @@ namespace TheShed.Server.Services
                 return new AuthResult(false, AuthError.VaultKeysOutOfDate, null);
             }
 
-            // ponytail: other sessions keep working until their JWT expires, with a stale keySalt
-            // claim (unlock fails there until re-login). Sign-out-everywhere is N3 (TokenVersion).
+            // Bumping TokenVersion signs out every other session (N3) — they'd otherwise carry a
+            // stale keySalt claim. This one survives: Success(user) issues a token with the new
+            // version.
+            user.TokenVersion++;
             user.PasswordHash = _hasher.Hash(request.NewPassword);
             user.KeySalt = request.NewKeySalt;
             user.EncryptedPrivateKey = request.NewEncryptedPrivateKey;
@@ -118,6 +120,10 @@ namespace TheShed.Server.Services
 
             return Success(user);
         }
+
+        public async Task SignOutEverywhereAsync(int userId, CancellationToken ct = default) =>
+            await _db.Users.Where(u => u.Id == userId)
+                .ExecuteUpdateAsync(s => s.SetProperty(u => u.TokenVersion, u => u.TokenVersion + 1), ct);
 
         public async Task<IReadOnlyList<OwnedVaultKey>> GetOwnedVaultKeysAsync(int userId, CancellationToken ct = default) =>
             await OwnedWraps(userId)

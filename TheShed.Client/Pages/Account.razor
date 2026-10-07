@@ -43,4 +43,15 @@
             @(_busy ? "Changing…" : "Change password")
         </button>
     </EditForm>
+
+    <hr class="my-4" />
+
+    <h2 class="h5">Sign out everywhere</h2>
+    <p class="text-muted small">
+        Ends every session of this account on every device, this one included. Use it if you
+        signed in on a device you no longer trust.
+    </p>
+    <button type="button" class="btn btn-outline-danger w-100" disabled="@_busy" @onclick="LogoutEverywhere">
+        Sign out everywhere
+    </button>
 </div>

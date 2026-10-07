@@ -38,5 +38,8 @@ namespace TheShed.Client.Services
         void Lock();
 
         Task LogoutAsync();
+
+        /// <summary>Revokes every session of this account, this one included (N3).</summary>
+        Task LogoutEverywhereAsync();
     }
 }

@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TheShed.Server.Data;
@@ -13,12 +14,14 @@ namespace TheShed.Server.Services
     {
         private readonly TheShedContext _db;
         private readonly IVaultAccessService _access;
+        private readonly IAttachmentStorage _storage;
         private readonly int _retentionDays;
 
-        public TrashService(TheShedContext db, IVaultAccessService access, IOptions<TrashSettings> settings)
+        public TrashService(TheShedContext db, IVaultAccessService access, IAttachmentStorage storage, IOptions<TrashSettings> settings)
         {
             _db = db;
             _access = access;
+            _storage = storage;
             _retentionDays = settings.Value.RetentionDays;
         }
 
@@ -120,8 +123,10 @@ namespace TheShed.Server.Services
 
             // Already IsDeleted: the SaveChanges override lets this go through as a real hard
             // delete, cascading to the vault's entries/notes/members at the database level.
+            var blobs = await AttachmentKeysAsync(a => a.PasswordEntry.VaultId == vaultId, ct);
             _db.Vaults.Remove(vault);
             await _db.SaveChangesAsync(ct);
+            await DeleteBlobsAsync(blobs, ct);
 
             return EntryResult<bool>.Ok(true);
         }
@@ -168,12 +173,13 @@ namespace TheShed.Server.Services
             }
 
             // Already IsDeleted: the SaveChanges override lets this go through as a real hard delete.
-            // ponytail: purging a PasswordEntry cascades its Attachment rows away at the DB level,
-            // but the encrypted blobs in IAttachmentStorage are never told to delete — orphaned
-            // files on disk. Fix by loading the entry's attachments here and calling storage.DeleteAsync
-            // per file before removing, if that ever accumulates enough to matter.
+            // Only entries have attachments; a note gets an empty list without a query.
+            var blobs = item is PasswordEntry
+                ? await AttachmentKeysAsync(a => a.PasswordEntryId == id, ct)
+                : [];
             set.Remove(item);
             await _db.SaveChangesAsync(ct);
+            await DeleteBlobsAsync(blobs, ct);
 
             return EntryResult<bool>.Ok(true);
         }
@@ -186,13 +192,38 @@ namespace TheShed.Server.Services
             var cutoff = now.AddDays(-_retentionDays);
             var purged = 0;
 
+            // Same predicate as the vault and entry sweeps below, seen from the attachment: its
+            // entry expired on its own, or rides along with an expired vault.
+            var blobs = await AttachmentKeysAsync(a =>
+                (a.PasswordEntry.IsDeleted && a.PasswordEntry.DeletedAt < cutoff) ||
+                (a.PasswordEntry.Vault.IsDeleted && a.PasswordEntry.Vault.DeletedAt < cutoff), ct);
+
             purged += await PurgeExpiredSetAsync(_db.Vaults, cutoff, ct);
             purged += await PurgeExpiredSetAsync(_db.PasswordEntries, cutoff, ct);
             purged += await PurgeExpiredSetAsync(_db.SecureNotes, cutoff, ct);
             purged += await PurgeExpiredSetAsync(_db.Tags, cutoff, ct);
 
             await _db.SaveChangesAsync(ct);
+            await DeleteBlobsAsync(blobs, ct);
             return purged;
+        }
+
+        // Attachment rows go with their entry by DB cascade, but the encrypted blobs live in
+        // IAttachmentStorage, out of the database's reach (AUDITORIA M2). Keys are collected
+        // before the delete and the files removed only after it commits: a failed save leaves
+        // files behind, never rows pointing at missing files.
+        private Task<List<string>> AttachmentKeysAsync(Expression<Func<Attachment, bool>> filter, CancellationToken ct) =>
+            _db.Attachments.IgnoreQueryFilters().Where(filter).Select(a => a.StoragePath).ToListAsync(ct);
+
+        // ponytail: no retry. If a delete throws (file locked), the rest of the list stays
+        // orphaned and the caller sees an error although the purge itself committed. Add a
+        // disk-vs-DB sweep if that ever happens in practice.
+        private async Task DeleteBlobsAsync(List<string> keys, CancellationToken ct)
+        {
+            foreach (var key in keys)
+            {
+                await _storage.DeleteAsync(key, ct);
+            }
         }
 
         private static async Task<int> PurgeExpiredSetAsync<T>(DbSet<T> set, DateTime cutoff, CancellationToken ct)

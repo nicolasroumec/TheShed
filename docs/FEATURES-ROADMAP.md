@@ -51,13 +51,18 @@ because today *reading* traffic is enough; after the fix, an attacker has to *mo
 has no remedy. The key hierarchy makes this cheap: re-encrypt `EncryptedPrivateKey` with the new
 stretched key and store the new salt + hash. Vault keys and entries are untouched.
 
-### N3 🟡 — A stolen JWT can't be revoked
+### N3 ✅ — A stolen JWT can't be revoked
+> **Done** in Sprint 35 as described below (D12), plus a client handler that sends any 401 to
+> `/login`.
+
 Logout only deletes the cookie; a stolen cookie is valid for up to 60 minutes
 (`Jwt:ExpiryMinutes`). Minimal fix: `User.TokenVersion` column, emitted as a claim, checked in
 `OnTokenValidated`. Incrementing it gives "sign out everywhere" and invalidates sessions on a
 password change (N2).
 
-### N4 🟡 — Clipboard is never cleared
+### N4 ✅ — Clipboard is never cleared
+> **Done** in Sprint 35 as described below.
+
 `EntryRow.razor.cs` copies the plaintext password and leaves it there. Clear it after 30 s in
 `interop.js`, only if the clipboard still holds what we copied (fall back to clearing
 unconditionally if `readText` permission is denied).
@@ -71,8 +76,8 @@ unconditionally if `readText` permission is denied).
 |---|---|---|---|
 | 1 | ✅ Auth hash + prelogin (N1) | Closes the gap in the zero-knowledge model | M |
 | 2 | ✅ Change master password (N2) | No remedy today if it leaks; cheap thanks to the key hierarchy | S |
-| 3 | Clipboard auto-clear (N4) | Industry standard, a few lines of JS | XS |
-| 4 | Sign out everywhere (N3) | Real revocation; one column + one claim | S |
+| 3 | ✅ Clipboard auto-clear (N4) | Industry standard, a few lines of JS | XS |
+| 4 | ✅ Sign out everywhere (N3) | Real revocation; one column + one claim | S |
 | 5 | 2FA TOTP (Sprint 18, already planned) | Fields exist on `User`. With zero-knowledge it protects login, not data | M |
 | 6 | Recovery key | Forgotten master password = data lost forever. A random printable key that also wraps the private key (like 1Password's Emergency Kit) | M |
 | 7 | Encrypted export (N5) | JSON encrypted with AES-GCM under an export password; keep CSV as an explicit "unencrypted" option | S |
@@ -85,5 +90,5 @@ unconditionally if `readText` permission is denied).
 1. ✅ **N1 + N2 together** (`feature/auth-hash`, Sprint 34): same flow, same migration. Cover with the new
    `WebApplicationFactory` suite (`TheShed.Tests/Integration/AuthFlowTests.cs`): the server must
    never receive the raw password.
-2. N4 and N3 (small, Sprint 35 in `SPRINTS.md`), plus the pending Sprint 23 (orphaned attachments).
+2. ✅ N4 and N3 (Sprint 35, D12), plus Sprint 23 (orphaned attachments) — `feature/session-hardening`.
 3. Then Sprint 18 (2FA), recovery key, encrypted export, and the rest by value.

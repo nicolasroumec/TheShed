@@ -201,6 +201,9 @@ namespace TheShed.Tests.Controllers
 
             public Task<IReadOnlyList<OwnedVaultKey>> GetOwnedVaultKeysAsync(int userId, CancellationToken ct = default)
                 => throw new NotSupportedException("Covered by AuthServiceTests and AuthFlowTests.");
+
+            public Task SignOutEverywhereAsync(int userId, CancellationToken ct = default)
+                => throw new NotSupportedException("Covered by AuthFlowTests.");
         }
     }
 }

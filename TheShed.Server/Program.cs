@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Antiforgery;
@@ -45,6 +46,30 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     ctx.Token = t;
                 }
                 return Task.CompletedTask;
+            },
+            // Revocation (N3): a token only counts while its "tv" claim matches the user's
+            // current TokenVersion. Tokens issued before this check existed carry no claim and
+            // are rejected too — one forced re-login.
+            // ponytail: one indexed PK lookup per authenticated request; cache per user with a
+            // short TTL if it ever shows up in profiling.
+            OnTokenValidated = async ctx =>
+            {
+                var principal = ctx.Principal!;
+                var sub = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? principal.FindFirstValue("sub");
+                var tv = principal.FindFirstValue(JwtTokenService.TokenVersionClaim);
+                if (!int.TryParse(sub, out var userId) || !int.TryParse(tv, out var version))
+                {
+                    ctx.Fail("Missing user id or token version.");
+                    return;
+                }
+
+                var db = ctx.HttpContext.RequestServices.GetRequiredService<TheShedContext>();
+                var valid = await db.Users.AnyAsync(
+                    u => u.Id == userId && u.IsActive && u.TokenVersion == version, ctx.HttpContext.RequestAborted);
+                if (!valid)
+                {
+                    ctx.Fail("Token revoked.");
+                }
             }
         };
     });
