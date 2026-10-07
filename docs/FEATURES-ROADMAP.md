@@ -52,12 +52,17 @@ has no remedy. The key hierarchy makes this cheap: re-encrypt `EncryptedPrivateK
 stretched key and store the new salt + hash. Vault keys and entries are untouched.
 
 ### N3 ✅ — A stolen JWT can't be revoked
+> **Done** in Sprint 35 as described below (D12), plus a client handler that sends any 401 to
+> `/login`.
+
 Logout only deletes the cookie; a stolen cookie is valid for up to 60 minutes
 (`Jwt:ExpiryMinutes`). Minimal fix: `User.TokenVersion` column, emitted as a claim, checked in
 `OnTokenValidated`. Incrementing it gives "sign out everywhere" and invalidates sessions on a
 password change (N2).
 
 ### N4 ✅ — Clipboard is never cleared
+> **Done** in Sprint 35 as described below.
+
 `EntryRow.razor.cs` copies the plaintext password and leaves it there. Clear it after 30 s in
 `interop.js`, only if the clipboard still holds what we copied (fall back to clearing
 unconditionally if `readText` permission is denied).
@@ -85,5 +90,5 @@ unconditionally if `readText` permission is denied).
 1. ✅ **N1 + N2 together** (`feature/auth-hash`, Sprint 34): same flow, same migration. Cover with the new
    `WebApplicationFactory` suite (`TheShed.Tests/Integration/AuthFlowTests.cs`): the server must
    never receive the raw password.
-2. N4 and N3 (small, Sprint 35 in `SPRINTS.md`), plus the pending Sprint 23 (orphaned attachments).
+2. ✅ N4 and N3 (Sprint 35, D12), plus Sprint 23 (orphaned attachments) — `feature/session-hardening`.
 3. Then Sprint 18 (2FA), recovery key, encrypted export, and the rest by value.

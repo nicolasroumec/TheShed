@@ -141,7 +141,7 @@ en el layout `nonce || ciphertext || tag`), ni forma de re-cifrar datos existent
 compromete y hay que rotarla. Cambiar la clave hoy invalidaría todos los datos ya cifrados.
 
 ### M2 ✅ — Adjuntos huérfanos en disco al purgar en cascada
-> **Resolved** in Sprint 23 (`feature/minor-hardening`): every purge path deletes the blobs.
+> **Resolved** in Sprint 23 (`feature/session-hardening`): every purge path deletes the blobs.
 **Ubicación:** `TheShed.Server/Services/TrashService.cs:170-178` (comentario `ponytail` explícito
 reconociendo el problema).
 

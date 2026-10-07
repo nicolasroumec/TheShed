@@ -11,7 +11,8 @@
   stores opaque blobs only
 - Authentication: the client sends an auth hash derived from the stretched key, never the
   password (D11); the server hashes it with **Argon2**
-- Sessions: **JWT** in an httpOnly cookie (D6) + antiforgery token (D10)
+- Sessions: **JWT** in an httpOnly cookie (D6) + antiforgery token (D10); revocable through
+  `User.TokenVersion`, checked on every request (D12)
 
 Detalle y contexto de cada decisión en `DECISIONS.md`.
 

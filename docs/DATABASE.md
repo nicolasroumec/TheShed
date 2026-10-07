@@ -8,6 +8,7 @@ erDiagram
         string Username
         string Email
         string PasswordHash
+        int TokenVersion
         bool IsActive
         bool TwoFactorEnabled
         string TwoFactorSecret "nullable"
@@ -114,6 +115,7 @@ erDiagram
 - `VaultRole` → `Viewer` (solo lectura) | `Editor` (lectura+escritura)
 - `PasswordEncrypted` y `ContentEncrypted` → cifrado AES-256, nunca en texto plano
 - `TwoFactorSecret` → secret TOTP, nullable (null = 2FA desactivado)
+- `TokenVersion` → copied into every JWT as the `tv` claim; bumping it revokes all of the user's sessions (D12)
 - Todas las entidades heredan `AuditableEntity` (soft delete + timestamps)
 - `Tag` es por usuario, no global — cada uno tiene sus propias etiquetas
 - `Attachment.StoragePath` → ruta al archivo en disco/blob storage (no se guarda el binario en la DB)

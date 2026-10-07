@@ -15,6 +15,7 @@ con la posibilidad de compartir vaults con otros usuarios (pareja, equipo, famil
 ### Autenticación
 - Registro e inicio de sesión con email + contraseña maestra
 - Change the master password (vaults and entries are kept; only the keys that protect them are re-encrypted)
+- Sign out everywhere: ends every session of the account on every device (a password change also signs out the other devices)
 - Cierre automático de sesión por inactividad (timeout configurable)
 - 2FA (autenticación de dos factores)
 
@@ -27,6 +28,7 @@ con la posibilidad de compartir vaults con otros usuarios (pareja, equipo, famil
 - Campos: nombre, usuario, contraseña, URL, notas
 - Mostrar/ocultar contraseña
 - Copiar contraseña al clipboard (sin exponerla en pantalla)
+- The copied password is cleared from the clipboard after 30 s, unless something else was copied since
 - Favoritos para acceso rápido
 - Tags para categorizar entradas
 - Historial de versiones (ver contraseñas anteriores de una entrada)
@@ -38,6 +40,7 @@ con la posibilidad de compartir vaults con otros usuarios (pareja, equipo, famil
 
 ### Adjuntos
 - Archivos pequeños adjuntos a una entrada (ej: PDF de licencia, imagen de tarjeta)
+- Purging the entry (or its vault) from the trash also deletes its files from disk
 
 ### Generador de contraseñas
 - Longitud configurable

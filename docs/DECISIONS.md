@@ -16,6 +16,7 @@ client's auth hash instead. Argon2 stays as the server-side hash.
 (dev) / variables de entorno (prod), nunca en `appsettings.json`.
 **Contexto:** sin refresh token todavía; se agrega cuando haga falta. Detalle de
 implementación en `AUTH_FLOW.md`.
+**Update (Sprint 35):** tokens can now be revoked before they expire — see D12.
 
 ## D3 — Cifrado de entradas: AES-256-GCM con clave de servidor
 **Decisión:** cifrar los valores sensibles de las entradas (`PasswordEntry.PasswordEncrypted`)
@@ -61,6 +62,9 @@ hardcodeado, para poder ajustarlo sin recompilar.
 sus entradas/notas: restaurar el vault las restaura a ellas; purgar el vault las purga a ellas.
 **Evolución futura:** si la purga periódica no escala (tabla muy grande), mover a un job por
 lotes o a nivel de base de datos (ej. SQL Agent job) en vez de `BackgroundService` in-process.
+**Update (Sprint 23):** purging (manual or automatic) also deletes the attachment blobs from
+`IAttachmentStorage`, after the DB delete commits. Before that the rows went away by cascade but
+the encrypted files stayed on disk forever (`AUDITORIA.md` M2).
 
 ## D6 — Sesión JWT: cookie `HttpOnly` en vez de `localStorage`
 **Decisión:** el JWT se transporta en una cookie `HttpOnly` (`authToken`, `Secure`, `SameSite=Lax`,
@@ -262,8 +266,36 @@ key after F5) — none of the unit or integration tests did, they never decrypt 
 **Accepted limits:**
 - No web app is zero-knowledge against a server that ships malicious JS. After D11 an attacker
   has to *modify* the client, not just *read* traffic.
-- Other sessions survive a password change until their JWT expires, with a stale `keySalt`
-  (unlock fails there). N3 (`TokenVersion`, Sprint 35) closes it.
+- Other sessions used to survive a password change until their JWT expired, with a stale
+  `keySalt`. Closed by D12 (Sprint 35): a password change now revokes every other session.
 - No migration: pre-D11 accounts can't log in (test data, re-register).
 
-Detail in `docs/SPRINTS.md` Sprint 34.
+Detail in PRs #32 and #33 (`git log`).
+
+## D12 — Session revocation: `TokenVersion` checked on every request (N3)
+
+**Decision:** `User.TokenVersion` (int) is copied into every JWT as the `tv` claim. The JWT
+bearer's `OnTokenValidated` loads the user by id and rejects the token unless the user exists,
+is active and has the same `TokenVersion`. Bumping the number revokes every token issued before:
+`POST /api/auth/logout-all` ("Sign out everywhere" on `/account`) does it, and so does a master
+password change, which then re-issues the caller's own cookie so only the *other* sessions fall.
+
+**Context:** logout only deleted the cookie in the browser that called it (D6), so a stolen cookie
+stayed valid for up to `Jwt:ExpiryMinutes` (60). After D11 it also left other sessions with a stale
+`keySalt` claim after a password change.
+
+**Alternatives discarded:**
+- *Short access token + refresh token* (D2's "later"): still needs server state to revoke the
+  refresh token, and it is a much bigger change to the auth flow.
+- *Denylist of revoked `jti`s*: more state to store and clean up, and it can't express "every
+  session of this user" without listing them all.
+
+**Cost:** one primary-key lookup per authenticated request. Fine at this scale; if it ever shows
+up in profiling, cache per user with a short TTL (the comment in `Program.cs` marks the spot).
+
+**Client side:** `SessionExpiredHandler` turns any 401 (except `login`, where it means wrong
+credentials, and `me`, the "am I signed in?" probe) into a full reload of `/login`, which also
+wipes the in-memory keys. A revoked tab finds out on its next API call, not instantly.
+
+**Migration:** `AddUserTokenVersion`. Tokens issued before it carry no `tv` claim and are
+rejected, so every open session signs in once.
