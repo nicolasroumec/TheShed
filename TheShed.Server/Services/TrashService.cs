@@ -209,7 +209,7 @@ namespace TheShed.Server.Services
         }
 
         // Attachment rows go with their entry by DB cascade, but the encrypted blobs live in
-        // IAttachmentStorage, out of the database's reach (AUDITORIA M2). Keys are collected
+        // IAttachmentStorage, out of the database's reach (AUDIT M2). Keys are collected
         // before the delete and the files removed only after it commits: a failed save leaves
         // files behind, never rows pointing at missing files.
         private Task<List<string>> AttachmentKeysAsync(Expression<Func<Attachment, bool>> filter, CancellationToken ct) =>

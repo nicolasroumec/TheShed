@@ -250,7 +250,7 @@ namespace TheShed.Server.Services
 
             // Not key rotation — the vault key itself doesn't change, so anything the ex-member
             // already decrypted is still technically recoverable from what they saw (M1 in
-            // AUDITORIA.md, accepted risk per D7). This just stops their wrap from ever being
+            // AUDIT.md, accepted risk per D7). This just stops their wrap from ever being
             // handed back out through GetWrappedKeyAsync/AddMemberAsync's re-add path.
             var wrap = await _db.VaultKeyWraps
                 .FirstOrDefaultAsync(w => w.VaultId == vaultId && w.UserId == memberUserId, ct);

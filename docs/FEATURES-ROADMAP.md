@@ -1,7 +1,7 @@
 # The Shed — New Features Roadmap
 Date: 2026-09-22 · Based on a code audit of `main` at `07bf7ed` (after PR #31).
 
-Complements `AUDITORIA.md` (C1, A1–A4 and M5 are resolved there; M1, M2 and IP-only rate limiting
+Complements `AUDIT.md` (C1, A1–A4 and M5 are resolved there; M1, M2 and IP-only rate limiting
 are already tracked). Items already discarded on 2026-08-31 (HIBP, ambiguous characters, TOTP for
 saved entries) and out-of-scope items (browser extension, offline access) are not re-proposed.
 
@@ -84,7 +84,7 @@ unconditionally if `readText` permission is denied).
 | 8 | Health: old passwords | `PasswordChangedAt` already exists; flag entries older than 12 months in `Health` | XS |
 | 9 | Rotate vault key on member removal (M1) | Needed for sharing with teams/families to be trustworthy | L |
 | 10 | One-time share link for a single entry (Bitwarden Send-like) | Differentiator: key lives in the URL `#fragment`, the server never sees it; link expires | M |
-| 11 | Per-vault activity log | Builds on `ChangedByUserId` (AUDITORIA opportunity #2): who changed what, when | M |
+| 11 | Per-vault activity log | Builds on `ChangedByUserId` (AUDIT opportunity #2): who changed what, when | M |
 
 ## Suggested order
 1. ✅ **N1 + N2 together** (`feature/auth-hash`, Sprint 34): same flow, same migration. Cover with the new

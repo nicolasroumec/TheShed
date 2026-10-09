@@ -29,7 +29,7 @@ of finishing the zero-knowledge migration (D7):
   already opened this session) so it's always complete.
 
 Out of scope (deferred to Sprint 28 per `SPRINTS.md`): migrating data created before this
-sprint, and vault-key rotation on member removal (M1 in `AUDITORIA.md`, accepted risk per D7).
+sprint, and vault-key rotation on member removal (M1 in `AUDIT.md`, accepted risk per D7).
 
 ## Increments
 
@@ -61,7 +61,7 @@ Each increment stops for review/commit before the next starts.
       unwraps every accessible vault's key, decrypts each entry's password client-side, runs
       `PasswordHealthChecker` locally. No Blazor-component test harness in this repo — verified
       manually in-browser, same bar as Increment 3.
-- [x] **Increment 6 — Docs + cleanup.** `docs/SPRINTS.md` checked off, "historial y adjuntos"
+- [x] **Increment 6 — Docs + cleanup.** `docs/SPRINTS.md` checked off, "history and attachments"
       line corrected (history was already done in Sprint 26). `docs/TODO.md` progress note.
       `RemoveMemberAsync` also deletes the removed member's now-stale `VaultKeyWrap` row (not
       rotation — M1 stays open — just stops the wrap being handed back out).

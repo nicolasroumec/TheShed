@@ -3,7 +3,7 @@
 ## Stack
 - **.NET 10** Blazor WebAssembly (hosted)
 - **EF Core 10** + **SQL Server**
-- **3 proyectos:** `TheShed.Server` · `TheShed.Client` · `TheShed.Shared`
+- **3 projects:** `TheShed.Server` · `TheShed.Client` · `TheShed.Shared`
 
 ## Security
 - **Zero-knowledge** (D7): the master password is stretched client-side (PBKDF2, Web Crypto);
@@ -14,29 +14,29 @@
 - Sessions: **JWT** in an httpOnly cookie (D6) + antiforgery token (D10); revocable through
   `User.TokenVersion`, checked on every request (D12)
 
-Detalle y contexto de cada decisión en `DECISIONS.md`.
+Detail and context for each decision in `DECISIONS.md`.
 
-## Modelo de datos (borrador)
+## Data model (draft)
 
 ```
 User
 ├── Vaults (1:N)
 │   ├── PasswordEntries (1:N)
 │   │   ├── Tags (M:N)
-│   │   ├── EntryHistory (1:N)   ← versiones anteriores
+│   │   ├── EntryHistory (1:N)   ← previous versions
 │   │   └── Attachments (1:N)
-│   ├── SecureNotes (1:N)        ← notas de solo texto
-│   └── VaultMembers (1:N)       ← usuarios con acceso compartido
-└── Tags (1:N)                   ← etiquetas propias del usuario
+│   ├── SecureNotes (1:N)        ← text-only notes
+│   └── VaultMembers (1:N)       ← users with shared access
+└── Tags (1:N)                   ← the user's own tags
 ```
 
-## Decisiones técnicas
-Ver DECISIONS.md (a completar a medida que avanzamos).
+## Technical decisions
+See DECISIONS.md.
 
-## Comandos
+## Commands
 ```bash
-dotnet build                                                   # build todo
-dotnet build TheShed.Shared/TheShed.Shared.csproj             # solo shared
-dotnet ef migrations add <Nombre> --project TheShed.Server    # nueva migración
-dotnet ef database update --project TheShed.Server            # aplicar migraciones
+dotnet build                                                   # build everything
+dotnet build TheShed.Shared/TheShed.Shared.csproj             # shared only
+dotnet ef migrations add <Name> --project TheShed.Server      # new migration
+dotnet ef database update --project TheShed.Server            # apply migrations
 ```
