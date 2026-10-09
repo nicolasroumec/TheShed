@@ -10,10 +10,10 @@ namespace TheShed.Tests.Security
             new(RandomNumberGenerator.GetBytes(32));
 
         [Theory]
-        [InlineData("contraseña-super-secreta")]
+        [InlineData("super-secret-pässword")]
         [InlineData("")]
-        [InlineData("áéíóú 🔐 con símbolos & espacios")]
-        public void Encrypt_Then_Decrypt_DevuelveOriginal(string plaintext)
+        [InlineData("áéíóú 🔐 with symbols & spaces")]
+        public void Encrypt_Then_Decrypt_ReturnsOriginal(string plaintext)
         {
             var service = CreateService();
 
@@ -24,24 +24,24 @@ namespace TheShed.Tests.Security
         }
 
         [Fact]
-        public void Encrypt_MismoTexto_ProduceCifradosDistintos()
+        public void Encrypt_SameText_ProducesDifferentCiphertexts()
         {
             var service = CreateService();
 
-            var a = service.Encrypt("misma-clave");
-            var b = service.Encrypt("misma-clave");
+            var a = service.Encrypt("same-text");
+            var b = service.Encrypt("same-text");
 
-            // Nonce aleatorio por operación → los cifrados no deben coincidir.
+            // Random nonce per operation → the ciphertexts must differ.
             Assert.NotEqual(a, b);
         }
 
         [Fact]
-        public void Decrypt_DatoManipulado_Lanza()
+        public void Decrypt_TamperedData_Throws()
         {
             var service = CreateService();
-            var cipher = service.Encrypt("dato-integro");
+            var cipher = service.Encrypt("intact-data");
 
-            // Alterar un byte del payload (flip del último byte del tag).
+            // Tamper with one payload byte (flip the tag's last byte).
             var bytes = Convert.FromBase64String(cipher);
             bytes[^1] ^= 0xFF;
             var tampered = Convert.ToBase64String(bytes);
@@ -50,23 +50,23 @@ namespace TheShed.Tests.Security
         }
 
         [Fact]
-        public void Decrypt_ConOtraClave_Lanza()
+        public void Decrypt_WithOtherKey_Throws()
         {
-            var cipher = CreateService().Encrypt("secreto");
-            var otroServicio = CreateService(); // clave distinta
+            var cipher = CreateService().Encrypt("secret");
+            var otherService = CreateService(); // different key
 
-            Assert.Throws<AuthenticationTagMismatchException>(() => otroServicio.Decrypt(cipher));
+            Assert.Throws<AuthenticationTagMismatchException>(() => otherService.Decrypt(cipher));
         }
 
         [Fact]
-        public void Constructor_ClaveLongitudIncorrecta_Lanza()
+        public void Constructor_WrongKeyLength_Throws()
         {
-            var key = RandomNumberGenerator.GetBytes(16); // 16 bytes en vez de 32
+            var key = RandomNumberGenerator.GetBytes(16); // 16 bytes instead of 32
             Assert.Throws<ArgumentException>(() => new AesEncryptionService(key));
         }
 
         [Fact]
-        public void Decrypt_TextoDemasiadoCorto_Lanza()
+        public void Decrypt_TooShortCiphertext_Throws()
         {
             var service = CreateService();
             var tooShort = Convert.ToBase64String(new byte[10]); // < nonce(12) + tag(16)

@@ -1,4 +1,4 @@
-# The Shed — Diagrama de Base de Datos
+# The Shed — Database diagram
 
 ```mermaid
 erDiagram
@@ -110,12 +110,12 @@ erDiagram
     PasswordEntry ||--o{ Attachment : "attachments"
 ```
 
-## Notas
+## Notes
 
-- `VaultRole` → `Viewer` (solo lectura) | `Editor` (lectura+escritura)
-- `PasswordEncrypted` y `ContentEncrypted` → cifrado AES-256, nunca en texto plano
-- `TwoFactorSecret` → secret TOTP, nullable (null = 2FA desactivado)
+- `VaultRole` → `Viewer` (read-only) | `Editor` (read+write)
+- `PasswordEncrypted` and `ContentEncrypted` → AES-256 encrypted, never plaintext
+- `TwoFactorSecret` → TOTP secret, nullable (null = 2FA disabled)
 - `TokenVersion` → copied into every JWT as the `tv` claim; bumping it revokes all of the user's sessions (D12)
-- Todas las entidades heredan `AuditableEntity` (soft delete + timestamps)
-- `Tag` es por usuario, no global — cada uno tiene sus propias etiquetas
-- `Attachment.StoragePath` → ruta al archivo en disco/blob storage (no se guarda el binario en la DB)
+- Every entity inherits `AuditableEntity` (soft delete + timestamps)
+- `Tag` is per user, not global — each user has their own tags
+- `Attachment.StoragePath` → path to the file on disk/blob storage (the binary is not stored in the DB)

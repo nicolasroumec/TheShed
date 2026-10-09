@@ -4,7 +4,7 @@ namespace TheShed.Server.Security
 {
     public interface IJwtTokenService
     {
-        /// <summary>Genera un access token JWT para el usuario. Devuelve token y vencimiento.</summary>
+        /// <summary>Generates a JWT access token for the user. Returns the token and its expiry.</summary>
         (string Token, DateTime ExpiresAt) GenerateToken(User user);
     }
 }

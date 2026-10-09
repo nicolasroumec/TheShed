@@ -1,5 +1,5 @@
 namespace TheShed.Server.Enums
 {
-    /// <summary>Resultado posible de una operación de autenticación.</summary>
+    /// <summary>Possible outcome of an authentication operation.</summary>
     public enum AuthError { None, EmailInUse, InvalidCredentials, VaultKeysOutOfDate }
 }

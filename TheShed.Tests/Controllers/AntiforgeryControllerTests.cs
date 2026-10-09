@@ -27,7 +27,7 @@ namespace TheShed.Tests.Controllers
         }
 
         [Fact]
-        public void GetToken_DevuelveTokenNoVacio()
+        public void GetToken_ReturnsNonEmptyToken()
         {
             var controller = CreateController();
 

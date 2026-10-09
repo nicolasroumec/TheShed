@@ -1,38 +1,39 @@
-# Fase 4 (parcial) — Flujo de autenticación: guía de implementación
+# Phase 4 (partial) — Authentication flow: implementation guide
 
-> Documento de handoff para implementar **registro + login** (Argon2 + JWT) en
-> incrementos, cada uno con su commit. Pensado para ejecutarse en otra sesión.
-> Plan completo y decisiones: ver más abajo y `docs/ARCHITECTURE.md`.
+> **Historical document.** The handoff used to implement **register + login** (Argon2 + JWT)
+> in increments, one commit each, meant to run in another session. The code below is the
+> original plan: the flow has since moved to an `HttpOnly` cookie (D6), client-side key
+> derivation (D7) and an auth hash instead of the master password (D11) — see `DECISIONS.md`.
 
-## Decisiones tomadas (resumen)
-- **Argon2 en el servidor** para el hash de la contraseña maestra (coincide con
-  `User.PasswordHash`). El modelo zero-knowledge (derivar clave en el cliente) queda
-  como evolución futura.
-- **Librería `Isopoh.Cryptography.Argon2`** → hash formato PHC con salt y parámetros
-  embebidos (no hay que manejar el salt aparte).
-- **Solo access token JWT** (sin refresh token todavía), firmado con HMAC-SHA256,
-  clave en **User Secrets** (no en `appsettings.json`).
-- **Capas:** `Security/` (cripto + JWT), `Services/` (lógica auth), `Controllers/`
-  (endpoint), DTOs en `TheShed.Shared`.
-- **Sin migración nueva** — los campos ya existen en `User`.
+## Decisions taken (summary)
+- **Argon2 on the server** for the master password hash (matches
+  `User.PasswordHash`). The zero-knowledge model (deriving the key on the client) is left
+  as a future evolution.
+- **`Isopoh.Cryptography.Argon2` library** → PHC-format hash with embedded salt and
+  parameters (no need to handle the salt separately).
+- **JWT access token only** (no refresh token yet), signed with HMAC-SHA256, key in
+  **User Secrets** (not in `appsettings.json`).
+- **Layers:** `Security/` (crypto + JWT), `Services/` (auth logic), `Controllers/`
+  (endpoint), DTOs in `TheShed.Shared`.
+- **No new migration** — the fields already exist on `User`.
 
 ---
 
-## ✅ Incremento 1 — Servicio de hashing Argon2 (HECHO)
+## ✅ Increment 1 — Argon2 hashing service (DONE)
 
-> Ya implementado y en verde en el working tree. Commit pendiente de confirmar:
+> Already implemented and green in the working tree. Commit awaiting confirmation:
 > `feat: add Argon2 password hashing service`
 
-- Paquete `Isopoh.Cryptography.Argon2` agregado a `TheShed.Server.csproj`.
+- `Isopoh.Cryptography.Argon2` package added to `TheShed.Server.csproj`.
 - `TheShed.Server/Security/IPasswordHasher.cs` — `Hash(string)` / `Verify(string, string)`.
-- `TheShed.Server/Security/Argon2PasswordHasher.cs` — usa `Argon2.Hash` / `Argon2.Verify`.
+- `TheShed.Server/Security/Argon2PasswordHasher.cs` — uses `Argon2.Hash` / `Argon2.Verify`.
 - `Program.cs`: `builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();`
 
 ---
 
-## Incremento 2 — DTOs de autenticación (Shared)
+## Increment 2 — Authentication DTOs (Shared)
 
-**Carpeta:** `TheShed.Shared/Models/DTOs/Auth/` · **Namespace:** `TheShed.Shared.Models.DTOs.Auth`
+**Folder:** `TheShed.Shared/Models/DTOs/Auth/` · **Namespace:** `TheShed.Shared.Models.DTOs.Auth`
 
 `RegisterRequest.cs`
 ```csharp
@@ -85,20 +86,20 @@ namespace TheShed.Shared.Models.DTOs.Auth
 }
 ```
 
-**Verificación:** `dotnet build TheShed.Shared/TheShed.Shared.csproj`
+**Verification:** `dotnet build TheShed.Shared/TheShed.Shared.csproj`
 **Commit:** `feat: add authentication DTOs`
 
 ---
 
-## Incremento 3 — Infraestructura JWT
+## Increment 3 — JWT infrastructure
 
-### 3.1 Paquete
+### 3.1 Package
 ```bash
 dotnet add TheShed.Server package Microsoft.AspNetCore.Authentication.JwtBearer
 ```
 
-### 3.2 Configuración
-`appsettings.json` → agregar sección (sin la clave):
+### 3.2 Configuration
+`appsettings.json` → add the section (without the key):
 ```json
 "Jwt": {
   "Issuer": "TheShed",
@@ -106,11 +107,11 @@ dotnet add TheShed.Server package Microsoft.AspNetCore.Authentication.JwtBearer
   "ExpiryMinutes": 60
 }
 ```
-`appsettings.Example.json` → misma sección + recordatorio de setear la clave por secrets.
+`appsettings.Example.json` → same section + a reminder to set the key through secrets.
 
-Clave por **User Secrets** (no commitear):
+Key through **User Secrets** (do not commit it):
 ```bash
-dotnet user-secrets set "Jwt:Key" "<clave-aleatoria-larga-min-32-bytes>" --project TheShed.Server
+dotnet user-secrets set "Jwt:Key" "<long-random-key-min-32-bytes>" --project TheShed.Server
 ```
 
 ### 3.3 `TheShed.Server/Security/JwtSettings.cs`
@@ -135,7 +136,7 @@ namespace TheShed.Server.Security
 {
     public interface IJwtTokenService
     {
-        /// <summary>Genera un access token JWT para el usuario. Devuelve token y vencimiento.</summary>
+        /// <summary>Generates a JWT access token for the user. Returns the token and its expiry.</summary>
         (string Token, DateTime ExpiresAt) GenerateToken(User user);
     }
 }
@@ -193,7 +194,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using TheShed.Server.Security;
 
-// ... después de AddDbContext:
+// ... after AddDbContext:
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
@@ -214,19 +215,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
-// ... en el pipeline, ANTES de app.MapControllers() y respetando el orden:
+// ... in the pipeline, BEFORE app.MapControllers() and keeping this order:
 app.UseAuthentication();
 app.UseAuthorization();
 ```
-> Importante: `UseAuthentication()` debe ir **antes** de `UseAuthorization()`, y ambos
-> después de `UseRouting()`.
+> Important: `UseAuthentication()` must come **before** `UseAuthorization()`, and both
+> after `UseRouting()`.
 
-**Verificación:** `dotnet build TheShed.Server` en verde.
+**Verification:** `dotnet build TheShed.Server` green.
 **Commit:** `feat: configure JWT authentication`
 
 ---
 
-## Incremento 4 — AuthService + AuthController
+## Increment 4 — AuthService + AuthController
 
 ### 4.1 `TheShed.Server/Services/IAuthService.cs`
 ```csharp
@@ -344,7 +345,7 @@ namespace TheShed.Server.Controllers
             var result = await _auth.RegisterAsync(request, ct);
             if (!result.Success)
             {
-                return Conflict(new { message = "El email ya está registrado." });
+                return Conflict(new { message = "That email is already registered." });
             }
             return CreatedAtAction(nameof(Register), result.Response);
         }
@@ -355,7 +356,7 @@ namespace TheShed.Server.Controllers
             var result = await _auth.LoginAsync(request, ct);
             if (!result.Success)
             {
-                return Unauthorized(new { message = "Credenciales inválidas." });
+                return Unauthorized(new { message = "Invalid credentials." });
             }
             return Ok(result.Response);
         }
@@ -363,42 +364,42 @@ namespace TheShed.Server.Controllers
 }
 ```
 
-### 4.4 DI en `Program.cs`
+### 4.4 DI in `Program.cs`
 ```csharp
 builder.Services.AddScoped<IAuthService, AuthService>();
 ```
-> `AuthService` es **Scoped** porque depende de `TheShedContext` (Scoped).
-> `IPasswordHasher` y `IJwtTokenService` son Singleton (sin estado).
+> `AuthService` is **Scoped** because it depends on `TheShedContext` (Scoped).
+> `IPasswordHasher` and `IJwtTokenService` are Singleton (stateless).
 
-**Verificación:** ver sección siguiente.
+**Verification:** see the next section.
 **Commit:** `feat: add register and login endpoints`
 
 ---
 
-## Incremento 5 — Docs
+## Increment 5 — Docs
 
-- `docs/TODO.md`: marcar avance de Fase 4 (auth hecho; falta AES-256, 2FA).
-- `docs/ARCHITECTURE.md` (o `DECISIONS.md`): registrar las decisiones de arriba.
+- `docs/TODO.md`: mark Phase 4 progress (auth done; AES-256 and 2FA missing).
+- `docs/ARCHITECTURE.md` (or `DECISIONS.md`): record the decisions above.
 - **Commit:** `docs: document auth flow decisions and progress`
 
 ---
 
-## Verificación end-to-end
+## End-to-end verification
 
 ```bash
-dotnet ef database update --project TheShed.Server   # si la DB no existe aún
+dotnet ef database update --project TheShed.Server   # if the DB doesn't exist yet
 dotnet run --project TheShed.Server
 ```
-Con el OpenAPI/REST client:
-1. `POST /api/auth/register` con email nuevo → **201**; mismo email otra vez → **409**.
-2. En la DB, `Users.PasswordHash` debe ser un string Argon2 (`$argon2...`), nunca la
-   contraseña en claro.
-3. `POST /api/auth/login` correcto → **200** + `AuthResponse` con token; password mala → **401**.
-4. Pegar el token en jwt.io → verificar claims `sub`, `email`, `username`, `exp`.
-5. (Opcional) endpoint dummy `[Authorize]` → **401** sin token, **200** con `Authorization: Bearer <token>`.
+With the OpenAPI/REST client:
+1. `POST /api/auth/register` with a new email → **201**; the same email again → **409**.
+2. In the DB, `Users.PasswordHash` must be an Argon2 string (`$argon2...`), never the
+   plaintext password.
+3. A correct `POST /api/auth/login` → **200** + `AuthResponse` with a token; wrong password → **401**.
+4. Paste the token into jwt.io → check the `sub`, `email`, `username`, `exp` claims.
+5. (Optional) a dummy `[Authorize]` endpoint → **401** without a token, **200** with `Authorization: Bearer <token>`.
 
-## Checklist de commits
-- [x] `feat: add Argon2 password hashing service`  *(Inc 1 — código ya en working tree)*
+## Commit checklist
+- [x] `feat: add Argon2 password hashing service`  *(Inc 1 — code already in the working tree)*
 - [ ] `feat: add authentication DTOs`               *(Inc 2)*
 - [ ] `feat: configure JWT authentication`          *(Inc 3)*
 - [ ] `feat: add register and login endpoints`      *(Inc 4)*

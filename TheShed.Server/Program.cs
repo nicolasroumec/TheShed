@@ -16,10 +16,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<TheShedContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Seguridad — hashing de la contraseña maestra (Argon2)
+// Security — master password hashing (Argon2)
 builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
 
-// Seguridad — autenticación JWT (access token, HMAC-SHA256)
+// Security — JWT authentication (access token, HMAC-SHA256)
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
@@ -103,7 +103,7 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
-// Servicios de aplicación — autenticación (Scoped: depende de TheShedContext)
+// Application services — authentication (Scoped: depends on TheShedContext)
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // Application services — user lookups (public key by email, Sprint 27; Scoped: depends on TheShedContext)

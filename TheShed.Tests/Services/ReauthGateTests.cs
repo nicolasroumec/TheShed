@@ -8,7 +8,7 @@ using Xunit;
 namespace TheShed.Tests.Services
 {
     /// <summary>Sprint 30, Increment 4: reauthentication before a plaintext password is shown or
-    /// copied (AUDITORIA A1).</summary>
+    /// copied (AUDIT A1).</summary>
     public class ReauthGateTests
     {
         private const string CorrectPassword = "hunter2";

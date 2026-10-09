@@ -1,67 +1,67 @@
 # The Shed — Product
 
-## Qué es
-Gestor de contraseñas multi-usuario. Los usuarios guardan sus credenciales cifradas en vaults,
-organizadas como quieran, accesibles desde cualquier dispositivo.
+## What it is
+A multi-user password manager. Users keep their encrypted credentials in vaults, organized however
+they like, reachable from any device.
 
-## Para quién
-Cualquier persona que quiera guardar sus contraseñas de forma segura en la nube,
-con la posibilidad de compartir vaults con otros usuarios (pareja, equipo, familia).
+## Who it is for
+Anyone who wants to keep their passwords safely in the cloud, with the option of sharing vaults with
+other users (partner, team, family).
 
 ---
 
-## Funcionalidades
+## Features
 
-### Autenticación
-- Registro e inicio de sesión con email + contraseña maestra
+### Authentication
+- Sign up and sign in with email + master password
 - Change the master password (vaults and entries are kept; only the keys that protect them are re-encrypted)
 - Sign out everywhere: ends every session of the account on every device (a password change also signs out the other devices)
-- Cierre automático de sesión por inactividad (timeout configurable)
-- 2FA (autenticación de dos factores)
+- Automatic sign-out on inactivity (configurable timeout)
+- 2FA (two-factor authentication)
 
 ### Vaults
-- Crear, editar y eliminar vaults (carpetas agrupadas)
-- Compartir un vault con otro usuario
-- Roles en vault compartido: solo lectura / lectura+escritura
+- Create, edit and delete vaults (grouping folders)
+- Share a vault with another user
+- Roles in a shared vault: read-only / read+write
 
-### Entradas
-- Campos: nombre, usuario, contraseña, URL, notas
-- Mostrar/ocultar contraseña
-- Copiar contraseña al clipboard (sin exponerla en pantalla)
+### Entries
+- Fields: name, username, password, URL, notes
+- Show/hide the password
+- Copy the password to the clipboard (without showing it on screen)
 - The copied password is cleared from the clipboard after 30 s, unless something else was copied since
-- Favoritos para acceso rápido
-- Tags para categorizar entradas
-- Historial de versiones (ver contraseñas anteriores de una entrada)
-- Papelera: las entradas eliminadas se pueden recuperar antes de borrarse definitivamente
+- Favorites for quick access
+- Tags to categorize entries
+- Version history (see an entry's previous passwords)
+- Trash: deleted entries can be recovered before they are deleted for good
 
-### Notas seguras
-- Entradas de solo texto, sin usuario/contraseña
-- Para guardar: números de serie, respuestas de seguridad, PINs, etc.
+### Secure notes
+- Text-only entries, with no username/password
+- For storing: serial numbers, security answers, PINs, etc.
 
-### Adjuntos
-- Archivos pequeños adjuntos a una entrada (ej: PDF de licencia, imagen de tarjeta)
+### Attachments
+- Small files attached to an entry (e.g. a license PDF, a card image)
 - Purging the entry (or its vault) from the trash also deletes its files from disk
 
-### Generador de contraseñas
-- Longitud configurable
-- Opciones: mayúsculas, minúsculas, números, símbolos
-- Usable al crear/editar una entrada
+### Password generator
+- Configurable length
+- Options: uppercase, lowercase, digits, symbols
+- Usable while creating/editing an entry
 
-### Seguridad
-- Todas las contraseñas cifradas con AES-256
-- Detector de contraseñas débiles
-- Detector de contraseñas repetidas entre entradas
+### Security
+- Every password encrypted with AES-256
+- Weak password detector
+- Detector for passwords repeated across entries
 
-### Búsqueda
-- Buscar entradas por nombre, URL o usuario
+### Search
+- Search entries by name, URL or username
 
-### Importar / Exportar
-- Importar desde LastPass, Bitwarden, 1Password (formato CSV)
-- Exportar todas las entradas propias
+### Import / Export
+- Import from LastPass, Bitwarden, 1Password (CSV format)
+- Export all your own entries
 
 ---
 
-## Fuera de scope (por ahora)
-- App móvil nativa
-- Extensión de navegador
-- Acceso offline
+## Out of scope (for now)
+- Native mobile app
+- Browser extension
+- Offline access

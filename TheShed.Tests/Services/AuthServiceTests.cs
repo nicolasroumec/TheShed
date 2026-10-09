@@ -12,7 +12,7 @@ namespace TheShed.Tests.Services
 {
     public class AuthServiceTests
     {
-        // DbContext con provider InMemory y base única por test, para aislarlos.
+        // DbContext on the InMemory provider with a unique database per test, to isolate them.
         private static TheShedContext CreateContext() =>
             new(new DbContextOptionsBuilder<TheShedContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -25,7 +25,7 @@ namespace TheShed.Tests.Services
         // --- Register ---
 
         [Fact]
-        public async Task RegisterAsync_EmailNuevo_CreaUsuarioYDevuelveToken()
+        public async Task RegisterAsync_NewEmail_CreatesUserAndReturnsToken()
         {
             using var db = CreateContext();
             var service = CreateService(db);
@@ -43,13 +43,13 @@ namespace TheShed.Tests.Services
             Assert.False(string.IsNullOrEmpty(result.Token));
 
             var user = await db.Users.SingleAsync();
-            Assert.Equal("ana@test.com", user.Email);            // email normalizado a minúsculas
+            Assert.Equal("ana@test.com", user.Email);            // email normalized to lowercase
             Assert.Equal("Ana", user.Username);
-            Assert.NotEqual("Sup3rSecret!", user.PasswordHash);  // nunca en texto plano
+            Assert.NotEqual("Sup3rSecret!", user.PasswordHash);  // never in plaintext
         }
 
         [Fact]
-        public async Task RegisterAsync_EmailDuplicado_DevuelveEmailInUse()
+        public async Task RegisterAsync_DuplicateEmail_ReturnsEmailInUse()
         {
             using var db = CreateContext();
             db.Users.Add(new User { Username = "x", Email = "ana@test.com", PasswordHash = "h" });
@@ -59,18 +59,18 @@ namespace TheShed.Tests.Services
             var result = await service.RegisterAsync(new RegisterRequest
             {
                 Username = "Otra",
-                Email = "ANA@test.com",   // mismo email, distinta capitalización
+                Email = "ANA@test.com",   // same email, different casing
                 Password = "Sup3rSecret!"
             });
 
             Assert.False(result.Success);
             Assert.Equal(AuthError.EmailInUse, result.Error);
             Assert.Null(result.Response);
-            Assert.Equal(1, await db.Users.CountAsync()); // no se creó un segundo usuario
+            Assert.Equal(1, await db.Users.CountAsync()); // no second user was created
         }
 
         [Fact]
-        public async Task RegisterAsync_ConKeypair_LoDevuelveEnLaRespuesta()
+        public async Task RegisterAsync_WithKeypair_ReturnsItInResponse()
         {
             using var db = CreateContext();
             var service = CreateService(db);
@@ -91,7 +91,7 @@ namespace TheShed.Tests.Services
         // --- GetKeypairAsync ---
 
         [Fact]
-        public async Task GetKeypairAsync_UsuarioExistente_DevuelvePublicKeyYPrivateKeyCifrada()
+        public async Task GetKeypairAsync_ExistingUser_ReturnsPublicKeyAndEncryptedPrivateKey()
         {
             using var db = CreateContext();
             var service = CreateService(db);
@@ -112,7 +112,7 @@ namespace TheShed.Tests.Services
         }
 
         [Fact]
-        public async Task GetKeypairAsync_UsuarioInexistente_DevuelveNulls()
+        public async Task GetKeypairAsync_MissingUser_ReturnsNulls()
         {
             using var db = CreateContext();
             var service = CreateService(db);
@@ -126,7 +126,7 @@ namespace TheShed.Tests.Services
         // --- Login ---
 
         [Fact]
-        public async Task LoginAsync_CredencialesValidas_DevuelveTokenYActualizaLastLogin()
+        public async Task LoginAsync_ValidCredentials_ReturnsTokenAndUpdatesLastLogin()
         {
             using var db = CreateContext();
             var service = CreateService(db);
@@ -139,7 +139,7 @@ namespace TheShed.Tests.Services
 
             var result = await service.LoginAsync(new LoginRequest
             {
-                Email = "ANA@test.com",   // distinto casing, mismo usuario
+                Email = "ANA@test.com",   // different casing, same user
                 Password = "Sup3rSecret!"
             });
 
@@ -151,7 +151,7 @@ namespace TheShed.Tests.Services
         }
 
         [Fact]
-        public async Task LoginAsync_PasswordIncorrecta_DevuelveInvalidCredentials()
+        public async Task LoginAsync_WrongPassword_ReturnsInvalidCredentials()
         {
             using var db = CreateContext();
             var service = CreateService(db);
@@ -174,7 +174,7 @@ namespace TheShed.Tests.Services
         }
 
         [Fact]
-        public async Task LoginAsync_EmailInexistente_DevuelveInvalidCredentials()
+        public async Task LoginAsync_UnknownEmail_ReturnsInvalidCredentials()
         {
             using var db = CreateContext();
             var service = CreateService(db);
@@ -190,7 +190,7 @@ namespace TheShed.Tests.Services
         }
 
         [Fact]
-        public async Task LoginAsync_UsuarioInactivo_DevuelveInvalidCredentials()
+        public async Task LoginAsync_InactiveUser_ReturnsInvalidCredentials()
         {
             using var db = CreateContext();
             db.Users.Add(new User
@@ -372,7 +372,7 @@ namespace TheShed.Tests.Services
             Assert.DoesNotContain("new", await db.VaultKeyWraps.IgnoreQueryFilters().Select(w => w.WrappedKey).ToListAsync());
         }
 
-        // --- Fakes (sin Moq, para mantener el estilo liviano del repo) ---
+        // --- Fakes (no Moq, to keep the repo's lightweight style) ---
 
         private sealed class FakePasswordHasher : IPasswordHasher
         {

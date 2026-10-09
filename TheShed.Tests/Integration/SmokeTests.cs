@@ -13,7 +13,7 @@ namespace TheShed.Tests.Integration
         public SmokeTests(CustomWebApplicationFactory factory) => _client = factory.CreateAuthenticatedClient();
 
         [Fact]
-        public async Task AntiforgeryToken_DevuelveUnTokenNoVacio()
+        public async Task AntiforgeryToken_ReturnsNonEmptyToken()
         {
             var response = await _client.GetAsync("api/antiforgery/token");
 
@@ -23,7 +23,7 @@ namespace TheShed.Tests.Integration
         }
 
         [Fact]
-        public async Task Me_SinCookie_Devuelve401()
+        public async Task Me_WithoutCookie_Returns401()
         {
             var response = await _client.GetAsync("api/auth/me");
 

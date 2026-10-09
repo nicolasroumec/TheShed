@@ -35,7 +35,7 @@ namespace TheShed.Tests.Controllers
         };
 
         [Fact]
-        public async Task Register_Exito_Devuelve201()
+        public async Task Register_Success_Returns201()
         {
             var controller = CreateController(new FakeAuthService
             {
@@ -50,7 +50,7 @@ namespace TheShed.Tests.Controllers
         }
 
         [Fact]
-        public async Task Register_Exito_SeteaCookieAuthToken()
+        public async Task Register_Success_SetsAuthTokenCookie()
         {
             var controller = CreateController(new FakeAuthService
             {
@@ -65,7 +65,7 @@ namespace TheShed.Tests.Controllers
         }
 
         [Fact]
-        public async Task Register_EmailEnUso_Devuelve409()
+        public async Task Register_EmailInUse_Returns409()
         {
             var controller = CreateController(new FakeAuthService
             {
@@ -79,7 +79,7 @@ namespace TheShed.Tests.Controllers
         }
 
         [Fact]
-        public async Task Register_SinMaterialCriptografico_Devuelve400()
+        public async Task Register_MissingKeyMaterial_Returns400()
         {
             var controller = CreateController(new FakeAuthService
             {
@@ -93,7 +93,7 @@ namespace TheShed.Tests.Controllers
         }
 
         [Fact]
-        public async Task Login_Exito_Devuelve200()
+        public async Task Login_Success_Returns200()
         {
             var controller = CreateController(new FakeAuthService
             {
@@ -108,7 +108,7 @@ namespace TheShed.Tests.Controllers
         }
 
         [Fact]
-        public async Task Login_Exito_SeteaCookieAuthToken()
+        public async Task Login_Success_SetsAuthTokenCookie()
         {
             var controller = CreateController(new FakeAuthService
             {
@@ -123,7 +123,7 @@ namespace TheShed.Tests.Controllers
         }
 
         [Fact]
-        public async Task Login_CredencialesInvalidas_Devuelve401()
+        public async Task Login_InvalidCredentials_Returns401()
         {
             var controller = CreateController(new FakeAuthService
             {
@@ -137,7 +137,7 @@ namespace TheShed.Tests.Controllers
         }
 
         [Fact]
-        public async Task Me_Devuelve200ConLosClaimsYElKeypairPropio()
+        public async Task Me_Returns200WithClaimsAndOwnKeypair()
         {
             var expiresAt = DateTimeOffset.UtcNow.AddHours(1);
             var identity = new ClaimsIdentity(new[]
@@ -177,7 +177,7 @@ namespace TheShed.Tests.Controllers
             Assert.Contains("expires=Thu, 01 Jan 1970", setCookie, StringComparison.OrdinalIgnoreCase);
         }
 
-        // Fake del servicio: devuelve resultados preconfigurados sin tocar la DB.
+        // Service fake: returns preconfigured results without touching the DB.
         private sealed class FakeAuthService : IAuthService
         {
             public AuthResult RegisterResult { get; set; } = default!;

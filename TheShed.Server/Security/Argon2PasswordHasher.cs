@@ -3,9 +3,9 @@ using Isopoh.Cryptography.Argon2;
 namespace TheShed.Server.Security
 {
     /// <summary>
-    /// Implementación de <see cref="IPasswordHasher"/> usando Argon2.
-    /// El hash producido sigue el formato PHC (incluye salt y parámetros),
-    /// por lo que no es necesario almacenar el salt por separado.
+    /// <see cref="IPasswordHasher"/> implementation using Argon2.
+    /// The resulting hash follows the PHC format (salt and parameters included),
+    /// so the salt does not need to be stored separately.
     /// </summary>
     public class Argon2PasswordHasher : IPasswordHasher
     {

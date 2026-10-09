@@ -6,14 +6,14 @@ namespace TheShed.Tests.Services
     public class VaultKeyCacheTests
     {
         [Fact]
-        public void Get_SinSet_DevuelveNull()
+        public void Get_WithoutSet_ReturnsNull()
         {
             var cache = new VaultKeyCache();
             Assert.Null(cache.Get(1));
         }
 
         [Fact]
-        public void Set_LuegoGet_DevuelveLaKeyDeEseVault()
+        public void Set_ThenGet_ReturnsThatVaultsKey()
         {
             var cache = new VaultKeyCache();
             var key = new byte[] { 1, 2, 3 };
@@ -21,7 +21,7 @@ namespace TheShed.Tests.Services
             cache.Set(1, key);
 
             Assert.Same(key, cache.Get(1));
-            Assert.Null(cache.Get(2)); // otro vault, sin key propia
+            Assert.Null(cache.Get(2)); // another vault, no key of its own
         }
 
         [Fact]

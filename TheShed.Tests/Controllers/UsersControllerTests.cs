@@ -15,7 +15,7 @@ namespace TheShed.Tests.Controllers
         };
 
         [Fact]
-        public async Task GetPublicKey_UsuarioExiste_Devuelve200ConLaKey()
+        public async Task GetPublicKey_UserExists_Returns200WithKey()
         {
             var controller = CreateController(new FakeUserService
             {
@@ -30,7 +30,7 @@ namespace TheShed.Tests.Controllers
         }
 
         [Fact]
-        public async Task GetPublicKey_UsuarioNoExiste_Devuelve404()
+        public async Task GetPublicKey_UserMissing_Returns404()
         {
             var controller = CreateController(new FakeUserService { Result = null });
 
@@ -40,7 +40,7 @@ namespace TheShed.Tests.Controllers
         }
 
         [Fact]
-        public async Task GetPublicKey_EmailVacio_Devuelve400()
+        public async Task GetPublicKey_EmptyEmail_Returns400()
         {
             var controller = CreateController(new FakeUserService());
 
@@ -49,7 +49,7 @@ namespace TheShed.Tests.Controllers
             Assert.IsType<BadRequestResult>(result);
         }
 
-        // Fake del servicio: devuelve resultados preconfigurados sin tocar la DB.
+        // Service fake: returns preconfigured results without touching the DB.
         private sealed class FakeUserService : IUserService
         {
             public UserPublicKeyResponse? Result { get; set; }

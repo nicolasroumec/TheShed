@@ -17,7 +17,7 @@ namespace TheShed.Tests.Integration
         public AuthFlowTests(CustomWebApplicationFactory factory) => _factory = factory;
 
         [Fact]
-        public async Task Register_Exito_Devuelve201YSeteaLaCookieAuthToken()
+        public async Task Register_Success_Returns201AndSetsAuthTokenCookie()
         {
             var client = _factory.CreateAuthenticatedClient();
 
@@ -34,7 +34,7 @@ namespace TheShed.Tests.Integration
         }
 
         [Fact]
-        public async Task Register_SinMaterialCriptografico_Devuelve400()
+        public async Task Register_MissingKeyMaterial_Returns400()
         {
             var client = _factory.CreateAuthenticatedClient();
 
@@ -52,7 +52,7 @@ namespace TheShed.Tests.Integration
         }
 
         [Fact]
-        public async Task Login_CredencialesValidas_Devuelve200()
+        public async Task Login_ValidCredentials_Returns200()
         {
             var client = _factory.CreateAuthenticatedClient();
             var (email, _) = await client.RegisterNewUserAsync(password: "IntegrationTest123!");
@@ -170,7 +170,7 @@ namespace TheShed.Tests.Integration
         }
 
         [Fact]
-        public async Task Login_CredencialesInvalidas_Devuelve401()
+        public async Task Login_InvalidCredentials_Returns401()
         {
             var client = _factory.CreateAuthenticatedClient();
 
@@ -184,7 +184,7 @@ namespace TheShed.Tests.Integration
         }
 
         [Fact]
-        public async Task Mutacion_SinHeaderCsrf_Devuelve400()
+        public async Task Mutation_WithoutCsrfHeader_Returns400()
         {
             var client = _factory.CreateAuthenticatedClient();
 
@@ -201,7 +201,7 @@ namespace TheShed.Tests.Integration
         }
 
         [Fact]
-        public async Task Mutacion_ConTokenQueNoMatcheaLaCookie_Devuelve400()
+        public async Task Mutation_WithTokenNotMatchingCookie_Returns400()
         {
             var client = _factory.CreateAuthenticatedClient();
             // Fetching a token stores the pairing cookie on the client — the header below
