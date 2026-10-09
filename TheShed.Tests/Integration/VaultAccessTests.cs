@@ -21,7 +21,7 @@ namespace TheShed.Tests.Integration
         {
             var owner = _factory.CreateAuthenticatedClient();
             await owner.RegisterNewUserAsync();
-            var vaultId = await CreateVaultAsync(owner, "Vault del dueño");
+            var vaultId = await CreateVaultAsync(owner, "Owner's vault");
 
             var get = await owner.GetAsync($"api/vaults/{vaultId}");
             get.EnsureSuccessStatusCode();
@@ -31,7 +31,7 @@ namespace TheShed.Tests.Integration
         }
 
         [Fact]
-        public async Task UsuarioAjeno_RecibeNotFoundAlLeerOEscribirUnaVaultQueNoLeComparten()
+        public async Task Outsider_GetsNotFoundReadingOrWritingAVaultNotSharedWithThem()
         {
             var owner = _factory.CreateAuthenticatedClient();
             await owner.RegisterNewUserAsync();

@@ -30,13 +30,13 @@ namespace TheShed.Server.Controllers
                 string.IsNullOrEmpty(request.PublicKey) ||
                 string.IsNullOrEmpty(request.EncryptedPrivateKey))
             {
-                return BadRequest(new { message = "Falta material criptográfico generado por el cliente." });
+                return BadRequest(new { message = "Missing client-generated key material." });
             }
 
             var result = await _auth.RegisterAsync(request, ct);
             if (!result.Success)
             {
-                return Conflict(new { message = "El email ya está registrado." });
+                return Conflict(new { message = "That email is already registered." });
             }
             SetAuthCookie(result);
             return CreatedAtAction(nameof(Register), result.Response);
@@ -49,7 +49,7 @@ namespace TheShed.Server.Controllers
             var result = await _auth.LoginAsync(request, ct);
             if (!result.Success)
             {
-                return Unauthorized(new { message = "Credenciales inválidas." });
+                return Unauthorized(new { message = "Invalid credentials." });
             }
             SetAuthCookie(result);
             return Ok(result.Response);

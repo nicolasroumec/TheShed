@@ -8,14 +8,14 @@ namespace TheShed.Tests.Services
 {
     public class UserServiceTests
     {
-        // DbContext con provider InMemory y base única por test, para aislarlos.
+        // DbContext on the InMemory provider with a unique database per test, to isolate them.
         private static TheShedContext CreateContext() =>
             new(new DbContextOptionsBuilder<TheShedContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options);
 
         [Fact]
-        public async Task GetPublicKeyAsync_UsuarioConKeypair_DevuelveIdYPublicKey()
+        public async Task GetPublicKeyAsync_UserWithKeypair_ReturnsIdAndPublicKey()
         {
             using var db = CreateContext();
             db.Users.Add(new User { Username = "ana", Email = "ana@test.com", PasswordHash = "h", PublicKey = "pem" });
@@ -29,7 +29,7 @@ namespace TheShed.Tests.Services
         }
 
         [Fact]
-        public async Task GetPublicKeyAsync_EmailInexistente_DevuelveNull()
+        public async Task GetPublicKeyAsync_UnknownEmail_ReturnsNull()
         {
             using var db = CreateContext();
             var service = new UserService(db);
@@ -40,7 +40,7 @@ namespace TheShed.Tests.Services
         }
 
         [Fact]
-        public async Task GetPublicKeyAsync_UsuarioSinKeypair_DevuelveNull()
+        public async Task GetPublicKeyAsync_UserWithoutKeypair_ReturnsNull()
         {
             using var db = CreateContext();
             // Pre-Sprint-25 account: no PublicKey yet.

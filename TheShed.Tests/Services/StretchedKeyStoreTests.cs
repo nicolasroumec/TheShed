@@ -6,14 +6,14 @@ namespace TheShed.Tests.Services
     public class StretchedKeyStoreTests
     {
         [Fact]
-        public void Get_SinSet_DevuelveNull()
+        public void Get_WithoutSet_ReturnsNull()
         {
             var store = new StretchedKeyStore();
             Assert.Null(store.Get());
         }
 
         [Fact]
-        public void Set_LuegoGet_DevuelveLaMismaKey()
+        public void Set_ThenGet_ReturnsSameKey()
         {
             var store = new StretchedKeyStore();
             var key = new byte[] { 1, 2, 3 };
