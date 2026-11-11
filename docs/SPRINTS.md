@@ -6,13 +6,7 @@
 > collapsed at the end for reference — the day-to-day detail of each one lives in `git log`, not
 > here.
 
-## 🟣 Sprint 18 — 2FA (TOTP) · `feature/2fa`
-> `User.TwoFactorSecret` (nullable, null = disabled) already exists in the model.
-- [ ] Enable 2FA: generate a TOTP secret + QR, verify a code before enabling
-- [ ] Require a TOTP code on login when enabled (second step of the auth flow)
-- [ ] Disable 2FA (re-verifying)
-- [ ] Tests for the TOTP flow (code validation, time window)
-- [ ] PR to `main`
+> Next up: recovery key, encrypted export (see `TODO.md` and `FEATURES-ROADMAP.md`).
 
 > **Out of scope (post-roadmap):** refresh tokens (D2), native mobile app, browser extension,
 > offline vault access. (The zero-knowledge model left this list: it was done in Sprints 25-28.
@@ -55,7 +49,8 @@
 | — | `Login`, `Register`, `RedirectToLogin` moved to code-behind | `feature/razor-code-behind` | #31 |
 | 34 | The client sends an auth hash, never the master password (N1, prelogin salt) + master password change (N2), re-wrapping the private key and owned vault keys. The owned-vault fix came after the merge. See D11 | `feature/auth-hash` + `fix/owned-vault-keys-rewrap` | #32, #33 |
 | 35 | Clipboard auto-clear after 30 s (N4) + sign out everywhere (N3): `User.TokenVersion` checked on every request, also bumped by a password change; any 401 sends the app to `/login`. See D12 | `feature/session-hardening` | #34 |
-| — | Language debt: remaining Spanish docs, comments, API messages and test names translated to English; `AUDITORIA.md` → `AUDIT.md` | `feature/i18n-english` | pending |
+| — | Language debt: remaining Spanish docs, comments, API messages and test names translated to English; `AUDITORIA.md` → `AUDIT.md` | `feature/i18n-english` | #35 |
+| 18 | 2FA (TOTP): RFC 6238 with the stdlib, setup with a QR rendered client-side (`QRCoder`), code as an optional second login step, replay protection (`TwoFactorLastStep`). Also fixed two flaky integration tests. See D13 | `feature/2fa-totp` | pending |
 
 **Note:** Sprint 19 (`feature/session-timeout` — auto-logout + re-authentication) was never
 started; its whole scope ended up covered by Sprint 30 with a better design (lock/unlock instead of

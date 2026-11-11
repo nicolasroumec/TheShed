@@ -17,7 +17,7 @@ other users (partner, team, family).
 - Change the master password (vaults and entries are kept; only the keys that protect them are re-encrypted)
 - Sign out everywhere: ends every session of the account on every device (a password change also signs out the other devices)
 - Automatic sign-out on inactivity (configurable timeout)
-- 2FA (two-factor authentication)
+- 2FA with an authenticator app (TOTP): set up by scanning a QR code, asks for a 6-digit code after the password, turned off with a current code
 
 ### Vaults
 - Create, edit and delete vaults (grouping folders)

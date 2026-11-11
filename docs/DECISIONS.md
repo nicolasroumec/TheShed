@@ -293,3 +293,39 @@ wipes the in-memory keys. A revoked tab finds out on its next API call, not inst
 
 **Migration:** `AddUserTokenVersion`. Tokens issued before it carry no `tv` claim and are
 rejected, so every open session signs in once.
+
+## D13 — 2FA: TOTP as an optional field on the same login request
+
+**Decision:** RFC 6238 TOTP (HMAC-SHA1, 6 digits, 30 s, ±1 step of drift) implemented with the
+stdlib in `TheShed.Server/Security/Totp.cs`. `LoginRequest` gained an optional `TotpCode`: when the
+account has 2FA and the code is missing or wrong, login answers 401 with `twoFactorRequired`, and
+the client resends the same request with the code. Setup (`POST /api/auth/2fa/setup`) stores a
+pending secret that only becomes active once a code confirms it (`/2fa/enable`); `/2fa/disable`
+also takes a current code. `User.TwoFactorLastStep` rejects any code at or below the last step
+used (RFC 6238 §5.2).
+
+**Context:** with zero-knowledge (D7, D11) the server can't decrypt anything, so 2FA protects
+*login* — a leaked master password alone no longer opens a session — not the data itself.
+
+**Alternatives discarded:**
+- *Intermediate "2FA pending" token between the two steps*: one more token type to issue, expire
+  and validate. Resending the password costs an extra Argon2 run per 2FA login, which is nothing.
+- *TOTP library (Otp.NET)*: ~60 lines of stdlib code checked against the RFC vectors.
+- *QR rendered on the server*: `QRCoder` runs in WASM, so the image is built in the browser from
+  the setup response and the secret travels in no other request.
+
+**Safeguards:** "2FA required" is only revealed after the password checks out. Setup is refused
+(409) while 2FA is on, so a stolen session can't swap in its own secret. Enable/disable share the
+login rate limit (6-digit codes are brute-forceable otherwise).
+
+**Accepted risks:**
+- `TwoFactorSecret` is stored unencrypted: a DB leak lets an attacker mint codes, but they still
+  need the master password, and vault data stays client-encrypted. Data Protection needs a
+  persistent key ring first — losing it would lock every 2FA user out.
+- Two simultaneous requests with the same code can both pass (no concurrency token); the rate
+  limit makes it negligible.
+- No recovery codes: a lost authenticator means no sign-in. Planned together with the recovery
+  key (next on the roadmap).
+
+**Migration:** `AddTwoFactorLastStep`. `AuthService` reads the time from `TimeProvider`, so the
+integration tests drive the TOTP clock by hand.

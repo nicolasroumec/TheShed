@@ -12,6 +12,7 @@ erDiagram
         bool IsActive
         bool TwoFactorEnabled
         string TwoFactorSecret "nullable"
+        long TwoFactorLastStep "nullable"
         bool IsDeleted
         datetime CreatedAt
         datetime UpdatedAt
@@ -114,7 +115,8 @@ erDiagram
 
 - `VaultRole` → `Viewer` (read-only) | `Editor` (read+write)
 - `PasswordEncrypted` and `ContentEncrypted` → AES-256 encrypted, never plaintext
-- `TwoFactorSecret` → TOTP secret, nullable (null = 2FA disabled)
+- `TwoFactorSecret` → base64 TOTP secret, nullable. Set with `TwoFactorEnabled = false` while setup awaits confirmation; null when 2FA is off (D13)
+- `TwoFactorLastStep` → last TOTP time step accepted, so a code can't be reused (D13)
 - `TokenVersion` → copied into every JWT as the `tv` claim; bumping it revokes all of the user's sessions (D12)
 - Every entity inherits `AuditableEntity` (soft delete + timestamps)
 - `Tag` is per user, not global — each user has their own tags

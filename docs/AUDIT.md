@@ -220,7 +220,7 @@ Covered by `TheShed.Tests/Security/AuthRequestValidationTests.cs`.
 | Auto-lock on inactivity | Done (Sprint 30, see A2 above) | — |
 | Re-authentication for sensitive actions | Done (Sprint 30, see A1 above) | — |
 | Rate limiting / progressive lockout on login | Done — by IP, not by email (see A3) | — |
-| 2FA/MFA to unlock the app | Missing — the `TwoFactorEnabled`/`TwoFactorSecret` fields exist on `User` (`TheShed.Shared/Models/Entities/User.cs:13-14`) but no logic uses them | High — planned in Sprint 18 |
+| 2FA/MFA to unlock the app | Done (Sprint 18, TOTP on login, see D13) | — |
 | Built-in TOTP (generator/reader for stored accounts) | Missing | Medium — Sprint 24 |
 | Breach alerts (Have I Been Pwned, k-anonymity) | Missing | Medium — Sprint 24 |
 | Folders/tags/favorites/search | Done (vaults + tags + `IsFavorite` + search by name/username/URL) | — |

@@ -78,7 +78,7 @@ unconditionally if `readText` permission is denied).
 | 2 | ✅ Change master password (N2) | No remedy today if it leaks; cheap thanks to the key hierarchy | S |
 | 3 | ✅ Clipboard auto-clear (N4) | Industry standard, a few lines of JS | XS |
 | 4 | ✅ Sign out everywhere (N3) | Real revocation; one column + one claim | S |
-| 5 | 2FA TOTP (Sprint 18, already planned) | Fields exist on `User`. With zero-knowledge it protects login, not data | M |
+| 5 | ✅ 2FA TOTP (Sprint 18, `feature/2fa-totp`, D13) | Fields exist on `User`. With zero-knowledge it protects login, not data | M |
 | 6 | Recovery key | Forgotten master password = data lost forever. A random printable key that also wraps the private key (like 1Password's Emergency Kit) | M |
 | 7 | Encrypted export (N5) | JSON encrypted with AES-GCM under an export password; keep CSV as an explicit "unencrypted" option | S |
 | 8 | Health: old passwords | `PasswordChangedAt` already exists; flag entries older than 12 months in `Health` | XS |
@@ -91,4 +91,4 @@ unconditionally if `readText` permission is denied).
    `WebApplicationFactory` suite (`TheShed.Tests/Integration/AuthFlowTests.cs`): the server must
    never receive the raw password.
 2. ✅ N4 and N3 (Sprint 35, D12), plus Sprint 23 (orphaned attachments) — `feature/session-hardening`.
-3. Then Sprint 18 (2FA), recovery key, encrypted export, and the rest by value.
+3. ✅ Sprint 18 (2FA, `feature/2fa-totp`). Then recovery key, encrypted export, and the rest by value.
