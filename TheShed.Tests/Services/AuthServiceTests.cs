@@ -20,7 +20,7 @@ namespace TheShed.Tests.Services
 
         private static AuthService CreateService(TheShedContext db) =>
             new(db, new FakePasswordHasher(), new FakeJwtTokenService(),
-                Options.Create(new JwtSettings { Key = "unit-test-signing-key-at-least-32-bytes" }));
+                Options.Create(new JwtSettings { Key = "unit-test-signing-key-at-least-32-bytes" }), TimeProvider.System);
 
         // --- Register ---
 

@@ -25,8 +25,18 @@
             <ValidationMessage For="@(() => _model.Password)" />
         </div>
 
+        @if (_needsCode)
+        {
+            <div class="mb-3">
+                <label class="form-label" for="totp">Authenticator code</label>
+                <InputText id="totp" class="form-control" @bind-Value="_model.TotpCode" inputmode="numeric"
+                           pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required autofocus />
+                <div class="form-text">The 6-digit code from your authenticator app.</div>
+            </div>
+        }
+
         <button type="submit" class="btn btn-primary w-100" disabled="@_busy">
-            @(_busy ? "Signing in…" : "Sign in")
+            @(_busy ? "Signing in…" : _needsCode ? "Verify" : "Sign in")
         </button>
     </EditForm>
 

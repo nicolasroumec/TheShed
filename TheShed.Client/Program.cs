@@ -33,6 +33,7 @@ builder.Services.AddScoped<ModalService>();
 builder.Services.AddScoped<IModalService>(sp => sp.GetRequiredService<ModalService>());
 builder.Services.AddScoped<VaultClient>();
 builder.Services.AddScoped<UserClient>();
+builder.Services.AddScoped<TwoFactorClient>();
 builder.Services.AddScoped<EntryClient>();
 builder.Services.AddScoped<NoteClient>();
 builder.Services.AddScoped<TagClient>();

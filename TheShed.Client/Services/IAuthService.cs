@@ -5,7 +5,9 @@ namespace TheShed.Client.Services
     /// <summary>Outcome of an auth operation. It carries no user data on purpose: after a
     /// success the caller reads the signed-in user from AuthenticationStateProvider, which is
     /// the single source of truth.</summary>
-    public record AuthResult(bool Success, string? Error)
+    /// <param name="TwoFactorRequired">Login only: the password was right but the account has
+    /// 2FA, so the form must ask for (or re-ask for) the authenticator code.</param>
+    public record AuthResult(bool Success, string? Error, bool TwoFactorRequired = false)
     {
         public static AuthResult Ok() => new(true, null);
         public static AuthResult Fail(string error) => new(false, error);

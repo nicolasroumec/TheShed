@@ -16,13 +16,15 @@ namespace TheShed.Server.Services
         private readonly IPasswordHasher _hasher;
         private readonly IJwtTokenService _jwt;
         private readonly byte[] _fakeSaltKey;
+        private readonly TimeProvider _time;
 
         // Same length as IKeyDerivationService.GenerateSalt, so fake and real salts look alike.
         private const int SaltSize = 16;
 
         public AuthService(TheShedContext db, IPasswordHasher hasher, IJwtTokenService jwt,
-            IOptions<JwtSettings> jwtSettings)
+            IOptions<JwtSettings> jwtSettings, TimeProvider time)
         {
+            _time = time;
             _db = db;
             _hasher = hasher;
             _jwt = jwt;
@@ -202,14 +204,14 @@ namespace TheShed.Server.Services
         // Accepts the code only if it's for a step after the last one used, then records that
         // step — the caller saves. ponytail: two concurrent requests with the same code can both
         // pass (no concurrency token); the rate limit makes that window negligible.
-        private static bool TryConsumeCode(User user, string? code)
+        private bool TryConsumeCode(User user, string? code)
         {
             if (user.TwoFactorSecret is null)
             {
                 return false;
             }
 
-            var step = Totp.MatchStep(Convert.FromBase64String(user.TwoFactorSecret), code, DateTimeOffset.UtcNow);
+            var step = Totp.MatchStep(Convert.FromBase64String(user.TwoFactorSecret), code, _time.GetUtcNow());
             if (step is null || step <= user.TwoFactorLastStep)
             {
                 return false;

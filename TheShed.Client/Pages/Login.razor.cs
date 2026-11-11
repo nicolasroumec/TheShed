@@ -15,6 +15,7 @@ public partial class Login
     private readonly LoginRequest _model = new();
     private string? _error;
     private bool _busy;
+    private bool _needsCode;
 
     private async Task HandleSubmit()
     {
@@ -30,7 +31,10 @@ public partial class Login
         }
         else
         {
-            _error = result.Error;
+            // The first "code required" 401 isn't an error, just the next step.
+            _error = result.TwoFactorRequired && !_needsCode ? null : result.Error;
+            _needsCode = result.TwoFactorRequired;
+            _model.TotpCode = null;
         }
     }
 }

@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using TheShed.Server.Data;
 using TheShed.Server.Security;
 using TheShed.Shared.Models.DTOs.Auth;
@@ -9,22 +11,52 @@ using Xunit;
 
 namespace TheShed.Tests.Integration
 {
+    /// <summary>The usual factory with a server clock the test moves by hand, so a TOTP step
+    /// boundary can't pass mid-test and push a minted code out of the window.</summary>
+    public class TwoFactorWebApplicationFactory : CustomWebApplicationFactory
+    {
+        public ManualClock Clock { get; } = new();
+
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            base.ConfigureWebHost(builder);
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(Clock);
+            });
+        }
+
+        /// <summary>Starts at the beginning of the real current step (so JWT/cookie lifetimes,
+        /// which read the same TimeProvider, stay sane) and only moves on Advance.</summary>
+        public sealed class ManualClock : TimeProvider
+        {
+            private DateTimeOffset _now = DateTimeOffset.FromUnixTimeSeconds(
+                Totp.StepAt(DateTimeOffset.UtcNow) * Totp.StepSeconds);
+
+            public override DateTimeOffset GetUtcNow() => _now;
+            public long Step => Totp.StepAt(_now);
+            public void NextStep() => _now = _now.AddSeconds(Totp.StepSeconds);
+        }
+    }
+
     /// <summary>2FA (Sprint 18) end to end: setup → enable → login second step → disable, plus
-    /// replay protection. Codes are minted from the secret the server stored, at the steps the
-    /// server's ±1 window accepts (each step can be used only once).</summary>
-    public class TwoFactorFlowTests : IClassFixture<CustomWebApplicationFactory>
+    /// replay protection. Codes are minted from the secret the server stored; the clock moves
+    /// one step between uses, like a real authenticator app.</summary>
+    public class TwoFactorFlowTests : IClassFixture<TwoFactorWebApplicationFactory>
     {
         private const string Password = "IntegrationTest123!";
-        private readonly CustomWebApplicationFactory _factory;
+        private readonly TwoFactorWebApplicationFactory _factory;
 
-        public TwoFactorFlowTests(CustomWebApplicationFactory factory) => _factory = factory;
+        public TwoFactorFlowTests(TwoFactorWebApplicationFactory factory) => _factory = factory;
+
+        private TwoFactorWebApplicationFactory.ManualClock Clock => _factory.Clock;
 
         [Fact]
         public async Task FullFlow_EnableLoginDisable()
         {
             var client = _factory.CreateAuthenticatedClient();
             var (email, _) = await client.RegisterNewUserAsync(Password);
-            var step = await CurrentStepAwayFromBoundaryAsync();
 
             var setup = await client.PostJsonWithCsrfAsync("api/auth/2fa/setup", new { });
             setup.EnsureSuccessStatusCode();
@@ -35,29 +67,31 @@ namespace TheShed.Tests.Integration
             var secret = await StoredSecretAsync(email);
             Assert.False((await client.GetFromJsonAsync<TwoFactorStatusResponse>("api/auth/2fa"))!.Enabled);
 
-            (await client.PostJsonWithCsrfAsync("api/auth/2fa/enable", Code(secret, step - 1))).EnsureSuccessStatusCode();
+            (await client.PostJsonWithCsrfAsync("api/auth/2fa/enable", Code(secret, Clock.Step))).EnsureSuccessStatusCode();
             Assert.True((await client.GetFromJsonAsync<TwoFactorStatusResponse>("api/auth/2fa"))!.Enabled);
 
             // Password alone is no longer enough.
+            Clock.NextStep();
             var login = _factory.CreateAuthenticatedClient();
             var noCode = await login.PostJsonWithCsrfAsync("api/auth/login", new { Email = email, Password });
             Assert.Equal(HttpStatusCode.Unauthorized, noCode.StatusCode);
             Assert.Contains("twoFactorRequired", await noCode.Content.ReadAsStringAsync());
 
             var wrongCode = await login.PostJsonWithCsrfAsync("api/auth/login",
-                new { Email = email, Password, TotpCode = WrongCode(secret, step) });
+                new { Email = email, Password, TotpCode = WrongCode(secret, Clock.Step) });
             Assert.Equal(HttpStatusCode.Unauthorized, wrongCode.StatusCode);
 
             var withCode = await login.PostJsonWithCsrfAsync("api/auth/login",
-                new { Email = email, Password, TotpCode = Totp.Code(secret, step) });
+                new { Email = email, Password, TotpCode = Totp.Code(secret, Clock.Step) });
             withCode.EnsureSuccessStatusCode();
 
             // Replay: the same code (or an older one) is rejected even though it's still in the window.
             var replay = await _factory.CreateAuthenticatedClient().PostJsonWithCsrfAsync("api/auth/login",
-                new { Email = email, Password, TotpCode = Totp.Code(secret, step) });
+                new { Email = email, Password, TotpCode = Totp.Code(secret, Clock.Step) });
             Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
 
-            (await client.PostJsonWithCsrfAsync("api/auth/2fa/disable", Code(secret, step + 1))).EnsureSuccessStatusCode();
+            Clock.NextStep();
+            (await client.PostJsonWithCsrfAsync("api/auth/2fa/disable", Code(secret, Clock.Step))).EnsureSuccessStatusCode();
             Assert.False((await client.GetFromJsonAsync<TwoFactorStatusResponse>("api/auth/2fa"))!.Enabled);
             Assert.Null(await StoredSecretOrNullAsync(email));
 
@@ -71,12 +105,11 @@ namespace TheShed.Tests.Integration
         {
             var client = _factory.CreateAuthenticatedClient();
             var (email, _) = await client.RegisterNewUserAsync(Password);
-            var step = await CurrentStepAwayFromBoundaryAsync();
             (await client.PostJsonWithCsrfAsync("api/auth/2fa/setup", new { })).EnsureSuccessStatusCode();
             var secret = await StoredSecretAsync(email);
 
             var response = await client.PostJsonWithCsrfAsync("api/auth/2fa/enable",
-                new TwoFactorCodeRequest { Code = WrongCode(secret, step) });
+                new TwoFactorCodeRequest { Code = WrongCode(secret, Clock.Step) });
 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             Assert.False((await client.GetFromJsonAsync<TwoFactorStatusResponse>("api/auth/2fa"))!.Enabled);
@@ -87,10 +120,9 @@ namespace TheShed.Tests.Integration
         {
             var client = _factory.CreateAuthenticatedClient();
             var (email, _) = await client.RegisterNewUserAsync(Password);
-            var step = await CurrentStepAwayFromBoundaryAsync();
             (await client.PostJsonWithCsrfAsync("api/auth/2fa/setup", new { })).EnsureSuccessStatusCode();
             var secret = await StoredSecretAsync(email);
-            (await client.PostJsonWithCsrfAsync("api/auth/2fa/enable", Code(secret, step))).EnsureSuccessStatusCode();
+            (await client.PostJsonWithCsrfAsync("api/auth/2fa/enable", Code(secret, Clock.Step))).EnsureSuccessStatusCode();
 
             // Otherwise a stolen session could swap in an attacker-controlled secret.
             var again = await client.PostJsonWithCsrfAsync("api/auth/2fa/setup", new { });
@@ -115,18 +147,6 @@ namespace TheShed.Tests.Integration
         {
             var valid = new[] { step - 1, step, step + 1 }.Select(s => Totp.Code(secret, s)).ToHashSet();
             return Enumerable.Range(0, 4).Select(i => i.ToString("D6")).First(c => !valid.Contains(c));
-        }
-
-        // The test mints codes for step-1..step+1; if a step boundary passes mid-test, step-1
-        // falls out of the server's window. Waiting out the last few seconds of a step avoids it.
-        private static async Task<long> CurrentStepAwayFromBoundaryAsync()
-        {
-            var secondsIntoStep = DateTimeOffset.UtcNow.ToUnixTimeSeconds() % Totp.StepSeconds;
-            if (secondsIntoStep >= Totp.StepSeconds - 5)
-            {
-                await Task.Delay(TimeSpan.FromSeconds(Totp.StepSeconds - secondsIntoStep + 1));
-            }
-            return Totp.StepAt(DateTimeOffset.UtcNow);
         }
 
         private async Task<byte[]> StoredSecretAsync(string email) =>
