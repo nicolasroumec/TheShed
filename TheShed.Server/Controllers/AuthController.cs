@@ -47,9 +47,14 @@ namespace TheShed.Server.Controllers
         public async Task<IActionResult> Login(LoginRequest request, CancellationToken ct)
         {
             var result = await _auth.LoginAsync(request, ct);
-            if (!result.Success)
+            switch (result.Error)
             {
-                return Unauthorized(new { message = "Invalid credentials." });
+                case AuthError.TwoFactorRequired:
+                    return Unauthorized(new { message = "Enter the code from your authenticator app.", twoFactorRequired = true });
+                case AuthError.InvalidTwoFactorCode:
+                    return Unauthorized(new { message = "Invalid two-factor code.", twoFactorRequired = true });
+                case not AuthError.None:
+                    return Unauthorized(new { message = "Invalid credentials." });
             }
             SetAuthCookie(result);
             return Ok(result.Response);
@@ -119,6 +124,39 @@ namespace TheShed.Server.Controllers
                 EncryptedPrivateKey = encryptedPrivateKey
             });
         }
+
+        [Authorize]
+        [HttpGet("2fa")]
+        public async Task<IActionResult> TwoFactorStatus(CancellationToken ct) =>
+            Ok(new TwoFactorStatusResponse(await _auth.IsTwoFactorEnabledAsync(CurrentUserId, ct)));
+
+        [Authorize]
+        [HttpPost("2fa/setup")]
+        public async Task<IActionResult> TwoFactorSetup(CancellationToken ct)
+        {
+            var setup = await _auth.BeginTwoFactorSetupAsync(CurrentUserId, ct);
+            return setup is null
+                ? Conflict(new { message = "Two-factor authentication is already enabled." })
+                : Ok(setup);
+        }
+
+        // Enable/disable are rate-limited like login: both accept a 6-digit code, which is
+        // brute-forceable without a limit.
+        [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.Auth)]
+        [HttpPost("2fa/enable")]
+        public async Task<IActionResult> TwoFactorEnable(TwoFactorCodeRequest request, CancellationToken ct) =>
+            await _auth.EnableTwoFactorAsync(CurrentUserId, request.Code, ct)
+                ? Ok()
+                : BadRequest(new { message = "Invalid code." });
+
+        [Authorize]
+        [EnableRateLimiting(RateLimitPolicies.Auth)]
+        [HttpPost("2fa/disable")]
+        public async Task<IActionResult> TwoFactorDisable(TwoFactorCodeRequest request, CancellationToken ct) =>
+            await _auth.DisableTwoFactorAsync(CurrentUserId, request.Code, ct)
+                ? Ok()
+                : BadRequest(new { message = "Invalid code." });
 
         [HttpPost("logout")]
         public IActionResult Logout()

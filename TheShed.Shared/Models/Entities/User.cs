@@ -29,7 +29,15 @@ namespace TheShed.Shared.Models.Entities
         public bool IsActive { get; set; } = true;
         public DateTime? LastLoginAt { get; set; }
         public bool TwoFactorEnabled { get; set; } = false;
+        // Base64 of the raw TOTP secret. Set (with TwoFactorEnabled still false) while setup is
+        // pending confirmation; cleared on disable.
+        // ponytail: stored unencrypted — a DB leak lets an attacker mint codes, but they still
+        // need the master password and vault data stays client-encrypted. Wrap it with
+        // ASP.NET Data Protection once a persistent key ring exists in deployment.
         public string? TwoFactorSecret { get; set; }
+
+        // Last TOTP step accepted, so a code can't be used twice (RFC 6238 §5.2).
+        public long? TwoFactorLastStep { get; set; }
 
         public ICollection<Vault> Vaults { get; set; } = [];
         public ICollection<VaultMember> VaultMemberships { get; set; } = [];

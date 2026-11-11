@@ -28,6 +28,18 @@ namespace TheShed.Server.Services
         /// set a master password change must re-wrap.</summary>
         Task<IReadOnlyList<OwnedVaultKey>> GetOwnedVaultKeysAsync(int userId, CancellationToken ct = default);
 
+        Task<bool> IsTwoFactorEnabledAsync(int userId, CancellationToken ct = default);
+
+        /// <summary>Stores a fresh pending secret (replacing any earlier pending one). Null if
+        /// 2FA is already enabled — it must be disabled first.</summary>
+        Task<TwoFactorSetupResponse?> BeginTwoFactorSetupAsync(int userId, CancellationToken ct = default);
+
+        /// <summary>Activates the pending secret if the code matches it.</summary>
+        Task<bool> EnableTwoFactorAsync(int userId, string code, CancellationToken ct = default);
+
+        /// <summary>Turns 2FA off and drops the secret if the code matches.</summary>
+        Task<bool> DisableTwoFactorAsync(int userId, string code, CancellationToken ct = default);
+
         /// <summary>The current user's own keypair (Sprint 27), for Me() — too large to carry
         /// as JWT claims, unlike KeySalt. (null, null) if the user no longer exists.</summary>
         Task<(string? PublicKey, string? EncryptedPrivateKey)> GetKeypairAsync(int userId, CancellationToken ct = default);

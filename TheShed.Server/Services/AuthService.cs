@@ -67,6 +67,20 @@ namespace TheShed.Server.Services
                 return new AuthResult(false, AuthError.InvalidCredentials, null);
             }
 
+            // Only reached with a correct password, so "this account has 2FA" is never revealed
+            // to someone who doesn't already know the password.
+            if (user.TwoFactorEnabled)
+            {
+                if (string.IsNullOrEmpty(request.TotpCode))
+                {
+                    return new AuthResult(false, AuthError.TwoFactorRequired, null);
+                }
+                if (!TryConsumeCode(user, request.TotpCode))
+                {
+                    return new AuthResult(false, AuthError.InvalidTwoFactorCode, null);
+                }
+            }
+
             user.LastLoginAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
 
@@ -134,6 +148,76 @@ namespace TheShed.Server.Services
         private IQueryable<VaultKeyWrap> OwnedWraps(int userId) =>
             _db.VaultKeyWraps.IgnoreQueryFilters()
                 .Where(w => !w.IsDeleted && w.UserId == userId && w.Vault.OwnerId == userId);
+
+        public Task<bool> IsTwoFactorEnabledAsync(int userId, CancellationToken ct = default) =>
+            _db.Users.Where(u => u.Id == userId).Select(u => u.TwoFactorEnabled).FirstOrDefaultAsync(ct);
+
+        public async Task<TwoFactorSetupResponse?> BeginTwoFactorSetupAsync(int userId, CancellationToken ct = default)
+        {
+            var user = await _db.Users.FirstAsync(u => u.Id == userId, ct);
+            if (user.TwoFactorEnabled)
+            {
+                return null;
+            }
+
+            var secret = Totp.GenerateSecret();
+            user.TwoFactorSecret = Convert.ToBase64String(secret);
+            user.TwoFactorLastStep = null;
+            await _db.SaveChangesAsync(ct);
+
+            var base32 = Totp.ToBase32(secret);
+            var issuer = Uri.EscapeDataString("The Shed");
+            var uri = $"otpauth://totp/{issuer}:{Uri.EscapeDataString(user.Email)}?secret={base32}&issuer={issuer}";
+            return new TwoFactorSetupResponse(base32, uri);
+        }
+
+        public async Task<bool> EnableTwoFactorAsync(int userId, string code, CancellationToken ct = default)
+        {
+            var user = await _db.Users.FirstAsync(u => u.Id == userId, ct);
+            if (user.TwoFactorEnabled || !TryConsumeCode(user, code))
+            {
+                return false;
+            }
+
+            user.TwoFactorEnabled = true;
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        public async Task<bool> DisableTwoFactorAsync(int userId, string code, CancellationToken ct = default)
+        {
+            var user = await _db.Users.FirstAsync(u => u.Id == userId, ct);
+            if (!user.TwoFactorEnabled || !TryConsumeCode(user, code))
+            {
+                return false;
+            }
+
+            user.TwoFactorEnabled = false;
+            user.TwoFactorSecret = null;
+            user.TwoFactorLastStep = null;
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+
+        // Accepts the code only if it's for a step after the last one used, then records that
+        // step — the caller saves. ponytail: two concurrent requests with the same code can both
+        // pass (no concurrency token); the rate limit makes that window negligible.
+        private static bool TryConsumeCode(User user, string? code)
+        {
+            if (user.TwoFactorSecret is null)
+            {
+                return false;
+            }
+
+            var step = Totp.MatchStep(Convert.FromBase64String(user.TwoFactorSecret), code, DateTimeOffset.UtcNow);
+            if (step is null || step <= user.TwoFactorLastStep)
+            {
+                return false;
+            }
+
+            user.TwoFactorLastStep = step;
+            return true;
+        }
 
         public async Task<(string? PublicKey, string? EncryptedPrivateKey)> GetKeypairAsync(int userId, CancellationToken ct = default)
         {

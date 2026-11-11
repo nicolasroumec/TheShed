@@ -204,6 +204,18 @@ namespace TheShed.Tests.Controllers
 
             public Task SignOutEverywhereAsync(int userId, CancellationToken ct = default)
                 => throw new NotSupportedException("Covered by AuthFlowTests.");
+
+            public Task<bool> IsTwoFactorEnabledAsync(int userId, CancellationToken ct = default)
+                => throw new NotSupportedException("Covered by TwoFactorFlowTests.");
+
+            public Task<TwoFactorSetupResponse?> BeginTwoFactorSetupAsync(int userId, CancellationToken ct = default)
+                => throw new NotSupportedException("Covered by TwoFactorFlowTests.");
+
+            public Task<bool> EnableTwoFactorAsync(int userId, string code, CancellationToken ct = default)
+                => throw new NotSupportedException("Covered by TwoFactorFlowTests.");
+
+            public Task<bool> DisableTwoFactorAsync(int userId, string code, CancellationToken ct = default)
+                => throw new NotSupportedException("Covered by TwoFactorFlowTests.");
         }
     }
 }
