@@ -104,6 +104,7 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // Application services — authentication (Scoped: depends on TheShedContext)
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // Application services — user lookups (public key by email, Sprint 27; Scoped: depends on TheShedContext)

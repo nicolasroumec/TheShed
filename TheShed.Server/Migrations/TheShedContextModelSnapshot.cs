@@ -297,6 +297,9 @@ namespace TheShed.Server.Migrations
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
+                    b.Property<long?>("TwoFactorLastStep")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("TwoFactorSecret")
                         .HasColumnType("nvarchar(max)");
 

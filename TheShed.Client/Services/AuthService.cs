@@ -59,11 +59,13 @@ namespace TheShed.Client.Services
             var response = await _http.PostAsJsonAsync("api/auth/login", new LoginRequest
             {
                 Email = request.Email,
-                Password = AuthHash.Compute(stretchedMasterKey)
+                Password = AuthHash.Compute(stretchedMasterKey),
+                TotpCode = string.IsNullOrWhiteSpace(request.TotpCode) ? null : request.TotpCode.Trim()
             });
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                return AuthResult.Fail(await ReadErrorAsync(response, "Invalid credentials."));
+                var (message, twoFactorRequired) = await ReadErrorBodyAsync(response, "Invalid credentials.");
+                return new AuthResult(false, message, twoFactorRequired);
             }
             return await HandleSuccessAsync(response, async r =>
             {
@@ -251,7 +253,12 @@ namespace TheShed.Client.Services
             return AuthResult.Ok();
         }
 
-        private static async Task<string> ReadErrorAsync(HttpResponseMessage response, string fallback)
+        private static async Task<string> ReadErrorAsync(HttpResponseMessage response, string fallback) =>
+            (await ReadErrorBodyAsync(response, fallback)).Message;
+
+        // The server's { message, twoFactorRequired? } error shape (see AuthController.Login).
+        private static async Task<(string Message, bool TwoFactorRequired)> ReadErrorBodyAsync(
+            HttpResponseMessage response, string fallback)
         {
             try
             {
@@ -259,17 +266,17 @@ namespace TheShed.Client.Services
                 if (!string.IsNullOrWhiteSpace(body))
                 {
                     using var doc = JsonDocument.Parse(body);
-                    if (doc.RootElement.TryGetProperty("message", out var message))
-                    {
-                        return message.GetString() ?? fallback;
-                    }
+                    var root = doc.RootElement;
+                    var message = root.TryGetProperty("message", out var m) ? m.GetString() ?? fallback : fallback;
+                    var twoFactor = root.TryGetProperty("twoFactorRequired", out var t) && t.ValueKind == JsonValueKind.True;
+                    return (message, twoFactor);
                 }
             }
             catch (JsonException)
             {
                 // Non-JSON body: fall through to the default message.
             }
-            return fallback;
+            return (fallback, false);
         }
     }
 }

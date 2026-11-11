@@ -47,6 +47,12 @@ namespace TheShed.Tests.Integration
                 services.RemoveAll<IDbContextOptionsConfiguration<TheShedContext>>();
 
                 services.AddDbContext<TheShedContext>(options => options.UseSqlite(_connection));
+
+                // TrashPurgeService runs a purge cycle right at startup, racing CreateHost's
+                // EnsureCreated on the one shared SqliteConnection (not thread-safe: "concurrent
+                // update ... corrupted its state", ~1 in 6 runs). No test relies on it running;
+                // purge logic is covered by calling TrashService directly.
+                services.RemoveAll<IHostedService>();
             });
         }
 

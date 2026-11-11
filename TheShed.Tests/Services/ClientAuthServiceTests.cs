@@ -110,6 +110,44 @@ namespace TheShed.Tests.Services
             Assert.Equal("hunter2-master", form.Password); // the form's model is left alone
         }
 
+        // --- Sprint 18: 2FA second step ---
+
+        [Fact]
+        public async Task LoginAsync_WhenTheServerAsksForA2faCode_ReportsItWithoutStoringKeys()
+        {
+            var (auth, handler, keyStore) = BuildRecording();
+            handler.LoginResponse = (HttpStatusCode.Unauthorized,
+                """{"message":"Enter the code from your authenticator app.","twoFactorRequired":true}""");
+
+            var result = await auth.LoginAsync(new LoginRequest { Email = "nico@example.com", Password = "hunter2-master" });
+
+            Assert.False(result.Success);
+            Assert.True(result.TwoFactorRequired);
+            Assert.Null(keyStore.Get());
+        }
+
+        [Fact]
+        public async Task LoginAsync_PlainInvalidCredentials_IsNotA2faPrompt()
+        {
+            var (auth, handler, _) = BuildRecording();
+            handler.LoginResponse = (HttpStatusCode.Unauthorized, """{"message":"Invalid credentials."}""");
+
+            var result = await auth.LoginAsync(new LoginRequest { Email = "nico@example.com", Password = "wrong" });
+
+            Assert.False(result.TwoFactorRequired);
+            Assert.Equal("Invalid credentials.", result.Error);
+        }
+
+        [Fact]
+        public async Task LoginAsync_SendsTheTotpCodeTrimmed()
+        {
+            var (auth, handler, _) = BuildRecording();
+
+            await auth.LoginAsync(new LoginRequest { Email = "nico@example.com", Password = "hunter2-master", TotpCode = " 123456 " });
+
+            Assert.Contains("\"totpCode\":\"123456\"", handler.BodyOf("api/auth/login"));
+        }
+
         [Fact]
         public async Task RegisterAsync_SendsTheAuthHashNotTheMasterPassword()
         {
@@ -194,6 +232,9 @@ namespace TheShed.Tests.Services
             public string BodyOf(string path) => _bodies[path];
             public bool Sent(string path) => _bodies.ContainsKey(path);
 
+            // Overrides the login response, e.g. the 2FA "code required" 401.
+            public (HttpStatusCode Status, string Body)? LoginResponse { get; set; }
+
             protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             {
                 var path = request.RequestUri!.AbsolutePath.TrimStart('/');
@@ -204,7 +245,12 @@ namespace TheShed.Tests.Services
                     "api/auth/owned-vault-keys" => """[{"vaultId":7,"wrappedKey":"vault-7-wrap"}]""",
                     _ => authBody
                 };
-                return new HttpResponseMessage(HttpStatusCode.OK)
+                var status = HttpStatusCode.OK;
+                if (path == "api/auth/login" && LoginResponse is { } login)
+                {
+                    (status, body) = login;
+                }
+                return new HttpResponseMessage(status)
                 {
                     Content = new StringContent(body, Encoding.UTF8, "application/json")
                 };
